@@ -8,7 +8,7 @@ class Reader(Protocol):
     def __init__(self, queue):
         self.thread = None
         self.running = False
-	self.queue = queue
+        self.queue = queue
    
 
     @abstractmethod 

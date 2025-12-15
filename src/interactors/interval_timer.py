@@ -11,11 +11,11 @@ class IntervalTimer:
             self.runners_by_lap_id[runner.lap_id] = runner
         self.thread = None
         self.running = False
+        self.observers = []
 
     def _run(self):
         while(self.running or not self.lap_queue.empty() or not self.start_queue.empty()):
             start_q_size = self.start_queue.qsize()
-            print(f"Start queue size: {start_q_size}")
             for i in range(0, start_q_size):
                 try:
                     start_event = self.start_queue.get_nowait()

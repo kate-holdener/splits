@@ -10,8 +10,6 @@ class Reader(Protocol):
         self.running = False
         self.queue = queue
    
-
-    @abstractmethod 
     def _run(self):
         raise NotImplementedError
  

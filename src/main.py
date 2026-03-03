@@ -2,10 +2,13 @@ from interactors.interval_timer import IntervalTimer
 from entity.runner import Runner
 from entity.event import Event
 from view.timer_view import TimerView
-
+from parser.runner_parser import parse_runner_data
+from controller.start_controller import ManualStartController
 from queue import Queue
 from time import sleep
 import random
+import argparse
+
 
 def update_lap_times(elapsed_time, runner_laps, lap_time_queue):
     for runner, lap_time in runner_laps:
@@ -14,23 +17,21 @@ def update_lap_times(elapsed_time, runner_laps, lap_time_queue):
             event.timestamp = elapsed_time
             event.id = runner.lap_id
             lap_time_queue.put(event)
-def main():
+
+def main(runner_file):
     start_time_queue = Queue()
     lap_time_queue = Queue()
-    runners = []  # Initialize with actual runner objects
-    for i in range(10):
-        runner = Runner()
-        runner.name = f"Runner_{i+1}"
-        runner.start_id = i
-        runner.lap_id = i + 100
-        runners.append(runner)
+    manual_start_controller = ManualStartController(start_time_queue)
+
+    runners = parse_runner_data(runner_file)
+
+    print(runners)
 
     start_time = 100
-    for i in range(len(runners)):
-        event = Event()
-        event.timestamp = start_time
-        event.id = i
-        start_time_queue.put(event)
+    start_ids = []
+    for runner in runners:
+        start_ids.append(runner.start_id)
+    manual_start_controller.start_runners(start_ids, start_time)
 
     timer_view = TimerView()
     for runner in runners:
@@ -41,8 +42,8 @@ def main():
 
     lap_times = []
     runner_laps = []
+    # Generate random lap times for each runner
     for i in range(len(runners)):
-        event = Event()
         seconds_per_lap = random.randint(5, 30)
         lap_times.append(seconds_per_lap)
         runner_laps.append((runners[i], seconds_per_lap))
@@ -58,4 +59,10 @@ def main():
     sleep(10)
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser(description="Interval training runner")
+    parser.add_argument("runner_file", help="Path to runner data file")
+    args = parser.parse_args()
+
+    # If main accepts a parameter, pass the filename; otherwise set env var and call main()
+    main(args.runner_file)

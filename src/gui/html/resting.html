@@ -1,0 +1,292 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Resting Runners</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --bg:#080b0e;
+    --panel:#0f1318;
+    --border:#2a3444;
+    --accent:#ffaa00;
+    --text:#f0f4ff;
+    --muted:#8a9ab8;
+    --radius:6px;
+    --font-head:'Barlow Condensed',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:var(--font-mono);font-size:15px;
+    height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  }
+
+  /* ---- header ---- */
+  #header{
+    display:flex;align-items:center;gap:14px;
+    padding:13px 22px;border-bottom:1px solid var(--border);
+    background:#0b0e14;flex-shrink:0;
+  }
+  .logo{
+    font-family:var(--font-head);font-size:22px;font-weight:900;
+    letter-spacing:2px;color:var(--accent);text-transform:uppercase;
+  }
+  .logo span{color:#8a9ab8}
+  #runner-count{
+    margin-left:auto;font-family:var(--font-head);
+    font-size:40px;font-weight:900;color:var(--accent);line-height:1;
+  }
+  #count-label{
+    font-size:11px;letter-spacing:2px;color:var(--muted);
+    text-transform:uppercase;text-align:right;margin-top:2px;
+  }
+
+  /* ---- ticker strip ---- */
+  #ticker-wrap{
+    border-bottom:1px solid var(--border);background:#0b0e14;
+    overflow:hidden;height:34px;flex-shrink:0;
+  }
+  #ticker{
+    display:flex;align-items:center;height:100%;
+    white-space:nowrap;
+    animation:scroll-left 20s linear infinite;
+    font-size:12px;letter-spacing:1px;color:var(--muted);
+  }
+  #ticker span{margin-right:60px;color:var(--accent)}
+  @keyframes scroll-left{
+    0%{transform:translateX(100vw)} 100%{transform:translateX(-100%)}
+  }
+
+  /* ---- list area ---- */
+  #list-area{
+    flex:1;overflow-y:auto;padding:16px 20px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+
+  /* ---- runner card ---- */
+  .runner-card{
+    display:flex;align-items:center;gap:16px;
+    padding:15px 18px;background:var(--panel);
+    border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:var(--radius);
+    transition:border-color .2s, background .2s;
+  }
+  .runner-card:hover{background:#151a20;border-left-color:#ffc133}
+  .runner-card.urgent{border-left-color:#ff4d7a}
+  .runner-card.done{border-left-color:#00f0a0}
+
+  /* ---- countdown ring ---- */
+  .ring-wrap{position:relative;width:64px;height:64px;flex-shrink:0}
+  .ring-wrap svg{transform:rotate(-90deg)}
+  .ring-bg{fill:none;stroke:#2a3444;stroke-width:5}
+  .ring-fg{fill:none;stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .9s linear,stroke .3s}
+  .ring-label{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  .ring-secs{font-family:var(--font-head);font-size:20px;font-weight:900;line-height:1}
+  .ring-unit{font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:1px}
+
+  /* ---- runner info ---- */
+  .runner-info{flex:1}
+  .runner-name{
+    font-family:var(--font-head);font-size:20px;font-weight:700;
+    letter-spacing:1px;color:var(--text);
+  }
+  .runner-meta{display:flex;gap:16px;margin-top:4px}
+  .runner-meta span{font-size:11px;color:var(--muted);letter-spacing:1px}
+  .runner-meta code{color:#aab8cc;font-family:var(--font-mono)}
+
+  .rest-badge{
+    padding:5px 14px;border-radius:20px;
+    font-family:var(--font-head);font-size:13px;font-weight:700;letter-spacing:1px;
+    background:#ffaa0025;color:var(--accent);border:1px solid #ffaa0055;
+    text-transform:uppercase;flex-shrink:0;
+  }
+
+  /* ---- empty state ---- */
+  #empty{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    flex:1;color:var(--muted);gap:12px;padding:40px;
+  }
+  #empty .icon{font-size:52px;opacity:.3}
+  #empty .msg{font-family:var(--font-head);font-size:20px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+  #empty .sub{font-size:13px;letter-spacing:1px;color:#3d4e66}
+
+  /* ---- footer ---- */
+  #footer{
+    border-top:1px solid var(--border);background:#0b0e14;
+    padding:8px 22px;display:flex;align-items:center;gap:8px;
+    flex-shrink:0;font-size:11px;color:var(--muted);letter-spacing:1px;
+  }
+  .dot{
+    width:8px;height:8px;border-radius:50%;background:var(--accent);
+    animation:pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div class="logo">Resting <span>Runners</span></div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:3px">LIVE · AUTO-REFRESH 1s</div>
+  </div>
+  <div style="margin-left:auto;text-align:right">
+    <div id="runner-count">0</div>
+    <div id="count-label">Resting</div>
+  </div>
+</div>
+
+<div id="ticker-wrap">
+  <div id="ticker">
+    <span>REST PERIOD</span> Awaiting athletes…
+    <span>↻</span> Live feed active
+    <span>⏱</span> Recovery tracking
+    <span>REST PERIOD</span> Awaiting athletes…
+  </div>
+</div>
+
+<div id="list-area">
+  <div id="empty">
+    <div class="icon">🏃</div>
+    <div class="msg">No Resting Athletes</div>
+    <div class="sub">Athletes in rest period will appear here</div>
+  </div>
+</div>
+
+<div id="footer">
+  <div class="dot"></div>
+  <span>LIVE FEED</span>
+  <span id="last-update" style="margin-left:auto"></span>
+</div>
+
+<script>
+const RING_R = 27;
+const RING_C = 2 * Math.PI * RING_R;
+
+function initials(name){
+  if(!name) return '?';
+  return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+function timerStyle(secsLeft, duration){
+  const pct = secsLeft / duration;
+  if(secsLeft <= 0)  return { color:'#00f0a0', cardClass:'done' };
+  if(pct <= 0.2)     return { color:'#ff4d7a', cardClass:'urgent' };
+  if(pct <= 0.5)     return { color:'#ffbb33', cardClass:'' };
+  return               { color:'#00e5ff',  cardClass:'' };
+}
+
+function ringHTML(secsLeft, duration){
+  const clamped  = Math.max(0, secsLeft);
+  const pct      = duration > 0 ? Math.min(1, clamped / duration) : 0;
+  const offset   = RING_C * (1 - pct);
+  const { color } = timerStyle(secsLeft, duration);
+  const label    = secsLeft <= 0 ? 'GO'  : Math.ceil(clamped);
+  const unit     = secsLeft <= 0 ? ''    : 'sec';
+  const labelColor = secsLeft <= 0 ? '#00f0a0' : color;
+  return `
+    <div class="ring-wrap">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle class="ring-bg" cx="32" cy="32" r="${RING_R}"/>
+        <circle class="ring-fg"
+          cx="32" cy="32" r="${RING_R}"
+          stroke="${color}"
+          stroke-dasharray="${RING_C}"
+          stroke-dashoffset="${offset}"/>
+      </svg>
+      <div class="ring-label">
+        <span class="ring-secs" style="color:${labelColor}">${label}</span>
+        <span class="ring-unit">${unit}</span>
+      </div>
+    </div>`;
+}
+
+async function refresh(){
+  try{
+    const r = await pywebview.api.get_resting();
+    if(!r){ setStatus('No response'); return; }
+    if(!r.ok){ setStatus('Error: '+(r.msg||'unknown')); return; }
+
+    const athletes = r.athletes || [];
+    document.getElementById('runner-count').textContent = athletes.length;
+    setStatus('Updated '+new Date().toLocaleTimeString());
+
+    const area = document.getElementById('list-area');
+
+    if(!athletes.length){
+      area.innerHTML = `
+        <div id="empty">
+          <div class="icon">🏃</div>
+          <div class="msg">No Resting Athletes</div>
+          <div class="sub">Athletes in rest period will appear here</div>
+        </div>`;
+      updateTicker([]);
+      return;
+    }
+
+    area.innerHTML = athletes.map(a => {
+      const elapsed  = a.rest_elapsed  || 0;
+      const duration = a.rest_duration || 90;
+      const secsLeft = duration - elapsed;
+      const { cardClass } = timerStyle(secsLeft, duration);
+      return `
+        <div class="runner-card ${cardClass}">
+          ${ringHTML(secsLeft, duration)}
+          <div class="runner-info">
+            <div class="runner-name">${a.name || '—'}</div>
+            <div class="runner-meta">
+              <span>ID <code>${a.id||'—'}</code></span>
+              <span>LAP <code>${a.lap_id||'—'}</code></span>
+              <span>START <code>${a.start_id||'—'}</code></span>
+            </div>
+          </div>
+          <div class="rest-badge">${secsLeft > 0 ? 'Resting' : 'Ready'}</div>
+        </div>`;
+    }).join('');
+
+    updateTicker(athletes);
+  } catch(e){
+    setStatus('Error: '+e.message);
+  }
+}
+
+function setStatus(msg){
+  document.getElementById('last-update').textContent = msg;
+}
+
+function updateTicker(athletes){
+  const ticker = document.getElementById('ticker');
+  if(!athletes.length){
+    ticker.innerHTML = '<span>REST PERIOD</span> Awaiting athletes… <span>↻</span> Live feed active <span>⏱</span> Recovery tracking <span>REST PERIOD</span> Awaiting athletes…';
+    return;
+  }
+  const names = athletes.map(a=>a.name||a.id).join('  ·  ');
+  ticker.innerHTML = `<span>RESTING</span>${names}&nbsp;&nbsp;&nbsp;<span>RESTING</span>${names}`;
+}
+
+let _started = false;
+function tryStart(){
+  if(_started) return;
+  if(window.pywebview && window.pywebview.api && window.pywebview.api.get_resting){
+    _started = true;
+    refresh();
+    setInterval(refresh, 1000);
+  } else {
+    setTimeout(tryStart, 250);
+  }
+}
+window.addEventListener('pywebviewready', tryStart);
+tryStart();
+</script>
+</body>
+</html>

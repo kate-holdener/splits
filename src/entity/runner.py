@@ -68,17 +68,16 @@ class Runner:
         runner's status to RUNNING, resets the lap count, and notifies any observers 
         of the state change.
 
+        If the runner was already running, we abandon the last interval (it remains as incomplete)
+        and create a new interval.
+
         Args:
             timestamp (int): The time at which the interval is starting (milliseconds since epoch UTC).
-
-        Raises:
-            ValueError: If the runner is already in the RUNNING state.
         """
-        if self.current_status == RunnerState.RUNNING:
-            raise ValueError
+
         interval = Interval()
         interval.distance = self.current_workout.interval_distance
-        interval.start_time = timestamp
+        interval.start(timestamp)
         self.intervals.append(interval)
         self.last_seen_timestamp = timestamp
         self.current_status = RunnerState.RUNNING
@@ -110,8 +109,16 @@ class Runner:
         if self.current_status == RunnerState.RUNNING and timestamp > self.last_seen_timestamp:
             self.lap_count+=1
             if self.lap_count == self.current_workout.laps_per_interval:
-                self.intervals[len(self.intervals) - 1].end_time = timestamp
+                self.intervals[len(self.intervals) - 1].finish(timestamp)
                 self.current_status = RunnerState.RESTING
+                interval = self.intervals[len(self.intervals)-1]
+                print(f"Runner interval {interval.start_time} - {interval.end_time}")
                 self.notify_observers()
                 #print(f"Runner {self.name} ended interval at {timestamp}")
             self.last_seen_timestamp = timestamp
+
+    def to_dict(self):
+        return {'first name': self.name, 
+                'last name': self.lname, 
+                'start tag': self.start_id,
+                'finish tag': self.lap_id}

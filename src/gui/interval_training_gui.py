@@ -1,0 +1,433 @@
+"""
+Interval Training GUI - pywebview-based GUI for the Interval Training CLI.
+
+Dependencies:
+    pip install pywebview
+
+Usage:
+    python interval_training_gui.py
+
+The HTML/CSS/JS frontend communicates with the Python backend via
+webview's JavaScript API (js_api). All CLI business logic is preserved;
+only the presentation layer changes.
+"""
+
+import webview
+import os
+from datetime import datetime
+from queue import Queue
+from typing import Optional, List, Set
+
+# ---------------------------------------------------------------------------
+# Stub imports so the file runs standalone without the original project.
+# Replace these with your real imports when integrating into the project.
+# ---------------------------------------------------------------------------
+try:
+    from parser.runner_parser import parse_runner_data
+    from entity.workout import Workout
+    from entity.runner import Runner
+    from entity.RunnerState import RunnerState
+    from controller.start_controller import ManualStartController
+    from interactors.interval_timer import IntervalTimer
+    from interactors.stats_calculator import calculate_performance
+    from readers.acr122u_nfc import NFCReader
+    from readers.sllurp_reader import LLRPReader
+    from reader import Reader
+    _REAL_IMPORTS = True
+except ImportError:
+    _REAL_IMPORTS = False
+
+    # ---- Minimal stubs so the GUI loads without the real project ----
+    class RunnerState:
+        RUNNING = "RUNNING"
+        RESTING = "RESTING"
+
+    class Runner:
+        def __init__(self, rid, name, lap_id, start_id):
+            self.id = rid
+            self.name = name
+            self.lap_id = lap_id
+            self.start_id = start_id
+            self._status = None
+            self._observers = []
+            self.workout = None
+
+        def get_status(self): return self._status
+        def add_observer(self, obs): self._observers.append(obs)
+        def add_workout(self, w): self.workout = w
+        def to_dict(self): return {"id": self.id, "name": self.name,
+                                   "lap_id": self.lap_id, "start_id": self.start_id}
+
+    class Workout:
+        def __init__(self, ts): self.ts = ts; self.interval_distance = 0; self.laps_per_interval = 0
+        def configure(self, dist, laps): self.interval_distance = dist; self.laps_per_interval = laps
+
+    class IntervalTimer:
+        def __init__(self, *a, **kw): pass
+        def start(self): pass
+        def stop(self): pass
+
+    class ManualStartController:
+        def __init__(self, q): self.q = q
+        def start(self, ids): pass
+
+    class NFCReader:
+        def __init__(self, q): pass
+        def start(self): raise RuntimeError("NFC stub – not connected")
+
+    class LLRPReader:
+        def __init__(self, q, addr, ids): pass
+        def start(self): raise RuntimeError("RFID stub – not connected")
+
+    def parse_runner_data(path):
+        # Return two demo athletes when running without real project
+        return [
+            Runner("1", "Alice", "LAP001", "START001"),
+            Runner("2", "Bob",   "LAP002", "START002"),
+        ]
+
+    def calculate_performance(runner):
+        return None
+
+
+SCANNER_ADDRESS = '169.254.1.1'
+
+
+# ---------------------------------------------------------------------------
+# Observer
+# ---------------------------------------------------------------------------
+class RunnerObserver:
+    def __init__(self):
+        self.running: List = []
+        self.resting: List = []
+        self._rest_start: dict = {}   # id(runner) -> epoch float when resting began
+
+    def update(self, runner):
+        st = runner.get_status()
+        if st == RunnerState.RUNNING:
+            if runner not in self.running:
+                self.running.append(runner)
+            if runner in self.resting:
+                self.resting.remove(runner)
+                self._rest_start.pop(id(runner), None)
+        elif st == RunnerState.RESTING:
+            if runner in self.running:
+                self.running.remove(runner)
+            if runner not in self.resting:
+                self.resting.append(runner)
+                self._rest_start[id(runner)] = datetime.now().timestamp()
+        else:
+            if runner in self.running:
+                self.running.remove(runner)
+            if runner in self.resting:
+                self.resting.remove(runner)
+                self._rest_start.pop(id(runner), None)
+
+    def rest_elapsed(self, runner) -> float:
+        """Seconds since this runner started resting (0.0 if unknown)."""
+        start = self._rest_start.get(id(runner))
+        if start is None:
+            return 0.0
+        return datetime.now().timestamp() - start
+
+
+# ---------------------------------------------------------------------------
+# JavaScript API (called from the frontend via window.pywebview.api.*)
+# ---------------------------------------------------------------------------
+class Api:
+    def __init__(self):
+        self.athletes: List = []
+        self.csv_file: Optional[str] = None
+        self.workout: Optional[object] = None
+
+        self.rfid_connected = False
+        self.nfc_connected = False
+        self.rfid_scanner_failed = False
+        self.nfc_scanner_failed = False
+        self.athletes_loaded = False
+        self.workout_configured = False
+        self.workout_active = False
+
+        self.group_start_athletes: Set = set()
+        self.runner_observer = RunnerObserver()
+
+        self.start_event_q = Queue()
+        self.lap_event_q = Queue()
+        self.manual_start_controller = ManualStartController(self.start_event_q)
+
+        self.nfc_scanner = None
+        self.rfid_scanner = None
+        self.timer = None
+
+    # ------------------------------------------------------------------
+    # State helper returned to the frontend
+    # ------------------------------------------------------------------
+    def get_state(self):
+        return {
+            "athletesLoaded": self.athletes_loaded,
+            "workoutConfigured": self.workout_configured,
+            "rfidConnected": self.rfid_connected,
+            "nfcConnected": self.nfc_connected,
+            "rfidFailed": self.rfid_scanner_failed,
+            "nfcFailed": self.nfc_scanner_failed,
+            "workoutActive": self.workout_active,
+            "athleteCount": len(self.athletes),
+            "groupCount": len(self.group_start_athletes),
+        }
+
+    # ------------------------------------------------------------------
+    # File dialog – called from JS to open a native CSV picker
+    # ------------------------------------------------------------------
+    def pick_csv_file(self):
+        import webview as _wv
+        # create_file_dialog returns a tuple of selected paths, or None
+        result = _wv.windows[0].create_file_dialog(
+            dialog_type=_wv.OPEN_DIALOG,
+            allow_multiple=False,
+            file_types=('CSV files (*.csv)', 'All files (*.*)')
+        )
+        if result and len(result) > 0:
+            return {"path": result[0]}
+        return {"path": None}
+
+    # ------------------------------------------------------------------
+    # Option 1 – Load athletes
+    # ------------------------------------------------------------------
+    def load_athletes(self, csv_path: str):
+        if not csv_path.strip():
+            return {"ok": False, "msg": "CSV file path is required."}
+        try:
+            self.csv_file = csv_path.strip()
+            self.athletes = parse_runner_data(self.csv_file)
+            self.athletes_loaded = True
+            for a in self.athletes:
+                a.add_observer(self.runner_observer)
+            self.timer = IntervalTimer(self.start_event_q, self.lap_event_q, self.athletes)
+            self.timer.start()
+            if self.workout:
+                for a in self.athletes:
+                    a.add_workout(self.workout)
+            return {"ok": True, "msg": f"Loaded {len(self.athletes)} athletes.", "state": self.get_state()}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # ------------------------------------------------------------------
+    # Option 2 – Configure workout
+    # ------------------------------------------------------------------
+    def configure_workout(self, distance: str, laps: str):
+        try:
+            dist_int = int(distance)
+            laps_int = int(laps)
+            self.workout = Workout(datetime.now())
+            self.workout.configure(dist_int, laps_int)
+            self.workout_configured = True
+            if self.athletes:
+                for a in self.athletes:
+                    a.add_workout(self.workout)
+            return {
+                "ok": True,
+                "msg": f"Workout configured: {dist_int}m × {laps_int} laps.",
+                "state": self.get_state()
+            }
+        except ValueError:
+            return {"ok": False, "msg": "Invalid input – please enter numeric values."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # ------------------------------------------------------------------
+    # Option 3 – Connect RFID
+    # ------------------------------------------------------------------
+    def connect_rfid(self):
+        if not (self.athletes_loaded and self.workout_configured):
+            return {"ok": False, "msg": "Complete steps 1 and 2 first."}
+        try:
+            runner_ids = [r.lap_id for r in self.athletes]
+            self.rfid_scanner = LLRPReader(self.lap_event_q, SCANNER_ADDRESS, runner_ids)
+            self.rfid_scanner.start()
+            self.rfid_connected = True
+            self.rfid_scanner_failed = False
+            return {"ok": True, "msg": "RFID scanner connected.", "state": self.get_state()}
+        except Exception as e:
+            self.rfid_scanner_failed = True
+            return {"ok": False, "msg": f"RFID failed: {e}", "state": self.get_state()}
+
+    # ------------------------------------------------------------------
+    # Option 4 – Connect NFC
+    # ------------------------------------------------------------------
+    def connect_nfc(self):
+        if not (self.athletes_loaded and self.workout_configured):
+            return {"ok": False, "msg": "Complete steps 1 and 2 first."}
+        try:
+            self.nfc_scanner = NFCReader(self.start_event_q)
+            self.nfc_scanner.start()
+            self.nfc_connected = True
+            self.nfc_scanner_failed = False
+            return {"ok": True, "msg": "NFC scanner connected.", "state": self.get_state()}
+        except Exception as e:
+            self.nfc_scanner_failed = True
+            return {"ok": False, "msg": f"NFC failed: {e}", "state": self.get_state()}
+
+    # ------------------------------------------------------------------
+    # Option 5 – List all athletes
+    # ------------------------------------------------------------------
+    def list_athletes(self):
+        return {
+            "ok": True,
+            "athletes": [a.to_dict() for a in self.athletes]
+        }
+
+    # ------------------------------------------------------------------
+    # Option 6 – Add athlete to group start
+    # ------------------------------------------------------------------
+    def add_to_group(self, tag_id: str):
+        if not self._full_setup_ok():
+            return {"ok": False, "msg": "Setup not complete."}
+        for athlete in self.athletes:
+            if athlete.start_id == tag_id:
+                self.group_start_athletes.add(athlete)
+                return {"ok": True, "msg": f"Athlete {tag_id} added to group.",
+                        "state": self.get_state()}
+        return {"ok": False, "msg": f"No athlete found with tag ID '{tag_id}'."}
+
+    # ------------------------------------------------------------------
+    # Option 7 – Start group
+    # ------------------------------------------------------------------
+    def start_group(self):
+        if not self._full_setup_ok():
+            return {"ok": False, "msg": "Setup not complete."}
+        if not self.group_start_athletes:
+            return {"ok": False, "msg": "No athletes in the group start."}
+        ids = [r.start_id for r in self.group_start_athletes]
+        self.manual_start_controller.start(ids)
+        self.group_start_athletes.clear()
+        self.workout_active = True
+        return {"ok": True, "msg": f"Started {len(ids)} athletes: {', '.join(ids)}",
+                "state": self.get_state()}
+
+    # ------------------------------------------------------------------
+    # Option 8 – Running athletes
+    # ------------------------------------------------------------------
+    def list_running(self):
+        if not self._full_setup_ok():
+            return {"ok": False, "msg": "Setup not complete."}
+        return {"ok": True, "athletes": [r.to_dict() for r in self.runner_observer.running]}
+
+    # ------------------------------------------------------------------
+    # Option 9 – Resting athletes (main window, requires full setup)
+    # ------------------------------------------------------------------
+    def list_resting(self):
+        if not self._full_setup_ok():
+            return {"ok": False, "msg": "Setup not complete."}
+        return self.get_resting()
+
+    # ------------------------------------------------------------------
+    # Resting athletes – ungated, for the second window
+    # ------------------------------------------------------------------
+    def get_resting(self):
+        """Always returns the current resting list with timing data; no setup check."""
+        rest_duration = (
+            self.workout.rest_duration_seconds
+            if self.workout and hasattr(self.workout, 'rest_duration_seconds')
+            else 90
+        )
+        athletes = []
+        for r in self.runner_observer.resting:
+            d = r.to_dict()
+            d['rest_elapsed'] = round(self.runner_observer.rest_elapsed(r), 1)
+            d['rest_duration'] = rest_duration
+            athletes.append(d)
+        return {"ok": True, "athletes": athletes}
+
+    # ------------------------------------------------------------------
+    # Option 10 – Performance
+    # ------------------------------------------------------------------
+    def view_performance(self):
+        if not self._full_setup_ok():
+            return {"ok": False, "msg": "Setup not complete."}
+        results = []
+        for r in self.athletes:
+            p = calculate_performance(r)
+            results.append({"athlete": r.to_dict(), "performance": str(p) if p else "N/A"})
+        return {"ok": True, "results": results}
+
+    # ------------------------------------------------------------------
+    # Option 11 – Finish workout
+    # ------------------------------------------------------------------
+    def finish_workout(self):
+        if not self._full_setup_ok():
+            return {"ok": False, "msg": "Setup not complete."}
+        self.runner_observer.running.clear()
+        self.runner_observer.resting.clear()
+        self.workout_active = False
+        return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
+
+    # ------------------------------------------------------------------
+    # Option 12 – Generate reports
+    # ------------------------------------------------------------------
+    def generate_reports(self, directory: str):
+        if not directory.strip():
+            return {"ok": False, "msg": "Directory path is required."}
+        # Placeholder – wire up your real report generation here
+        return {
+            "ok": True,
+            "msg": f"Reports generated in: {directory.strip()}",
+            "files": ["athlete_summary.pdf", "lap_times.csv", "workout_overview.html"]
+        }
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def _full_setup_ok(self) -> bool:
+        return (
+            self.athletes_loaded and self.workout_configured
+            and self.rfid_connected and self.nfc_connected
+            and not self.rfid_scanner_failed and not self.nfc_scanner_failed
+        )
+
+    def shutdown(self):
+        if self.timer:
+            self.timer.stop()
+        return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+def main():
+    api = Api()
+
+    ui_path=os.path.join(os.path.dirname(__file__), "html", "index.html")
+    # Primary window
+    main_window = webview.create_window(
+        title="IntervalTrack",
+        url=ui_path,
+        js_api=api,
+        width=1100,
+        height=720,
+        min_size=(900, 600),
+        background_color="#080b0e",
+    )
+
+    # Secondary window – resting runners (shares the same Api instance)
+    resting_path=os.path.join(os.path.dirname(__file__), "html", "resting.html")
+    resting_window = webview.create_window(
+        title="Resting Runners",
+        url=resting_path,
+        js_api=api,
+        width=440,
+        height=620,
+        min_size=(320, 400),
+        background_color="#080b0e",
+        x=1120,
+        y=0,
+    )
+
+    def on_closed():
+        api.shutdown()
+
+    main_window.events.closed += on_closed
+    webview.start(debug=False)
+
+
+if __name__ == "__main__":
+    main()

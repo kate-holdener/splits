@@ -7,6 +7,7 @@ class Interval:
         self.distance = 0
         self.start_time = 0
         self.end_time = 0
+        self.incomplete = True
         
     def get_distance(self)->int:
         """Returns the distance covered in this interval."""
@@ -19,3 +20,10 @@ class Interval:
     def get_end_time(self)->int:
         """Returns the end time of this interval."""
         return self.end_time
+    
+    def start(self, timestamp):
+        self.start_time = timestamp
+
+    def finish(self, timestamp):
+        self.end_time = timestamp
+        self.incomplete = False

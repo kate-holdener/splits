@@ -2,10 +2,11 @@ import time
 import logging
 from sllurp import llrp
 from sllurp.llrp import LLRPReaderConfig, LLRPReaderClient, LLRP_DEFAULT_PORT
-
+from utils.normalized_timestamp import get_timestamp_now
 from reader import Reader
 from entity.event import Event
 from datetime import datetime, timezone
+
 class LLRPReader(Reader):
     def __init__(self, queue, scanner_address, runner_ids, port=LLRP_DEFAULT_PORT):
         super().__init__(queue)
@@ -13,89 +14,23 @@ class LLRPReader(Reader):
         self.port = port
         self.runner_ids = runner_ids
         self.reader = None
+        try: 
+            self.reader = LLRPReader._init_reader(self.host, self.port)
+        except Exception as e:
+            raise ConnectionError(f"could not connect to {self.host}:{self.port}")
 
-    def _create_rospec(self):
-        # Create ROSpec
-        rospec = llrp.ROSpec()
-        rospec.ROSpecID = 1
-        rospec.Priority = 0
-        rospec.CurrentState = llrp.ROSpecState.Disabled
-
-        # ROBoundarySpec: start immediately, no stop
-        rospec.ROBoundarySpec = llrp.ROBoundarySpec(
-            llrp.ROSpecStartTrigger(llrp.ROSpecStartTriggerType.Immediate),
-            llrp.ROSpecStopTrigger(llrp.ROSpecStopTriggerType.Null)
-        )
-
-        # AISpec: include antenna 1
-        aispec = llrp.AISpec()
-        aispec.AISpecID = 1
-        aispec.AntennaIDs.Add(1)  # use port 1
-        aispec.AISpecStopTrigger = llrp.AISpecStopTrigger(llrp.AISpecStopTriggerType.Null)
-
-        # InventoryParameterSpec (Gen2)
-        inv = llrp.InventoryParameterSpec()
-        inv.InventoryParameterSpecID = 1
-        inv.ProtocolID = llrp.AirProtocols.EPCGlobalClass1Gen2
-        aispec.InventoryParameterSpecList.append(inv)
-
-        rospec.SpecParameterList.append(aispec)
-
-        # ROReportSpec: report every tag, include duplicates
-        roreport = llrp.ROReportSpec()
-        roreport.ROReportTriggerType = llrp.ROReportTriggerType.Upon_N_Tags_Or_End_Of_ROSpec
-        roreport.N = 1
-        roreport.TagReportContentSelector = llrp.TagReportContentSelector(
-            EnableAntennaID=True,
-            EnableChannelIndex=True,
-            EnablePeakRSSI=True,
-            EnableFirstSeenTimestamp=True,
-            EnableLastSeenTimestamp=True,
-            EnableTagSeenCount=True,
-            IncludeAccessSpecID=False,
-            IncludePCBits=False,
-            IncludeCRC=False,
-            # This is key: report duplicates
-            EnableInventoryParameterSpecID=True
-        )
-        rospec.SpecParameterList.append(roreport)
-
-        return rospec
-    
     @staticmethod
     def normalize_epc(epc):
         return epc.lstrip('0') or '0'
 
-    def _on_tag_report(self, reader, tag_reports):
-        for tag in tag_reports:
-            try:
-                # sllurp tag info typically contains .epc
-                epc = tag.get('EPC').decode('utf-8') if isinstance(tag.get('EPC'), bytes) else str(tag.get('EPC'))
-                epc = epc.upper()
-                
-                normalized = self.normalize_epc(epc)
-                if normalized in self.runner_ids:
-                    event = Event()
-                    event.id = normalized
-                    # sllurp tags have timestamp in tag.LastSeenTimestampUTC(nanoseconds)
-                    #event.timestamp = int(tag.get('LastSeenTimestampUTC')) / 1_000_000
-                    event.timestamp = int(datetime.now(timezone.utc).timestamp())
-                    self.queue.put(event)
-
-            except Exception as e:
-                print(f"Error in tag callback: {e}")
-
-    def _run(self):
+    @staticmethod
+    def _init_reader(host, port)->LLRPReaderClient:
         # Optional: enable sllurp debug logs
         logging.getLogger('sllurp').setLevel(logging.INFO)
         factory_args = dict(
             report_every_n_tags=1,
             antennas=[0],
             tx_power=30,
-            #tari=args.tari,
-            #session=args.session,
-            #mode_identifier=args.mode_identifier,
-            #tag_population=args.tag_population,
             start_inventory=True,
             tag_content_selector={
                 'EnableROSpecID': True,
@@ -117,23 +52,33 @@ class LLRPReader(Reader):
             impinj_tag_content_selector=None,
         )
 
-        try:
-            config = LLRPReaderConfig(factory_args)
-            # config.tag_content_selector={
-            #         'EnableAntennaID': True,
-            #         'EnablePeakRSSI': True,
-            #         'EnableLastSeenTimestamp': True,
-            #         'EnableTagSeenCount': True,
-            #         'IncludeDuplicates': True
-            # }
-            # #config.antennas[1] = {'enabled': True, 'tx_power': 30.0}  # dBm
-            self.reader = LLRPReaderClient(self.host, self.port, config)
-            # factory = LLRPClientFactory(
-            #     include_duplicate_tags=True  # this enables repeated tag reports
-            # )
+        config = LLRPReaderConfig(factory_args)
+        reader = LLRPReaderClient(host, port, config)
+        return reader
 
-            # Create the reader client
-            # reader = factory.create(host='192.168.1.100', port=5084)
+    def _on_tag_report(self, reader, tag_reports):
+        for tag in tag_reports:
+            try:
+                # sllurp tag info typically contains .epc
+                epc = tag.get('EPC').decode('utf-8') if isinstance(tag.get('EPC'), bytes) else str(tag.get('EPC'))
+                epc = epc.upper()
+                
+                normalized = self.normalize_epc(epc)
+                if normalized in self.runner_ids:
+                    # sllurp tags have timestamp in tag.LastSeenTimestampUTC(nanoseconds)
+                    #event.timestamp = int(tag.get('LastSeenTimestampUTC')) / 1_000_000
+                    timestamp = get_timestamp_now() #int(datetime.now(timezone.utc).timestamp())
+                    event = Event(normalized, timestamp)
+                    self.queue.put(event)
+
+            except Exception as e:
+                print(f"Error in tag callback: {e}")
+
+    def _run(self):
+        if not self.reader:
+            return
+        
+        try:
             # Register the callback handler
             self.reader.add_tag_report_callback(self._on_tag_report)
 

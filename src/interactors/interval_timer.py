@@ -1,5 +1,7 @@
 import threading
 from queue import Queue
+from queue import Empty
+
 class IntervalTimer:
     def __init__(self, start_time_queue, lap_time_queue, runners):
         self.start_queue = start_time_queue
@@ -20,7 +22,7 @@ class IntervalTimer:
                 try:
                     start_event = self.start_queue.get_nowait()
                     self._process_start_event(start_event)
-                except Queue.Empty:
+                except Empty:
                     pass
                 
             lap_q_size = self.lap_queue.qsize()

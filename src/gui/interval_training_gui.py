@@ -102,6 +102,17 @@ class Api:
         self.rfid_scanner = None
         self.timer = None
 
+        self.resting_window = None
+
+    def add_resting_window(self, resting_window):
+        self.resting_window = resting_window
+
+    def show_resting_runners(self):
+        print('show resting runners')
+        print(self.resting_window)
+        if self.resting_window:
+            self.resting_window.show()
+
     # ------------------------------------------------------------------
     # State helper returned to the frontend
     # ------------------------------------------------------------------
@@ -437,9 +448,20 @@ def main():
         background_color="#000000",
         x=1120,
         y=0,
+        hidden=True
     )
+    api.add_resting_window(resting_window)
+
+    def on_closing_resting():
+        print('hiding resting runners')
+        resting_window.hide()
+        return False
+
+    resting_window.events.closing += on_closing_resting
 
     def on_closed():
+        resting_window.events.closing -= on_closing_resting
+        resting_window.destroy()
         api.shutdown()
 
     main_window.events.closed += on_closed

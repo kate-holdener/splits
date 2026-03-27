@@ -161,6 +161,7 @@
             <div style="display:flex;align-items:center;gap:12px">
               <span id="selected-count" style="font-family:var(--font-head);font-size:16px;color:var(--muted)">0 selected</span>
               <button class="btn btn-success" id="start-selected-btn" onclick="startSelected()" disabled>🏁 Start Group</button>
+              <button class="btn btn-primary btn-sm" onclick="showRestingRunners()">👁️ Show Resting Runners</button>
               <button class="btn btn-ghost btn-sm" onclick="loadWorkoutAthletes()">↻</button>
             </div>
           </div>
@@ -545,6 +546,11 @@ async function finishWorkout(){
   const r = await pywebview.api.finish_workout();
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);
+}
+
+async function showRestingRunners(){
+  const r = await pywebview.api.show_resting_runners();
+  log(r.msg, r.ok ? 'ok' : 'err');
 }
 
 async function generateReports(){

@@ -13,19 +13,6 @@
     <div class="logo">Resting <span>Runners</span></div>
     <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:3px">LIVE · AUTO-REFRESH 1s</div>
   </div>
-  <div style="margin-left:auto;text-align:right">
-    <div id="runner-count">0</div>
-    <div id="count-label">Resting</div>
-  </div>
-</div>
-
-<div id="ticker-wrap">
-  <div id="ticker">
-    <span>REST PERIOD</span> Awaiting athletes…
-    <span>↻</span> Live feed active
-    <span>⏱</span> Recovery tracking
-    <span>REST PERIOD</span> Awaiting athletes…
-  </div>
 </div>
 
 <div id="list-area">
@@ -43,45 +30,10 @@
 </div>
 
 <script>
-const RING_R = 27;
-const RING_C = 2 * Math.PI * RING_R;
-
-function initials(name){
-  if(!name) return '?';
-  return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-}
-
-function timerStyle(secsLeft, duration){
-  const pct = secsLeft / duration;
-  if(secsLeft <= 0)  return { color:'#00f0a0', cardClass:'done' };
-  if(pct <= 0.2)     return { color:'#ff4d7a', cardClass:'urgent' };
-  if(pct <= 0.5)     return { color:'#ffbb33', cardClass:'' };
-  return               { color:'#00e5ff',  cardClass:'' };
-}
-
-function ringHTML(secsLeft, duration){
-  const clamped  = Math.max(0, secsLeft);
-  const pct      = duration > 0 ? Math.min(1, clamped / duration) : 0;
-  const offset   = RING_C * (1 - pct);
-  const { color } = timerStyle(secsLeft, duration);
-  const label    = secsLeft <= 0 ? 'GO'  : Math.ceil(clamped);
-  const unit     = secsLeft <= 0 ? ''    : 'sec';
-  const labelColor = secsLeft <= 0 ? '#00f0a0' : color;
-  return `
-    <div class="ring-wrap">
-      <svg width="64" height="64" viewBox="0 0 64 64">
-        <circle class="ring-bg" cx="32" cy="32" r="${RING_R}"/>
-        <circle class="ring-fg"
-          cx="32" cy="32" r="${RING_R}"
-          stroke="${color}"
-          stroke-dasharray="${RING_C}"
-          stroke-dashoffset="${offset}"/>
-      </svg>
-      <div class="ring-label">
-        <span class="ring-secs" style="color:${labelColor}">${label}</span>
-        <span class="ring-unit">${unit}</span>
-      </div>
-    </div>`;
+function cardClass(secsLeft, duration){
+  if(secsLeft <= 0)              return 'done';
+  if(secsLeft / duration <= 0.2) return 'urgent';
+  return '';
 }
 
 async function refresh(){
@@ -91,7 +43,6 @@ async function refresh(){
     if(!r.ok){ setStatus('Error: '+(r.msg||'unknown')); return; }
 
     const athletes = r.athletes || [];
-    document.getElementById('runner-count').textContent = athletes.length;
     setStatus('Updated '+new Date().toLocaleTimeString());
 
     const area = document.getElementById('list-area');
@@ -103,7 +54,6 @@ async function refresh(){
           <div class="msg">No Resting Athletes</div>
           <div class="sub">Athletes in rest period will appear here</div>
         </div>`;
-      updateTicker([]);
       return;
     }
 
@@ -111,23 +61,20 @@ async function refresh(){
       const elapsed  = a.rest_elapsed  || 0;
       const duration = a.rest_duration || 90;
       const secsLeft = duration - elapsed;
-      const { cardClass } = timerStyle(secsLeft, duration);
+      const cls      = cardClass(secsLeft, duration);
+      const label    = secsLeft <= 0 ? 'GO' : Math.ceil(Math.max(0, secsLeft));
       return `
-        <div class="runner-card ${cardClass}">
-          ${ringHTML(secsLeft, duration)}
+        <div class="runner-card ${cls}">
+          <span class="countdown-num">${label}</span>
           <div class="runner-info">
             <div class="runner-name">${a.name || '—'}</div>
             <div class="runner-meta">
               <span>ID <code>${a.id||'—'}</code></span>
-              <span>LAP <code>${a.lap_id||'—'}</code></span>
-              <span>START <code>${a.start_id||'—'}</code></span>
             </div>
           </div>
           <div class="rest-badge">${secsLeft > 0 ? 'Resting' : 'Ready'}</div>
         </div>`;
     }).join('');
-
-    updateTicker(athletes);
   } catch(e){
     setStatus('Error: '+e.message);
   }
@@ -135,16 +82,6 @@ async function refresh(){
 
 function setStatus(msg){
   document.getElementById('last-update').textContent = msg;
-}
-
-function updateTicker(athletes){
-  const ticker = document.getElementById('ticker');
-  if(!athletes.length){
-    ticker.innerHTML = '<span>REST PERIOD</span> Awaiting athletes… <span>↻</span> Live feed active <span>⏱</span> Recovery tracking <span>REST PERIOD</span> Awaiting athletes…';
-    return;
-  }
-  const names = athletes.map(a=>a.name||a.id).join('  ·  ');
-  ticker.innerHTML = `<span>RESTING</span>${names}&nbsp;&nbsp;&nbsp;<span>RESTING</span>${names}`;
 }
 
 let _started = false;

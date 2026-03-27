@@ -9,11 +9,11 @@
    ============================================================ */
 
 :root {
-  --bg: #080b0e;
-  --panel: #0f1318;
-  --border: #2a3444;
-  --text: #f0f4ff;
-  --muted: #8a9ab8;
+  --bg: #000000;
+  --panel: #111111;
+  --border: #444444;
+  --text: #ffffff;
+  --muted: #aaaaaa;
   --radius: 6px;
   --font-head: 'Barlow Condensed', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;

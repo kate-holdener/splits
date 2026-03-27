@@ -3,16 +3,16 @@
    ============================================================ */
 
 :root {
-  --bg: #080b0e;
-  --panel: #0f1318;
-  --border: #2a3444;
-  --accent: #00e5ff;
-  --accent3: #ffe600;
-  --text: #f0f4ff;
-  --muted: #8a9ab8;
-  --success: #00f0a0;
-  --warning: #ffbb33;
-  --danger: #ff4d7a;
+  --bg: #000000;
+  --panel: #111111;
+  --border: #444444;
+  --accent: #ffff00;
+  --accent3: #ffff00;
+  --text: #ffffff;
+  --muted: #aaaaaa;
+  --success: #00ff66;
+  --warning: #ffaa00;
+  --danger: #ff3333;
   --radius: 6px;
   --font-head: 'Barlow Condensed', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
@@ -69,7 +69,7 @@ body {
     linear-gradient(var(--border) 1px, transparent 1px),
     linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 48px 48px;
-  opacity: .25;
+  opacity: .15;
 }
 
 /* radial vignette over grid */
@@ -131,30 +131,25 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  transition: border-color .2s, background .2s, transform .15s;
+  transition: border-color .1s, background .1s;
   position: relative;
   overflow: hidden;
 }
 
 .home-tile::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity .2s;
+  content: none;
 }
 
 .home-tile.workout-tile::before {
-  background: radial-gradient(ellipse at 50% 0%, #00e5ff18, transparent 70%);
+  content: none;
 }
 
 .home-tile.reports-tile::before {
-  background: radial-gradient(ellipse at 50% 0%, #ffe60018, transparent 70%);
+  content: none;
 }
 
 .home-tile:hover {
-  transform: translateY(-4px);
-  border-color: #3d5060;
+  border-color: var(--accent);
 }
 
 .home-tile.workout-tile:hover {
@@ -162,11 +157,11 @@ body {
 }
 
 .home-tile.reports-tile:hover {
-  border-color: var(--accent3);
+  border-color: var(--accent);
 }
 
 .home-tile:hover::before {
-  opacity: 1;
+  opacity: 0;
 }
 
 .tile-icon {
@@ -207,7 +202,7 @@ body {
   gap: 14px;
   padding: 10px 22px;
   border-bottom: 1px solid var(--border);
-  background: #0b0e14;
+  background: #111111;
   flex-shrink: 0;
 }
 
@@ -286,7 +281,7 @@ body {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--border);
-  background: #0b0e14;
+  background: #111111;
   flex-shrink: 0;
   padding: 0 22px;
 }
@@ -433,7 +428,7 @@ label {
 input[type=text],
 input[type=number] {
   width: 100%;
-  background: #0b0e14;
+  background: #111111;
   border: 1px solid var(--border);
   color: var(--text);
   padding: 11px 15px;
@@ -441,11 +436,11 @@ input[type=number] {
   font-family: var(--font-mono);
   font-size: 15px;
   outline: none;
-  transition: border-color .2s;
+  transition: border-color .1s;
 }
 
 input:focus        { border-color: var(--accent); }
-input::placeholder { color: #3d4e66; }
+input::placeholder { color: #666666; }
 
 .row {
   display: grid;
@@ -458,15 +453,14 @@ input::placeholder { color: #3d4e66; }
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #0b0e14;
+  background: #111111;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 8px 8px 14px;
-  transition: border-color .2s;
 }
 
 .file-picker:hover {
-  border-color: #3d4e66;
+  border-color: var(--accent);
 }
 
 #csv-path-display {
@@ -481,7 +475,7 @@ input::placeholder { color: #3d4e66; }
 }
 
 #csv-path-display.placeholder {
-  color: #3d4e66;
+  color: #666666;
 }
 
 /* Buttons */
@@ -494,18 +488,18 @@ input::placeholder { color: #3d4e66; }
   font-weight: 700;
   letter-spacing: 1px;
   cursor: pointer;
-  transition: all .15s;
+  transition: background .1s, color .1s;
   text-transform: uppercase;
 }
 
 .btn-primary              { background: var(--accent);  color: #000; }
-.btn-primary:hover        { background: #33eeff; }
+.btn-primary:hover        { background: #ffff66; }
 .btn-danger               { background: var(--danger);  color: #fff; }
-.btn-danger:hover         { background: #ff7090; }
+.btn-danger:hover         { background: #ff6666; }
 .btn-success              { background: var(--success); color: #000; }
-.btn-success:hover        { background: #44ffbb; }
-.btn-warn                 { background: var(--accent3); color: #000; }
-.btn-warn:hover           { background: #ffee44; }
+.btn-success:hover        { background: #66ff99; }
+.btn-warn                 { background: var(--warning); color: #000; }
+.btn-warn:hover           { background: #ffbb44; }
 .btn-ghost                { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-ghost:hover          { border-color: var(--accent); color: var(--accent); }
 .btn-sm                   { padding: 7px 16px; font-size: 13px; }
@@ -529,13 +523,13 @@ th {
 
 td {
   padding: 11px 12px;
-  border-bottom: 1px solid #ffffff0a;
+  border-bottom: 1px solid #ffffff18;
   font-size: 14px;
   color: var(--text);
 }
 
 tr:last-child td  { border-bottom: none; }
-tr:hover td       { background: #ffffff07; }
+tr:hover td       { background: #ffffff12; }
 
 .tag {
   display: inline-block;
@@ -545,8 +539,8 @@ tr:hover td       { background: #ffffff07; }
   font-weight: 600;
 }
 
-.tag.running { background: #00f0a022; color: var(--success); border: 1px solid #00f0a055; }
-.tag.resting { background: #ffbb3322; color: var(--warning); border: 1px solid #ffbb3355; }
+.tag.running { background: #00ff6622; color: var(--success); border: 1px solid #00ff6655; }
+.tag.resting { background: #ffaa0022; color: var(--warning); border: 1px solid #ffaa0055; }
 
 /* Connector rows */
 .connector {
@@ -554,7 +548,7 @@ tr:hover td       { background: #ffffff07; }
   align-items: center;
   gap: 14px;
   padding: 16px;
-  background: #0b0e14;
+  background: #111111;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 10px;
@@ -622,7 +616,7 @@ tr:hover td       { background: #ffffff07; }
 
 #log-bar {
   border-top: 1px solid var(--border);
-  background: #080b0e;
+  background: #000000;
   padding: 0 22px;
   height: 150px;
   display: flex;
@@ -671,19 +665,6 @@ tr:hover td       { background: #ffffff07; }
 #reports-screen .scroll-area {
   padding: 36px 40px;
 }
-
-/* ============================================================
-   ANIMATIONS
-   ============================================================ */
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.tab-content.active .scroll-area { animation: fadeUp .2s ease; }
-.home-tile                        { animation: fadeUp .3s ease both; }
-.home-tile:nth-child(2)           { animation-delay: .07s; }
 
 /* ============================================================
    SCROLLBAR

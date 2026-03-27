@@ -3,12 +3,15 @@
    ============================================================ */
 
 :root {
-  --bg: #080b0e;
-  --panel: #0f1318;
-  --border: #2a3444;
-  --accent: #ffaa00;
-  --text: #f0f4ff;
-  --muted: #8a9ab8;
+  --bg: #000000;
+  --panel: #111111;
+  --border: #444444;
+  --accent: #ffff00;
+  --text: #ffffff;
+  --muted: #aaaaaa;
+  --success: #00ff66;
+  --warning: #ffaa00;
+  --danger: #ff3333;
   --radius: 6px;
   --font-head: 'Barlow Condensed', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
@@ -41,7 +44,7 @@ body {
   gap: 14px;
   padding: 13px 22px;
   border-bottom: 1px solid var(--border);
-  background: #0b0e14;
+  background: #111111;
   flex-shrink: 0;
 }
 
@@ -77,39 +80,6 @@ body {
 }
 
 /* ============================================================
-   TICKER STRIP
-   ============================================================ */
-
-#ticker-wrap {
-  border-bottom: 1px solid var(--border);
-  background: #0b0e14;
-  overflow: hidden;
-  height: 34px;
-  flex-shrink: 0;
-}
-
-#ticker {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  white-space: nowrap;
-  animation: scroll-left 20s linear infinite;
-  font-size: 12px;
-  letter-spacing: 1px;
-  color: var(--muted);
-}
-
-#ticker span {
-  margin-right: 60px;
-  color: var(--accent);
-}
-
-@keyframes scroll-left {
-  0%   { transform: translateX(100vw); }
-  100% { transform: translateX(-100%); }
-}
-
-/* ============================================================
    LIST AREA
    ============================================================ */
 
@@ -129,71 +99,35 @@ body {
 .runner-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 15px 18px;
+  gap: 20px;
+  padding: 24px 22px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
+  border-left: 4px solid var(--accent);
   border-radius: var(--radius);
-  transition: border-color .2s, background .2s;
+  min-height: 120px;
 }
 
-.runner-card:hover         { background: #151a20; border-left-color: #ffc133; }
-.runner-card.urgent        { border-left-color: #ff4d7a; }
-.runner-card.done          { border-left-color: #00f0a0; }
+.runner-card.urgent { border-left-color: var(--danger); }
+.runner-card.done   { border-left-color: var(--success); }
 
 /* ============================================================
-   COUNTDOWN RING
+   COUNTDOWN NUMBER
    ============================================================ */
 
-.ring-wrap {
-  position: relative;
-  width: 64px;
-  height: 64px;
+.countdown-num {
+  font-family: var(--font-head);
+  font-size: 80px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--text);
+  min-width: 100px;
+  text-align: center;
   flex-shrink: 0;
 }
 
-.ring-wrap svg {
-  transform: rotate(-90deg);
-}
-
-.ring-bg {
-  fill: none;
-  stroke: #2a3444;
-  stroke-width: 5;
-}
-
-.ring-fg {
-  fill: none;
-  stroke-width: 5;
-  stroke-linecap: round;
-  transition: stroke-dashoffset .9s linear, stroke .3s;
-}
-
-.ring-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.ring-secs {
-  font-family: var(--font-head);
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.ring-unit {
-  font-size: 9px;
-  letter-spacing: 1px;
-  color: var(--muted);
-  text-transform: uppercase;
-  margin-top: 1px;
-}
+.runner-card.urgent .countdown-num { color: var(--danger); }
+.runner-card.done   .countdown-num { color: var(--success); }
 
 /* ============================================================
    RUNNER INFO
@@ -205,7 +139,7 @@ body {
 
 .runner-name {
   font-family: var(--font-head);
-  font-size: 20px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--text);
@@ -224,7 +158,7 @@ body {
 }
 
 .runner-meta code {
-  color: #aab8cc;
+  color: #cccccc;
   font-family: var(--font-mono);
 }
 
@@ -232,12 +166,12 @@ body {
   padding: 5px 14px;
   border-radius: 20px;
   font-family: var(--font-head);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 1px;
-  background: #ffaa0025;
+  background: #ffff0022;
   color: var(--accent);
-  border: 1px solid #ffaa0055;
+  border: 1px solid #ffff0066;
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -273,7 +207,7 @@ body {
 #empty .sub {
   font-size: 13px;
   letter-spacing: 1px;
-  color: #3d4e66;
+  color: #666666;
 }
 
 /* ============================================================
@@ -282,7 +216,7 @@ body {
 
 #footer {
   border-top: 1px solid var(--border);
-  background: #0b0e14;
+  background: #111111;
   padding: 8px 22px;
   display: flex;
   align-items: center;
@@ -298,12 +232,6 @@ body {
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: .4; transform: scale(.7); }
 }
 
 /* ============================================================

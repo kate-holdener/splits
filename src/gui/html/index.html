@@ -170,7 +170,6 @@
                 <th style="width:36px"><input type="checkbox" id="select-all-cb" title="Select all inactive" onchange="toggleSelectAll(this)"/></th>
                 <th>Name</th>
                 <th>Status</th>
-                <th>Rest Left</th>
               </tr>
             </thead>
             <tbody id="athletes-status-tbody"></tbody>
@@ -178,16 +177,7 @@
         </div>
 
         <!-- Performance -->
-        <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-            Performance
-            <button class="btn btn-ghost btn-sm" onclick="loadPerformance()">↻</button>
-          </div>
-          <table>
-            <thead><tr><th>Athlete</th><th>Data</th></tr></thead>
-            <tbody id="perf-tbody"></tbody>
-          </table>
-        </div>
+        <!-- Removed: performance now shown as hover tooltip on each athlete row -->
 
         <!-- Finish -->
         <div class="card">
@@ -235,6 +225,11 @@
   </div>
 </div>
 
+<div id="perf-tooltip">
+  <div class="tip-name" id="tip-name"></div>
+  <div id="tip-body"></div>
+</div>
+
 <script>
 // ============================================================
 // SCREEN NAVIGATION
@@ -260,7 +255,6 @@ function switchTab(name){
 
   if(name==='workout'){
     loadWorkoutAthletes();
-    loadPerformance();
     _workoutRefreshTimer = setInterval(loadWorkoutAthletes, 1000);
   }
 }
@@ -427,6 +421,88 @@ function toggleSelectAll(masterCb){
   updateSelectedCount();
 }
 
+// ============================================================
+// PERFORMANCE TOOLTIP
+// ============================================================
+const _perfData = new Map(); // start_tag -> athlete data
+
+function formatInterval(ms){
+  const totalMs = Math.round(ms);
+  const mins    = Math.floor(totalMs / 60000);
+  const secs    = Math.floor((totalMs % 60000) / 1000);
+  const millis  = totalMs % 1000;
+  return `${mins}:${String(secs).padStart(2,'0')}.${String(millis).padStart(3,'0')}`;
+}
+
+function formatRest(ms){
+  return Math.round(ms / 1000) + 's';
+}
+
+function buildTooltipHTML(a){
+  const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
+  const intervals = a.intervals || [];
+  const rests     = a.rests     || [];
+  const isRunning = a.status === 'RUNNING';
+
+  if(!intervals.length && !isRunning){
+    return { name, body: '<div class="tip-empty">No completed intervals yet</div>' };
+  }
+
+  let rows = '';
+  for(let i = 0; i < intervals.length; i++){
+    const restCell = rests[i] != null
+      ? `<td class="tip-label">Rest</td><td>${formatRest(rests[i])}</td>`
+      : `<td></td><td></td>`;
+    rows += `<tr>
+      <td class="tip-label">Interval ${i+1}</td>
+      <td>${formatInterval(intervals[i])}</td>
+      ${restCell}
+    </tr>`;
+  }
+  // Live in-progress interval for running athletes — show dash (not elapsed)
+  if(isRunning){
+    rows += `<tr>
+      <td class="tip-label">Interval ${intervals.length+1}</td>
+      <td style="color:var(--muted)">—</td>
+      <td></td><td></td>
+    </tr>`;
+  }
+
+  return { name, body: `<table>${rows}</table>` };
+}
+
+function showTooltip(e, startTag){
+  const a = _perfData.get(startTag);
+  if(!a) return;
+  const tip = document.getElementById('perf-tooltip');
+  const { name, body } = buildTooltipHTML(a);
+  document.getElementById('tip-name').textContent = name;
+  document.getElementById('tip-body').innerHTML = body;
+  tip.style.display = 'block';
+  positionTooltip(e);
+}
+
+function positionTooltip(e){
+  const tip = document.getElementById('perf-tooltip');
+  const x = e.clientX + 16;
+  const y = e.clientY + 8;
+  const tipW = tip.offsetWidth  || 280;
+  const tipH = tip.offsetHeight || 100;
+  tip.style.left = (x + tipW > window.innerWidth  ? x - tipW - 32 : x) + 'px';
+  tip.style.top  = (y + tipH > window.innerHeight ? y - tipH - 16 : y) + 'px';
+}
+
+function hideTooltip(){
+  document.getElementById('perf-tooltip').style.display = 'none';
+}
+
+document.addEventListener('mousemove', e => {
+  if(document.getElementById('perf-tooltip').style.display !== 'none') positionTooltip(e);
+});
+
+// ============================================================
+// WORKOUT ATHLETES TABLE
+// ============================================================
 async function loadWorkoutAthletes(){
   const r = await pywebview.api.list_athletes_with_status();
   const tbody = document.getElementById('athletes-status-tbody');
@@ -434,39 +510,35 @@ async function loadWorkoutAthletes(){
   if(!r.ok||!r.athletes||!r.athletes.length){
     tbody.innerHTML='<tr><td colspan="4" style="color:var(--muted)">No athletes loaded.</td></tr>'; return;
   }
+  // Cache performance data for tooltips
+  r.athletes.forEach(a => _perfData.set(a.start_tag, a));
+
   // Preserve current checked state across refreshes
   const checked = new Set([...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value));
   tbody.innerHTML = r.athletes.map(a=>{
     const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
     const inactive = a.status === 'INACTIVE';
     const isChecked = inactive && checked.has(a.start_tag);
-    let statusTag = '';
-    if(a.status==='RUNNING')      statusTag = '<span class="tag running">RUNNING</span>';
-    else if(a.status==='RESTING') statusTag = '<span class="tag resting">RESTING</span>';
-    else                          statusTag = '<span class="tag inactive">INACTIVE</span>';
-    const restLeft = a.rest_left != null ? a.rest_left+'s' : '';
-    return `<tr>
+    let statusCell = '';
+    if(a.status==='RUNNING'){
+      const t = a.elapsed_seconds != null ? ` · ${a.elapsed_seconds}s` : '';
+      statusCell = `<span class="tag running">RUNNING${t}</span>`;
+    } else if(a.status==='RESTING'){
+      const t = a.rest_remaining_seconds != null ? ` · ${a.rest_remaining_seconds}s left` : '';
+      statusCell = `<span class="tag resting">RESTING${t}</span>`;
+    } else {
+      statusCell = `<span class="tag inactive">INACTIVE</span>`;
+    }
+    const tag = a.start_tag ? a.start_tag.replace(/'/g,"&#39;") : '';
+    return `<tr onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()">
       <td><input type="checkbox" class="athlete-cb" value="${a.start_tag||''}"
         ${inactive ? '' : 'disabled'} ${isChecked ? 'checked' : ''}
         onchange="updateSelectedCount()"/></td>
       <td>${name}</td>
-      <td>${statusTag}</td>
-      <td style="font-family:var(--font-mono);color:var(--warning)">${restLeft}</td>
+      <td>${statusCell}</td>
     </tr>`;
   }).join('');
   updateSelectedCount();
-}
-
-async function loadPerformance(){
-  const r = await pywebview.api.view_performance();
-  const tbody = document.getElementById('perf-tbody');
-  if(!r.ok||!r.results||!r.results.length){
-    tbody.innerHTML='<tr><td colspan="2" style="color:var(--muted)">No data.</td></tr>'; return;
-  }
-  tbody.innerHTML = r.results.map(item=>`<tr>
-    <td>${(`${item.athlete.first_name||''} ${item.athlete.last_name||''}`).trim() || item.athlete.id || '—'}</td>
-    <td>${item.performance}</td>
-  </tr>`).join('');
 }
 
 async function finishWorkout(){

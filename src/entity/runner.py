@@ -2,7 +2,7 @@ from entity.RunnerState import RunnerState
 from entity.interval import Interval
 from entity.workout import Workout
 
-TIME_DELTA = 1
+TIME_DELTA = 5000
 
 class Runner:
     """

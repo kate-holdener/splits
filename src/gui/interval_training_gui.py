@@ -227,27 +227,47 @@ class Api:
     # List all athletes with live status (for workout tab)
     # ------------------------------------------------------------------
     def list_athletes_with_status(self):
-        import json as _json
-        rest_duration = (
-            self.workout.rest_duration_seconds
-            if self.workout and hasattr(self.workout, 'rest_duration_seconds')
-            else 90
-        )
         running_ids = {id(r) for r in self.runner_observer.running}
         resting_ids = {id(r) for r in self.runner_observer.resting}
+        now_ms = datetime.now().timestamp() * 1000
         result = []
         for a in self.athletes:
             d = a.to_dict()
+
+            # Performance: completed interval durations and inter-interval rests (all in ms)
+            all_intervals = a.get_intervals()
+            completed = [iv for iv in all_intervals if not iv.incomplete]
+            in_progress = [iv for iv in all_intervals if iv.incomplete]
+            d['intervals'] = [iv.get_end_time() - iv.get_start_time() for iv in completed]
+            rests = [
+                completed[i + 1].get_start_time() - completed[i].get_end_time()
+                for i in range(len(completed) - 1)
+            ]
+            # If there's a current in-progress interval, compute the rest that preceded it
+            if completed and in_progress:
+                rests.append(in_progress[0].start_time - completed[-1].get_end_time())
+            d['rests'] = rests
+
             if id(a) in running_ids:
+                if all_intervals:
+                    elapsed = round((now_ms - all_intervals[-1].start_time) / 1000)
+                else:
+                    elapsed = 0
                 d['status'] = 'RUNNING'
-                d['rest_left'] = None
+                d['elapsed_seconds'] = max(0, elapsed)
             elif id(a) in resting_ids:
-                elapsed = self.runner_observer.rest_elapsed(a)
+                rest_duration = (
+                    self.workout.rest_duration_seconds
+                    if self.workout and hasattr(self.workout, 'rest_duration_seconds')
+                    else 90
+                )
+                rest_elapsed = self.runner_observer.rest_elapsed(a)
                 d['status'] = 'RESTING'
-                d['rest_left'] = max(0, round(rest_duration - elapsed))
+                d['elapsed_seconds'] = round(rest_elapsed)
+                d['rest_remaining_seconds'] = max(0, round(rest_duration - rest_elapsed))
             else:
                 d['status'] = 'INACTIVE'
-                d['rest_left'] = None
+                d['elapsed_seconds'] = None
             result.append(d)
         return {"ok": True, "athletes": result}
 

@@ -674,3 +674,60 @@ tr:hover td       { background: #ffffff12; }
 ::-webkit-scrollbar       { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ============================================================
+   PERFORMANCE TOOLTIP
+   ============================================================ */
+
+#perf-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  background: #111111;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  pointer-events: none;
+  min-width: 280px;
+  max-width: 400px;
+  box-shadow: 0 4px 20px #00000088;
+}
+
+#perf-tooltip .tip-name {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+#perf-tooltip table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#perf-tooltip td {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  padding: 3px 8px 3px 0;
+  border-bottom: none;
+}
+
+#perf-tooltip td.tip-label {
+  color: var(--muted);
+  white-space: nowrap;
+  padding-right: 12px;
+}
+
+#perf-tooltip td.tip-live {
+  color: var(--success);
+}
+
+#perf-tooltip .tip-empty {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}

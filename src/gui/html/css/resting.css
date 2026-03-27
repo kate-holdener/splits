@@ -111,6 +111,9 @@ body {
 .runner-card.urgent { border-left-color: var(--danger); }
 .runner-card.done   { border-left-color: var(--success); }
 
+#list-area .runner-card:nth-child(odd)  { background: #111111; }
+#list-area .runner-card:nth-child(even) { background: #2d2d2d; }
+
 /* ============================================================
    COUNTDOWN NUMBER
    ============================================================ */

@@ -181,16 +181,19 @@ class Api:
     # Option 3 – Connect RFID
     # ------------------------------------------------------------------
     def connect_rfid(self):
+        return self.connect_rfid_with_address(SCANNER_ADDRESS)
+
+    def connect_rfid_with_address(self, address: str):
         if not (self.athletes_loaded and self.workout_configured):
             return {"ok": False, "msg": "Complete steps 1 and 2 first."}
         try:
             runner_ids = [r.lap_id for r in self.athletes]
-            self.rfid_scanner = LLRPReader(self.lap_event_q, SCANNER_ADDRESS)
+            self.rfid_scanner = LLRPReader(self.lap_event_q, address.strip())
             self.rfid_scanner.filter_by_id(runner_ids)
             self.rfid_scanner.start()
             self.rfid_connected = True
             self.rfid_scanner_failed = False
-            return {"ok": True, "msg": "RFID scanner connected.", "state": self.get_state()}
+            return {"ok": True, "msg": f"RFID scanner connected ({address.strip()}).", "state": self.get_state()}
         except Exception as e:
             self.rfid_scanner_failed = True
             return {"ok": False, "msg": f"RFID failed: {e}", "state": self.get_state()}

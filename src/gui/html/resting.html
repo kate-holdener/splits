@@ -11,7 +11,6 @@
 <div id="header">
   <div>
     <div class="logo">Resting <span>Runners</span></div>
-    <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:3px">LIVE · AUTO-REFRESH 1s</div>
   </div>
 </div>
 
@@ -65,14 +64,10 @@ async function refresh(){
       const label    = secsLeft <= 0 ? 'GO' : Math.ceil(Math.max(0, secsLeft));
       return `
         <div class="runner-card ${cls}">
-          <span class="countdown-num">${label}</span>
           <div class="runner-info">
-            <div class="runner-name">${a.name || '—'}</div>
-            <div class="runner-meta">
-              <span>ID <code>${a.id||'—'}</code></span>
-            </div>
+            <div class="runner-name">${(`${a.first_name||''} ${a.last_name||''}`).trim() || '—'}</div>
           </div>
-          <div class="rest-badge">${secsLeft > 0 ? 'Resting' : 'Ready'}</div>
+          <span class="countdown-num">${label}</span>
         </div>`;
     }).join('');
   } catch(e){

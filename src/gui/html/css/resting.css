@@ -139,10 +139,11 @@ body {
 
 .runner-name {
   font-family: var(--font-head);
-  font-size: 28px;
+  font-size: 80px;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--text);
+  line-height: 1;
 }
 
 .runner-meta {

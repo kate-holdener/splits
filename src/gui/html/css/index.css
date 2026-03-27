@@ -539,8 +539,9 @@ tr:hover td       { background: #ffffff12; }
   font-weight: 600;
 }
 
-.tag.running { background: #00ff6622; color: var(--success); border: 1px solid #00ff6655; }
-.tag.resting { background: #ffaa0022; color: var(--warning); border: 1px solid #ffaa0055; }
+.tag.running  { background: #00ff6622; color: var(--success); border: 1px solid #00ff6655; }
+.tag.resting  { background: #ffaa0022; color: var(--warning); border: 1px solid #ffaa0055; }
+.tag.inactive { background: #44444422; color: var(--muted);   border: 1px solid #44444455; }
 
 /* Connector rows */
 .connector {

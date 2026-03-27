@@ -224,6 +224,56 @@ class Api:
         }
 
     # ------------------------------------------------------------------
+    # List all athletes with live status (for workout tab)
+    # ------------------------------------------------------------------
+    def list_athletes_with_status(self):
+        import json as _json
+        rest_duration = (
+            self.workout.rest_duration_seconds
+            if self.workout and hasattr(self.workout, 'rest_duration_seconds')
+            else 90
+        )
+        running_ids = {id(r) for r in self.runner_observer.running}
+        resting_ids = {id(r) for r in self.runner_observer.resting}
+        result = []
+        for a in self.athletes:
+            d = a.to_dict()
+            if id(a) in running_ids:
+                d['status'] = 'RUNNING'
+                d['rest_left'] = None
+            elif id(a) in resting_ids:
+                elapsed = self.runner_observer.rest_elapsed(a)
+                d['status'] = 'RESTING'
+                d['rest_left'] = max(0, round(rest_duration - elapsed))
+            else:
+                d['status'] = 'INACTIVE'
+                d['rest_left'] = None
+            result.append(d)
+        return {"ok": True, "athletes": result}
+
+    # ------------------------------------------------------------------
+    # Start a specific set of athletes by start_tag (new UI)
+    # ------------------------------------------------------------------
+    def start_selected(self, tag_ids_json: str):
+        import json as _json
+        if not self._full_setup_ok():
+            return {"ok": False, "msg": "Setup not complete."}
+        try:
+            tag_ids = _json.loads(tag_ids_json)
+        except Exception:
+            return {"ok": False, "msg": "Invalid tag IDs format."}
+        if not tag_ids:
+            return {"ok": False, "msg": "No athletes selected."}
+        valid_ids = {a.start_id for a in self.athletes}
+        ids_to_start = [t for t in tag_ids if t in valid_ids]
+        if not ids_to_start:
+            return {"ok": False, "msg": "None of the selected tag IDs match known athletes."}
+        self.manual_start_controller.start(ids_to_start)
+        self.workout_active = True
+        return {"ok": True, "msg": f"Started {len(ids_to_start)} athletes.",
+                "state": self.get_state()}
+
+    # ------------------------------------------------------------------
     # Option 6 – Add athlete to group start
     # ------------------------------------------------------------------
     def add_to_group(self, tag_id: str):

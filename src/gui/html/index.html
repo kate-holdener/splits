@@ -154,50 +154,27 @@
     <div class="tab-content" id="tc-workout">
       <div class="scroll-area">
 
-        <!-- Group start -->
+        <!-- Athletes table -->
         <div class="card">
-          <div class="card-title">Group Start</div>
-          <div class="stat-grid">
-            <div class="stat-box">
-              <div class="stat-val" id="group-count">0</div>
-              <div class="stat-label">In group</div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            Athletes
+            <div style="display:flex;align-items:center;gap:12px">
+              <span id="selected-count" style="font-family:var(--font-head);font-size:16px;color:var(--muted)">0 selected</span>
+              <button class="btn btn-success" id="start-selected-btn" onclick="startSelected()" disabled>🏁 Start Group</button>
+              <button class="btn btn-ghost btn-sm" onclick="loadWorkoutAthletes()">↻</button>
             </div>
           </div>
-          <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px">
-            <div class="form-group" style="flex:1;margin-bottom:0">
-              <label>Start Tag ID</label>
-              <input type="text" id="group-tag" placeholder="START001"/>
-            </div>
-            <button class="btn btn-primary" onclick="addToGroup()">Add</button>
-          </div>
-          <button class="btn btn-success" onclick="startGroup()">🏁 Start Group</button>
-        </div>
-
-        <!-- Running / Resting side by side -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
-
-          <div class="card" style="margin-bottom:0">
-            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Running
-              <button class="btn btn-ghost btn-sm" onclick="loadRunning()">↻</button>
-            </div>
-            <table>
-              <thead><tr><th>Name</th><th>ID</th><th>Status</th></tr></thead>
-              <tbody id="running-tbody"></tbody>
-            </table>
-          </div>
-
-          <div class="card" style="margin-bottom:0">
-            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Resting
-              <button class="btn btn-ghost btn-sm" onclick="loadResting()">↻</button>
-            </div>
-            <table>
-              <thead><tr><th>Name</th><th>ID</th><th>Rest Left</th></tr></thead>
-              <tbody id="resting-tbody"></tbody>
-            </table>
-          </div>
-
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="select-all-cb" title="Select all inactive" onchange="toggleSelectAll(this)"/></th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Rest Left</th>
+              </tr>
+            </thead>
+            <tbody id="athletes-status-tbody"></tbody>
+          </table>
         </div>
 
         <!-- Performance -->
@@ -270,12 +247,22 @@ function goTo(screenId){
 // ============================================================
 // TAB SWITCHING
 // ============================================================
+let _workoutRefreshTimer = null;
+
 function switchTab(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('tc-'+name).classList.add('active');
-  if(name==='workout'){ loadRunning(); loadResting(); loadPerformance(); }
+
+  // Stop any running workout refresh
+  if(_workoutRefreshTimer){ clearInterval(_workoutRefreshTimer); _workoutRefreshTimer = null; }
+
+  if(name==='workout'){
+    loadWorkoutAthletes();
+    loadPerformance();
+    _workoutRefreshTimer = setInterval(loadWorkoutAthletes, 1000);
+  }
 }
 
 // ============================================================
@@ -315,7 +302,7 @@ function applyState(s){
   setTabState('tab-workout',
     (setupOk && scannersOk) ? 'ready' : '');
 
-  document.getElementById('group-count').textContent = s.groupCount || 0;
+  document.getElementById('group-count') && (document.getElementById('group-count').textContent = s.groupCount || 0);
 
   updateConnector('rfid-status-text', s.rfidConnected, s.rfidFailed);
   updateConnector('nfc-status-text',  s.nfcConnected,  s.nfcFailed);
@@ -417,45 +404,57 @@ async function autoConnectScanners(){
   await Promise.all([connectRfid(), connectNfc()]);
 }
 
-async function addToGroup(){
-  const tag = document.getElementById('group-tag').value.trim();
-  const r   = await pywebview.api.add_to_group(tag);
+async function startSelected(){
+  const checked = [...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value);
+  if(!checked.length){ log('No athletes selected.','err'); return; }
+  const r = await pywebview.api.start_selected(JSON.stringify(checked));
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);
-  if(r.ok) document.getElementById('group-tag').value = '';
+  // Uncheck all after start
+  document.querySelectorAll('.athlete-cb').forEach(cb=>cb.checked=false);
+  document.getElementById('select-all-cb').checked = false;
+  updateSelectedCount();
 }
 
-async function startGroup(){
-  const r = await pywebview.api.start_group();
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if(r.state) applyState(r.state);
+function updateSelectedCount(){
+  const n = document.querySelectorAll('.athlete-cb:checked').length;
+  document.getElementById('selected-count').textContent = n + ' selected';
+  document.getElementById('start-selected-btn').disabled = (n === 0);
 }
 
-async function loadRunning(){
-  const r = await pywebview.api.list_running();
-  const tbody = document.getElementById('running-tbody');
+function toggleSelectAll(masterCb){
+  document.querySelectorAll('.athlete-cb:not(:disabled)').forEach(cb=>cb.checked=masterCb.checked);
+  updateSelectedCount();
+}
+
+async function loadWorkoutAthletes(){
+  const r = await pywebview.api.list_athletes_with_status();
+  const tbody = document.getElementById('athletes-status-tbody');
+  if(!tbody) return;
   if(!r.ok||!r.athletes||!r.athletes.length){
-    tbody.innerHTML='<tr><td colspan="3" style="color:var(--muted)">None running.</td></tr>'; return;
+    tbody.innerHTML='<tr><td colspan="4" style="color:var(--muted)">No athletes loaded.</td></tr>'; return;
   }
-  tbody.innerHTML = r.athletes.map(a=>`<tr>
-    <td>${a.first_name||'—'}</td><td>${a.last_name||'—'}</td>
-    <td><span class="tag running">RUNNING</span></td>
-  </tr>`).join('');
-}
-
-async function loadResting(){
-  const r = await pywebview.api.get_resting();
-  const tbody = document.getElementById('resting-tbody');
-  if(!r.ok||!r.athletes||!r.athletes.length){
-    tbody.innerHTML='<tr><td colspan="3" style="color:var(--muted)">None resting.</td></tr>'; return;
-  }
+  // Preserve current checked state across refreshes
+  const checked = new Set([...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value));
   tbody.innerHTML = r.athletes.map(a=>{
-    const left = Math.max(0, Math.ceil((a.rest_duration||90) - (a.rest_elapsed||0)));
+    const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
+    const inactive = a.status === 'INACTIVE';
+    const isChecked = inactive && checked.has(a.start_tag);
+    let statusTag = '';
+    if(a.status==='RUNNING')      statusTag = '<span class="tag running">RUNNING</span>';
+    else if(a.status==='RESTING') statusTag = '<span class="tag resting">RESTING</span>';
+    else                          statusTag = '<span class="tag inactive">INACTIVE</span>';
+    const restLeft = a.rest_left != null ? a.rest_left+'s' : '';
     return `<tr>
-      <td>${a.first_name||'—'}</td><td>${a.last_name||'—'}</td>
-      <td style="font-family:var(--font-mono);color:var(--warning)">${left}s</td>
+      <td><input type="checkbox" class="athlete-cb" value="${a.start_tag||''}"
+        ${inactive ? '' : 'disabled'} ${isChecked ? 'checked' : ''}
+        onchange="updateSelectedCount()"/></td>
+      <td>${name}</td>
+      <td>${statusTag}</td>
+      <td style="font-family:var(--font-mono);color:var(--warning)">${restLeft}</td>
     </tr>`;
   }).join('');
+  updateSelectedCount();
 }
 
 async function loadPerformance(){
@@ -465,7 +464,7 @@ async function loadPerformance(){
     tbody.innerHTML='<tr><td colspan="2" style="color:var(--muted)">No data.</td></tr>'; return;
   }
   tbody.innerHTML = r.results.map(item=>`<tr>
-    <td>${item.athlete.name||item.athlete.id||'—'}</td>
+    <td>${(`${item.athlete.first_name||''} ${item.athlete.last_name||''}`).trim() || item.athlete.id || '—'}</td>
     <td>${item.performance}</td>
   </tr>`).join('');
 }

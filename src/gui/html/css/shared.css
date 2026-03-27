@@ -1,0 +1,53 @@
+/* ============================================================
+   IntervalTrack — shared base styles
+   Imported by both index.css and resting.css
+   ============================================================ */
+
+/* ============================================================
+   CSS CUSTOM PROPERTIES (shared subset)
+   Each file defines its own --accent on top of these.
+   ============================================================ */
+
+:root {
+  --bg: #080b0e;
+  --panel: #0f1318;
+  --border: #2a3444;
+  --text: #f0f4ff;
+  --muted: #8a9ab8;
+  --radius: 6px;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+/* ============================================================
+   RESET
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================
+   BASE BODY
+   ============================================================ */
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }

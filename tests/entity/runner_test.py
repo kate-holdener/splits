@@ -19,6 +19,13 @@ class TestRunner:
     def test_start_interval(self):
         self.runner.start_interval(100)
         assert (self.runner.current_status == RunnerState.RUNNING)
+    
+    def test_start_interval_twice(self):
+        self.runner.start_interval(100)
+        self.runner.start_interval(200)
+        assert (self.runner.current_status == RunnerState.RUNNING)
+        assert (self.runner.get_intervals()[-1].start_time == 200)
+        assert (len(self.runner.get_intervals()) == 1)
 
     def test_finish_interval(self):
         self.runner.start_interval(100)

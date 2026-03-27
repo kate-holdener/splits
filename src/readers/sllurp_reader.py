@@ -8,16 +8,19 @@ from entity.event import Event
 from datetime import datetime, timezone
 
 class LLRPReader(Reader):
-    def __init__(self, queue, scanner_address, runner_ids, port=LLRP_DEFAULT_PORT):
+    def __init__(self, queue, scanner_address, port=LLRP_DEFAULT_PORT):
         super().__init__(queue)
         self.host = scanner_address
         self.port = port
-        self.runner_ids = runner_ids
+        self.runner_ids = None
         self.reader = None
         try: 
             self.reader = LLRPReader._init_reader(self.host, self.port)
         except Exception as e:
             raise ConnectionError(f"could not connect to {self.host}:{self.port}")
+
+    def filter_by_id(self, runner_ids=list[str]):
+        self.runner_ids = runner_ids
 
     @staticmethod
     def normalize_epc(epc):
@@ -30,7 +33,7 @@ class LLRPReader(Reader):
         factory_args = dict(
             report_every_n_tags=1,
             antennas=[0],
-            tx_power=30,
+            tx_power=50,
             start_inventory=True,
             tag_content_selector={
                 'EnableROSpecID': True,
@@ -61,14 +64,15 @@ class LLRPReader(Reader):
             try:
                 # sllurp tag info typically contains .epc
                 epc = tag.get('EPC').decode('utf-8') if isinstance(tag.get('EPC'), bytes) else str(tag.get('EPC'))
-                epc = epc.upper()
-                
+                epc = epc.upper()                
                 normalized = self.normalize_epc(epc)
-                if normalized in self.runner_ids:
+                if not self.runner_ids or normalized in self.runner_ids:
                     # sllurp tags have timestamp in tag.LastSeenTimestampUTC(nanoseconds)
                     #event.timestamp = int(tag.get('LastSeenTimestampUTC')) / 1_000_000
                     timestamp = get_timestamp_now() #int(datetime.now(timezone.utc).timestamp())
                     event = Event(normalized, timestamp)
+                    with open("rfid.txt", "a") as f:
+                        f.write(f"RFID, {normalized}, {timestamp}\n")
                     self.queue.put(event)
 
             except Exception as e:

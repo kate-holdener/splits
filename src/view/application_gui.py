@@ -1,10 +1,13 @@
-from PySide6.QtWidgets import (QApplication)
-from view.main_menu_gui import MainMenuGUI
 import sys
+from PySide6.QtWidgets import QApplication
+from view.landing_screen import LandingScreen
 
-class ApplicationGUI():
-    def __init__(self, runners, controllers):
-        self.qapplication = QApplication(sys.argv)
-        self.main_menu = MainMenuGUI(runners, controllers)
-        self.main_menu.show()
-        self.qapplication.exec()
+
+class ApplicationGUI:
+    def __init__(self):
+        self._app = QApplication.instance() or QApplication(sys.argv)
+        self._landing = LandingScreen()
+        self._landing.show()
+
+    def run(self):
+        sys.exit(self._app.exec())

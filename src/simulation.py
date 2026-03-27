@@ -3,6 +3,7 @@ import csv
 from parser.runner_parser import parse_runner_data
 from entity.workout import Workout
 from entity.event import Event
+from queue import Queue
 
 from datetime import datetime
 from interactors.interval_timer import IntervalTimer
@@ -61,8 +62,13 @@ if __name__ == "__main__":
     workout.laps_per_interval = 1
     for a in athletes:
         a.add_workout(workout)
-    intervalTimer = IntervalTimer(None, None, athletes)
     
+    
+    start_q = Queue()
+    lap_q = Queue()
+    intervalTimer = IntervalTimer(start_q, lap_q, athletes)
+    intervalTimer.start()
+
     with open(commands_csv, 'r') as f:
         reader = csv.reader(f)
         current_group = []
@@ -78,18 +84,19 @@ if __name__ == "__main__":
                 timestamp = int(row[1])
                 for nfc_tag in current_group:
                     event = Event(nfc_tag, timestamp)
-                    intervalTimer._process_start_event(event)
+                    start_q.put(event)
                 current_group = []
             
             elif command == 'NFC':
                 nfc_tag = row[1]
                 timestamp = int(row[2])
                 event = Event(nfc_tag, timestamp)
-                intervalTimer._process_start_event(event)
+                start_q.put(event)
             
             elif command == 'RFID':
                 rfid_tag = row[1]
                 timestamp = int(row[2])
                 event = Event(rfid_tag, timestamp)
-                intervalTimer._process_lap_event(event)
+                lap_q.put(event)
+    intervalTimer.stop()
     print_runner_intervals(athletes)

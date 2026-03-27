@@ -221,7 +221,10 @@ class NFCReader(Reader):
             raise ConnectionError("Connection to NFC Scanner failed")
 
     def tag_detected(self, tag: NFCTag):
-        event = Event(tag.uid, get_timestamp_now())
+        timestamp =  get_timestamp_now()
+        event = Event(tag.uid, timestamp)
+        with open("nfc.txt", "a") as f:
+            f.write(f"NFC, {tag.uid}, {timestamp}\n")
         print(event)
         self.queue.put(event)
 

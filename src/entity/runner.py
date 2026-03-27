@@ -118,7 +118,7 @@ class Runner:
             self.last_seen_timestamp = timestamp
 
     def to_dict(self):
-        return {'first name': self.name, 
-                'last name': self.lname, 
-                'start tag': self.start_id,
-                'finish tag': self.lap_id}
+        return {'first_name': self.name, 
+                'last_name': self.lname, 
+                'start_tag': self.start_id,
+                'finish_tag': self.lap_id}

@@ -25,6 +25,7 @@ from readers.sllurp_reader import LLRPReader
 from reader import Reader
 
 scanner_address = '169.254.1.1'
+#scanner_address = '169.254.45.107'
 class AppState(Enum):
     """Application state machine states."""
     INITIAL = auto()
@@ -219,7 +220,8 @@ class IntervalTrainingCLI:
         runner_ids = [r.lap_id for r in self.athletes]
         success = False
         try:
-            self.rfid_scanner = LLRPReader(self.lap_event_q, scanner_address, runner_ids)
+            self.rfid_scanner = LLRPReader(self.lap_event_q, scanner_address)
+            #self.rfid_scanner.filter_by_id(runner_ids)
             self.rfid_scanner.start()
             success = True
         except Exception as e:

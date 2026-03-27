@@ -1,4 +1,5 @@
 from readers.sllurp_reader import LLRPReader
+from readers.acr122u_nfc import NFCReader
 from view.timer_view import TimerView
 from view.application_gui import ApplicationGUI
 from view.timer_view_gui import TimerViewGUI
@@ -20,6 +21,8 @@ def main(runner_file):
     scanner_address = '169.254.1.1'
     reader = LLRPReader(lap_time_queue, scanner_address, runner_ids)
     reader.start()
+    nfc_reader = NFCReader(start_time_queue)
+    nfc_reader.start()
 
     interval_timer = IntervalTimer(start_time_queue, lap_time_queue, runners)
     interval_timer.start()

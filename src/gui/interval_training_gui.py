@@ -22,73 +22,16 @@ from typing import Optional, List, Set
 # Stub imports so the file runs standalone without the original project.
 # Replace these with your real imports when integrating into the project.
 # ---------------------------------------------------------------------------
-try:
-    from parser.runner_parser import parse_runner_data
-    from entity.workout import Workout
-    from entity.runner import Runner
-    from entity.RunnerState import RunnerState
-    from controller.start_controller import ManualStartController
-    from interactors.interval_timer import IntervalTimer
-    from interactors.stats_calculator import calculate_performance
-    from readers.acr122u_nfc import NFCReader
-    from readers.sllurp_reader import LLRPReader
-    from reader import Reader
-    _REAL_IMPORTS = True
-except ImportError:
-    _REAL_IMPORTS = False
-
-    # ---- Minimal stubs so the GUI loads without the real project ----
-    class RunnerState:
-        RUNNING = "RUNNING"
-        RESTING = "RESTING"
-
-    class Runner:
-        def __init__(self, rid, name, lap_id, start_id):
-            self.id = rid
-            self.name = name
-            self.lap_id = lap_id
-            self.start_id = start_id
-            self._status = None
-            self._observers = []
-            self.workout = None
-
-        def get_status(self): return self._status
-        def add_observer(self, obs): self._observers.append(obs)
-        def add_workout(self, w): self.workout = w
-        def to_dict(self): return {"id": self.id, "name": self.name,
-                                   "lap_id": self.lap_id, "start_id": self.start_id}
-
-    class Workout:
-        def __init__(self, ts): self.ts = ts; self.interval_distance = 0; self.laps_per_interval = 0
-        def configure(self, dist, laps): self.interval_distance = dist; self.laps_per_interval = laps
-
-    class IntervalTimer:
-        def __init__(self, *a, **kw): pass
-        def start(self): pass
-        def stop(self): pass
-
-    class ManualStartController:
-        def __init__(self, q): self.q = q
-        def start(self, ids): pass
-
-    class NFCReader:
-        def __init__(self, q): pass
-        def start(self): raise RuntimeError("NFC stub – not connected")
-
-    class LLRPReader:
-        def __init__(self, q, addr, ids): pass
-        def start(self): raise RuntimeError("RFID stub – not connected")
-
-    def parse_runner_data(path):
-        # Return two demo athletes when running without real project
-        return [
-            Runner("1", "Alice", "LAP001", "START001"),
-            Runner("2", "Bob",   "LAP002", "START002"),
-        ]
-
-    def calculate_performance(runner):
-        return None
-
+from parser.runner_parser import parse_runner_data
+from entity.workout import Workout
+from entity.runner import Runner
+from entity.RunnerState import RunnerState
+from controller.start_controller import ManualStartController
+from interactors.interval_timer import IntervalTimer
+from interactors.stats_calculator import calculate_performance
+from readers.acr122u_nfc import NFCReader
+from readers.sllurp_reader import LLRPReader
+from reader import Reader
 
 SCANNER_ADDRESS = '169.254.1.1'
 
@@ -242,7 +185,8 @@ class Api:
             return {"ok": False, "msg": "Complete steps 1 and 2 first."}
         try:
             runner_ids = [r.lap_id for r in self.athletes]
-            self.rfid_scanner = LLRPReader(self.lap_event_q, SCANNER_ADDRESS, runner_ids)
+            self.rfid_scanner = LLRPReader(self.lap_event_q, SCANNER_ADDRESS)
+            self.rfid_scanner.filter_by_id(runner_ids)
             self.rfid_scanner.start()
             self.rfid_connected = True
             self.rfid_scanner_failed = False

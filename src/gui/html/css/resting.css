@@ -13,8 +13,8 @@
   --warning: #ffaa00;
   --danger: #ff3333;
   --radius: 6px;
-  --font-head: 'Barlow Condensed', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-head: system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
 }
 
 * {
@@ -27,7 +27,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 17px;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -50,7 +50,7 @@ body {
 
 .logo {
   font-family: var(--font-head);
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 900;
   letter-spacing: 2px;
   color: var(--accent);
@@ -71,7 +71,7 @@ body {
 }
 
 #count-label {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 2px;
   color: var(--muted);
   text-transform: uppercase;
@@ -156,7 +156,7 @@ body {
 }
 
 .runner-meta span {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 1px;
 }
@@ -167,10 +167,10 @@ body {
 }
 
 .rest-badge {
-  padding: 5px 14px;
+  padding: 8px 18px;
   border-radius: 20px;
   font-family: var(--font-head);
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 1px;
   background: #ffff0022;
@@ -202,14 +202,14 @@ body {
 
 #empty .msg {
   font-family: var(--font-head);
-  font-size: 20px;
+  font-size: 24px;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 #empty .sub {
-  font-size: 13px;
+  font-size: 16px;
   letter-spacing: 1px;
   color: #666666;
 }
@@ -221,12 +221,12 @@ body {
 #footer {
   border-top: 1px solid var(--border);
   background: #111111;
-  padding: 8px 22px;
+  padding: 10px 22px;
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 1px;
 }

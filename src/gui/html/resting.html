@@ -22,6 +22,12 @@
   </div>
 </div>
 
+<div id="footer">
+  <div class="dot"></div>
+  <span>LIVE FEED</span>
+  <span id="last-update" style="margin-left:auto"></span>
+</div>
+
 <script>
 function cardClass(secsLeft, duration){
   if(secsLeft <= 0)              return 'done';
@@ -79,7 +85,7 @@ function tryStart(){
   if(window.pywebview && window.pywebview.api && window.pywebview.api.get_resting){
     _started = true;
     refresh();
-    setInterval(refresh, 250);
+    setInterval(refresh, 1000);
   } else {
     setTimeout(tryStart, 250);
   }

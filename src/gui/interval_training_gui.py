@@ -520,8 +520,11 @@ class Api:
 # ---------------------------------------------------------------------------
 def main():
     api = Api()
-
-    ui_path=os.path.join(os.path.dirname(__file__), "html", "index.html")
+    
+    # Get HTML path - check environment variable first (for bundled app)
+    html_path = os.environ.get('GUI_HTML_PATH', os.path.join(os.path.dirname(__file__), "html"))
+    ui_path = os.path.join(html_path, "index.html")
+    
     # Primary window
     main_window = webview.create_window(
         title="IntervalTrack",

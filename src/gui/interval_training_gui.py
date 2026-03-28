@@ -215,8 +215,8 @@ class Api:
             return {"ok": False, "msg": "Complete steps 1 and 2 first."}
         try:
             runner_ids = [r.lap_id for r in self.athletes]
-            #self.rfid_scanner = LLRPReader(self.lap_event_q, address.strip())
-            self.rfid_scanner = ImpinjRestReader(self.lap_event_q, "127.0.0.1:5001")
+            self.rfid_scanner = LLRPReader(self.lap_event_q, address.strip())
+            #self.rfid_scanner = ImpinjRestReader(self.lap_event_q, "127.0.0.1:5001")
             self.rfid_scanner.filter_by_id(runner_ids)
             self.rfid_scanner.start()
             self.rfid_connected = True

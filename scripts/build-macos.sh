@@ -20,6 +20,7 @@ echo "Building executable..."
 pyinstaller \
     --windowed \
     --name "IntervalTimer" \
+    --icon "icon/icon.icns" \
     --osx-bundle-identifier "com.intervaltraining.app" \
     --add-data "src/gui/html:src/gui/html" \
     --add-data "src:src" \

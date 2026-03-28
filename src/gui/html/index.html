@@ -75,6 +75,16 @@
           <div class="card">
             <div class="card-title">Load Athletes</div>
             <p class="subtitle">Import runner roster from a CSV file.</p>
+            
+            <!-- Session status section -->
+            <div id="session-status" style="margin-bottom:12px;padding:8px;border-radius:4px;background:rgba(0,123,255,0.1);border:1px solid rgba(0,123,255,0.2);display:none">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="color:#007bff">📁</span>
+                <span id="session-status-text">Previous session loaded</span>
+                <button class="btn btn-ghost btn-sm" onclick="clearSession()" style="margin-left:auto">Clear</button>
+              </div>
+            </div>
+            
             <div class="form-group">
               <label>CSV File</label>
               <div class="file-picker">
@@ -286,6 +296,19 @@ function applyState(s){
   setPill('pill-rfid',     s.rfidConnected, 'RFID',  s.rfidFailed);
   setPill('pill-nfc',      s.nfcConnected,  'NFC',   s.nfcFailed);
 
+  // Handle session status display
+  const sessionStatus = document.getElementById('session-status');
+  const sessionStatusText = document.getElementById('session-status-text');
+  
+  if (sessionStatus && sessionStatusText) {
+    if (s.sessionLoaded && s.athleteCount > 0) {
+      sessionStatus.style.display = 'block';
+      sessionStatusText.textContent = `Previous session: ${s.athleteCount} athletes loaded`;
+    } else {
+      sessionStatus.style.display = 'none';
+    }
+  }
+
   // Tab dots
   const setupOk = s.athletesLoaded && s.workoutConfigured;
   const scannersOk = s.rfidConnected && s.nfcConnected;
@@ -353,6 +376,21 @@ async function loadAthletes(){
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);
   if(r.ok) loadAthleteList();
+}
+
+async function clearSession(){
+  const r = await pywebview.api.clear_session();
+  log(r.msg, r.ok ? 'ok' : 'err');
+  if(r.state) applyState(r.state);
+  if(r.ok) {
+    // Clear the athlete list display
+    const wrap = document.getElementById('athletes-ok');
+    wrap.style.display = 'none';
+    // Clear CSV path
+    _csvPath = '';
+    document.getElementById('csv-path-display').textContent = 'No file selected…';
+    document.getElementById('load-btn').disabled = true;
+  }
 }
 
 async function loadAthleteList(){
@@ -567,7 +605,30 @@ async function generateReports(){
 
 window.addEventListener('pywebviewready', ()=>{
   log('IntervalTrack ready.','info');
+  
+  // Load initial state to check for existing session
+  loadInitialState();
 });
+
+async function loadInitialState() {
+  try {
+    const state = await pywebview.api.get_state();
+    applyState(state);
+    
+    // If session was loaded, also load the athlete list
+    if (state.sessionLoaded && state.athletesLoaded) {
+      loadAthleteList();
+    }
+    
+    // Load session info for additional context
+    const sessionInfo = await pywebview.api.get_session_info();
+    if (sessionInfo.ok && sessionInfo.sessionLoaded) {
+      log(`Session restored with ${sessionInfo.athleteCount} athletes`, 'info');
+    }
+  } catch (e) {
+    console.error('Error loading initial state:', e);
+  }
+}
 </script>
 </body>
 </html>

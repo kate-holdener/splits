@@ -78,6 +78,9 @@ class RunnerObserver:
 # JavaScript API (called from the frontend via window.pywebview.api.*)
 # ---------------------------------------------------------------------------
 class Api:
+    # Session file path (relative to src/)
+    SESSION_FILE_PATH = "../data/athletes_session.json"
+    
     def __init__(self):
         self.athletes: List = []
         self.csv_file: Optional[str] = None
@@ -90,6 +93,7 @@ class Api:
         self.athletes_loaded = False
         self.workout_configured = False
         self.workout_active = False
+        self.session_loaded = False  # Track if session was loaded on startup
 
         self.group_start_athletes: Set = set()
         self.runner_observer = RunnerObserver()
@@ -103,6 +107,9 @@ class Api:
         self.timer = None
 
         self.resting_window = None
+        
+        # Attempt to load previous session on startup
+        self._load_session_on_startup()
 
     def add_resting_window(self, resting_window):
         self.resting_window = resting_window
@@ -127,6 +134,7 @@ class Api:
             "workoutActive": self.workout_active,
             "athleteCount": len(self.athletes),
             "groupCount": len(self.group_start_athletes),
+            "sessionLoaded": self.session_loaded,
         }
 
     # ------------------------------------------------------------------
@@ -161,6 +169,10 @@ class Api:
             if self.workout:
                 for a in self.athletes:
                     a.add_workout(self.workout)
+            
+            # Save session after successful load
+            self._save_session()
+            
             return {"ok": True, "msg": f"Loaded {len(self.athletes)} athletes.", "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
@@ -411,6 +423,96 @@ class Api:
             and self.rfid_connected and self.nfc_connected
             and not self.rfid_scanner_failed and not self.nfc_scanner_failed
         )
+
+    # ------------------------------------------------------------------
+    # Session Management
+    # ------------------------------------------------------------------
+    def _load_session_on_startup(self):
+        """Load previous athlete session on application startup."""
+        try:
+            from persistence.athlete_persistence import load_athletes_from_session, session_exists
+            
+            if not session_exists():
+                print("No previous session found")
+                return
+            
+            athletes = load_athletes_from_session(self.SESSION_FILE_PATH)
+            if athletes:
+                self.athletes = athletes
+                self.athletes_loaded = True
+                self.session_loaded = True
+                
+                # Set up observers for loaded athletes
+                for a in self.athletes:
+                    a.add_observer(self.runner_observer)
+                
+                # Initialize timer (but don't start it - no hardware connected yet)
+                self.timer = IntervalTimer(self.start_event_q, self.lap_event_q, self.athletes)
+                
+                print(f"Session loaded: {len(self.athletes)} athletes from previous session")
+            else:
+                print("Failed to load previous session")
+                
+        except Exception as e:
+            print(f"Error loading session on startup: {e}")
+    
+    def _save_session(self):
+        """Save current athletes to session file."""
+        try:
+            from persistence.athlete_persistence import save_athletes_to_session
+            
+            if self.athletes:
+                success = save_athletes_to_session(self.athletes, self.SESSION_FILE_PATH)
+                if success:
+                    print(f"Session saved: {len(self.athletes)} athletes")
+                else:
+                    print("Failed to save session")
+            else:
+                print("No athletes to save")
+                
+        except Exception as e:
+            print(f"Error saving session: {e}")
+    
+    def clear_session(self):
+        """Clear the current session (called from frontend)."""
+        try:
+            from persistence.athlete_persistence import clear_session
+            
+            success = clear_session()
+            if success:
+                # Reset application state
+                self.athletes = []
+                self.athletes_loaded = False
+                self.session_loaded = False
+                self.csv_file = None
+                
+                # Stop timer if running
+                if self.timer:
+                    self.timer.stop()
+                    self.timer = None
+                
+                return {"ok": True, "msg": "Session cleared", "state": self.get_state()}
+            else:
+                return {"ok": False, "msg": "Failed to clear session"}
+                
+        except Exception as e:
+            return {"ok": False, "msg": f"Error clearing session: {e}"}
+    
+    def get_session_info(self):
+        """Get information about the current session (called from frontend)."""
+        try:
+            from persistence.athlete_persistence import session_exists
+            
+            return {
+                "ok": True,
+                "sessionExists": session_exists(),
+                "sessionLoaded": self.session_loaded,
+                "athleteCount": len(self.athletes),
+                "athletesLoaded": self.athletes_loaded
+            }
+            
+        except Exception as e:
+            return {"ok": False, "msg": f"Error getting session info: {e}"}
 
     def shutdown(self):
         if self.timer:

@@ -30,12 +30,14 @@ pyinstaller ^
     --hidden-import=smartcard.util ^
     --hidden-import=pyllrp ^
     --hidden-import=sllurp ^
+    --hidden-import=sllurp.llrp ^
     --hidden-import=reportlab ^
     --hidden-import=requests ^
     --hidden-import=webview ^
     --collect-submodules=webview ^
     --collect-submodules=smartcard ^
     --collect-submodules=pyscard ^
+    --collect-submodules=sllurp ^
     --noconfirm ^
     main.py
 

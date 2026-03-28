@@ -18,11 +18,10 @@ rm -rf dist/ build/ *.spec
 # Build the executable
 echo "Building executable..."
 pyinstaller \
-    --onefile \
     --windowed \
-    --name "IntervalTraining-macos" \
+    --name "IntervalTimer" \
+    --osx-bundle-identifier "com.intervaltraining.app" \
     --add-data "src/gui/html:src/gui/html" \
-    --add-data "data:data" \
     --add-data "src:src" \
     --hidden-import=smartcard \
     --hidden-import=smartcard.scard \
@@ -39,20 +38,17 @@ pyinstaller \
     --collect-submodules=sllurp \
     --noconfirm \
     main.py
-
 echo "Build completed successfully!"
-echo "Executable location: dist/IntervalTraining-macos"
+echo "Executable location: dist/IntervalTimer"
 
-# Test if executable exists
-if [ -f "dist/IntervalTraining-macos" ]; then
-    echo "✓ Executable created successfully"
-    ls -lh dist/IntervalTraining-macos
+if [ -d "dist/IntervalTimer.app" ]; then
+    echo "✓ App bundle created successfully"
+    ls -lh dist/
 else
-    echo "✗ Executable not found!"
+    echo "✗ App bundle not found!"
     exit 1
 fi
-
 echo ""
 echo "To test the executable:"
 echo "  cd dist"
-echo "  ./IntervalTraining-macos"
+echo "  ./IntervalTimer"

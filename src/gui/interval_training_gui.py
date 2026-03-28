@@ -31,6 +31,7 @@ from interactors.interval_timer import IntervalTimer
 from interactors.stats_calculator import calculate_performance
 from readers.acr122u_nfc import NFCReader
 from readers.sllurp_reader import LLRPReader
+from readers.impinj_rest_reader import ImpinjRestReader
 from reader import Reader
 
 SCANNER_ADDRESS = '169.254.1.1'
@@ -160,7 +161,15 @@ class Api:
             return {"ok": False, "msg": "CSV file path is required."}
         try:
             self.csv_file = csv_path.strip()
-            self.athletes = parse_runner_data(self.csv_file)
+            athletes = parse_runner_data(self.csv_file)
+            self.init_athletes(athletes)
+            # Save session after successful load
+            self._save_session()
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+        
+    def init_athletes(self, athletes):
+            self.athletes = athletes
             self.athletes_loaded = True
             for a in self.athletes:
                 a.add_observer(self.runner_observer)
@@ -168,15 +177,10 @@ class Api:
             self.timer.start()
             if self.workout:
                 for a in self.athletes:
-                    a.add_workout(self.workout)
-            
-            # Save session after successful load
-            self._save_session()
+                    a.add_workout(self.workout)        
             
             return {"ok": True, "msg": f"Loaded {len(self.athletes)} athletes.", "state": self.get_state()}
-        except Exception as e:
-            return {"ok": False, "msg": str(e)}
-
+    
     # ------------------------------------------------------------------
     # Option 2 – Configure workout
     # ------------------------------------------------------------------
@@ -211,7 +215,8 @@ class Api:
             return {"ok": False, "msg": "Complete steps 1 and 2 first."}
         try:
             runner_ids = [r.lap_id for r in self.athletes]
-            self.rfid_scanner = LLRPReader(self.lap_event_q, address.strip())
+            #self.rfid_scanner = LLRPReader(self.lap_event_q, address.strip())
+            self.rfid_scanner = ImpinjRestReader(self.lap_event_q, "127.0.0.1:5001")
             self.rfid_scanner.filter_by_id(runner_ids)
             self.rfid_scanner.start()
             self.rfid_connected = True
@@ -438,17 +443,7 @@ class Api:
             
             athletes = load_athletes_from_session(self.SESSION_FILE_PATH)
             if athletes:
-                self.athletes = athletes
-                self.athletes_loaded = True
-                self.session_loaded = True
-                
-                # Set up observers for loaded athletes
-                for a in self.athletes:
-                    a.add_observer(self.runner_observer)
-                
-                # Initialize timer (but don't start it - no hardware connected yet)
-                self.timer = IntervalTimer(self.start_event_q, self.lap_event_q, self.athletes)
-                
+                self.init_athletes(athletes)           
                 print(f"Session loaded: {len(self.athletes)} athletes from previous session")
             else:
                 print("Failed to load previous session")

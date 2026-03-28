@@ -5,12 +5,18 @@ from entity.event import Event
 import json
 import base64
 from datetime import datetime
+from utils.normalized_timestamp import get_timestamp_now
+
 class ImpinjRestReader(Reader):
-    def __init__(self, queue, scanner_address, runner_ids):
+    def __init__(self, queue, scanner_address):
         super().__init__(queue)
         self.scanner = scanner_address
-        self.hostname = 'https://root:impinj@{0}'.format(scanner_address)
+        self.hostname = 'http://{0}'.format(scanner_address)
+        self.runner_ids = None
+
+    def filter_by_id(self, runner_ids):
         self.runner_ids = runner_ids
+        print(self.runner_ids)
 
     def normalize_epc(epc):
         """Remove leading zeros from EPC, but keep it as a string"""
@@ -49,10 +55,10 @@ class ImpinjRestReader(Reader):
         if 'tagInventoryEvent' in data and 'epc' in data['tagInventoryEvent']:
             id = ImpinjRestReader.base64_to_hex(data['tagInventoryEvent']['epc'])
             id = ImpinjRestReader.normalize_epc(id)
-            if id in self.runner_ids:
-                event = Event()
-                event.id = id
-                event.timestamp = ImpinjRestReader.iso_to_seconds(data['timestamp'])
+            print(f"Got EPC: {repr(id)}, runner_ids: {self.runner_ids}, match: {id in self.runner_ids}")  # <-- add this
+
+            if not self.runner_ids or id in self.runner_ids:
+                event = Event(id, get_timestamp_now())
                 return event
         return None
         

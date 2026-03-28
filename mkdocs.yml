@@ -1,0 +1,14 @@
+site_name: Interval Training
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_docstring_description: true
+theme:
+  name: mkdocs  # optional but very popular

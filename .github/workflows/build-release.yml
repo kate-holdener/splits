@@ -70,7 +70,7 @@ jobs:
           fi
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.executable_name }}
           path: dist/${{ matrix.executable_name }}
@@ -87,7 +87,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
       
@@ -105,14 +105,12 @@ jobs:
       
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          release_name: Interval Training ${{ steps.version.outputs.version }}
-          body: |
-            ## Interval Training Application ${{ steps.version.outputs.version }}
+        run: |
+          gh release create ${{ steps.version.outputs.version }} \
+            --title "Interval Training ${{ steps.version.outputs.version }}" \
+            --notes "## Interval Training Application ${{ steps.version.outputs.version }}
             
             Cross-platform executable releases for the Interval Training application.
             
@@ -127,34 +125,14 @@ jobs:
             - PDF report generation
             
             ### System Requirements
-            - **macOS**: macOS 10.14+ (may require installing pcsc-lite: `brew install pcsc-lite`)
+            - **macOS**: macOS 10.14+ (may require installing pcsc-lite: \`brew install pcsc-lite\`)
             - **Windows**: Windows 10+ (no additional requirements)
             
             ### Installation
             1. Download the appropriate executable for your platform
-            2. Make executable (macOS): `chmod +x IntervalTraining-macos`
+            2. Make executable (macOS): \`chmod +x IntervalTraining-macos\`
             3. Run the application
             
-            **Note**: On first run, your system may show security warnings. On macOS, you may need to right-click and select "Open" to bypass Gatekeeper.
-          draft: false
-          prerelease: false
-      
-      - name: Upload macOS executable
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/IntervalTraining-macos/IntervalTraining-macos
-          asset_name: IntervalTraining-macos
-          asset_content_type: application/octet-stream
-      
-      - name: Upload Windows executable
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/IntervalTraining-windows.exe/IntervalTraining-windows.exe
-          asset_name: IntervalTraining-windows.exe
-          asset_content_type: application/octet-stream
+            **Note**: On first run, your system may show security warnings. On macOS, you may need to right-click and select \"Open\" to bypass Gatekeeper." \
+            ./artifacts/IntervalTraining-macos/IntervalTraining-macos#IntervalTraining-macos \
+            ./artifacts/IntervalTraining-windows.exe/IntervalTraining-windows.exe#IntervalTraining-windows.exe

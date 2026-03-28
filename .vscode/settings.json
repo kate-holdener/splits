@@ -1,0 +1,7 @@
+{
+    "workbench.editor.enablePreview": false,
+    "workbench.editor.enablePreviewFromQuickOpen": false,
+    "workbench.list.openMode": "singleClick",
+    "workbench.editor.openPositioning": "last",
+    "workbench.editor.revealIfOpen": true
+}

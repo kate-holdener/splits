@@ -33,8 +33,10 @@ from readers.acr122u_nfc import NFCReader
 from readers.sllurp_reader import LLRPReader
 from readers.impinj_rest_reader import ImpinjRestReader
 from reader import Reader
+from discovery.rfid_discovery import RFIDDiscovery
+from discovery.exceptions import ConnectionTimeoutError, ProtocolError, NoScannersFoundError
 
-SCANNER_ADDRESS = '169.254.1.1'
+import time
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +97,11 @@ class Api:
         self.workout_configured = False
         self.workout_active = False
         self.session_loaded = False  # Track if session was loaded on startup
+        
+        # Protocol information for scanners
+        self.rfid_protocol = None      # 'llrp' or 'rest' when connected
+        self.rfid_address = None       # IP address when connected
+        self.rfid_port = None          # Port number when connected
 
         self.group_start_athletes: Set = set()
         self.runner_observer = RunnerObserver()
@@ -136,6 +143,10 @@ class Api:
             "athleteCount": len(self.athletes),
             "groupCount": len(self.group_start_athletes),
             "sessionLoaded": self.session_loaded,
+            # Protocol information for scanners
+            "rfidProtocol": self.rfid_protocol,
+            "rfidAddress": self.rfid_address,
+            "rfidPort": self.rfid_port,
         }
 
     # ------------------------------------------------------------------
@@ -208,23 +219,153 @@ class Api:
     # Option 3 – Connect RFID
     # ------------------------------------------------------------------
     def connect_rfid(self):
-        return self.connect_rfid_with_address(SCANNER_ADDRESS)
-
-    def connect_rfid_with_address(self, address: str):
+        print("connecting rfid")
+        """Connect to RFID scanner with auto-discovery."""
         if not (self.athletes_loaded and self.workout_configured):
             return {"ok": False, "msg": "Complete steps 1 and 2 first."}
+            
         try:
+            # Try auto-discovery for both LLRP and REST protocols
+            discovery = RFIDDiscovery(timeout=3.0)
+            scanners = discovery.discover(protocol='both', use_cache=True)
+            
+            for scanner in scanners:
+                try:
+                    connection = self.connect_rfid_with_scanner_info(scanner)
+                    if connection['ok']:
+                        return connection
+                except Exception as e:
+                    print(f"could not connect to {scanner}")
+            else:
+                # Fallback to default address (try LLRP first, then REST)
+                return self.connect_rfid_with_address('169.254.1.1')
+                
+        except NoScannersFoundError:
+            # Fallback to default address for manual entry
+            return self.connect_rfid_with_address('169.254.1.1')
+        except Exception as e:
+            return {"ok": False, "msg": f"Discovery failed: {e}. Using default address.", "fallback": True}
+
+    def connect_rfid_with_scanner_info(self, scanner_info: dict):
+        """Connect to RFID scanner using discovered scanner information."""
+        if not (self.athletes_loaded and self.workout_configured):
+            return {"ok": False, "msg": "Complete steps 1 and 2 first."}
+            
+        address = scanner_info['address']
+        protocol = scanner_info['protocol']
+        port = scanner_info.get('port', 5084)
+        
+        try:
+            
+            # Instantiate the appropriate reader based on discovered protocol
+            if protocol == 'llrp':
+                self.rfid_scanner = LLRPReader(self.lap_event_q, address)
+                protocol_name = f"LLRP (port {port})"
+            elif protocol == 'rest':
+                address_and_port = address+':'+str(port)
+                self.rfid_scanner = ImpinjRestReader(self.lap_event_q, address_and_port)
+                protocol_name = f"REST API (address:port {address}:{port})"
+                print(protocol_name)
+            else:
+                return {"ok": False, "msg": f"Unknown protocol '{protocol}' for scanner at {address}", "state": self.get_state()}
+             
             runner_ids = [r.lap_id for r in self.athletes]
-            self.rfid_scanner = LLRPReader(self.lap_event_q, address.strip())
-            #self.rfid_scanner = ImpinjRestReader(self.lap_event_q, "127.0.0.1:5001")
             self.rfid_scanner.filter_by_id(runner_ids)
             self.rfid_scanner.start()
+            
             self.rfid_connected = True
             self.rfid_scanner_failed = False
-            return {"ok": True, "msg": f"RFID scanner connected ({address.strip()}).", "state": self.get_state()}
+            
+            # Store protocol information for UI display
+            self.rfid_protocol = protocol
+            self.rfid_address = address
+            self.rfid_port = port
+            
+            # Cache the working address for future use
+            try:
+                discovery = RFIDDiscovery()
+                discovery._cache_results([scanner_info])
+            except:
+                pass  # Caching failure shouldn't break connection
+                
+            return {"ok": True, "msg": f"RFID scanner connected at {address} using {protocol_name}.", "state": self.get_state()}
+            
+        except ConnectionTimeoutError as e:
+            self.rfid_scanner_failed = True
+            self._clear_rfid_connection_info()
+            return {"ok": False, "msg": f"Connection timeout: {e}", "state": self.get_state()}
+        except ProtocolError as e:
+            self.rfid_scanner_failed = True
+            self._clear_rfid_connection_info()
+            return {"ok": False, "msg": f"Protocol error: {e}", "state": self.get_state()}
         except Exception as e:
             self.rfid_scanner_failed = True
+            self._clear_rfid_connection_info()
             return {"ok": False, "msg": f"RFID failed: {e}", "state": self.get_state()}
+
+    def connect_rfid_with_address(self, address: str):
+        """Connect to RFID scanner at specific address with protocol auto-detection."""
+        if not (self.athletes_loaded and self.workout_configured):
+            return {"ok": False, "msg": "Complete steps 1 and 2 first."}
+            
+        try:
+            # Try to detect the protocol at this specific address
+            discovery = RFIDDiscovery(timeout=3.0)
+            address = address.strip()
+            
+            # Test the address for both protocols
+            scanner_results = discovery._test_address(address, protocol='both')
+            
+            if scanner_results:
+                # Use the first detected protocol
+                scanner_info = scanner_results[0]
+                return self.connect_rfid_with_scanner_info(scanner_info)
+            else:
+                # If detection fails, try LLRP as fallback (original behavior)
+                runner_ids = [r.lap_id for r in self.athletes]
+                self.rfid_scanner = LLRPReader(self.lap_event_q, address)
+                self.rfid_scanner.filter_by_id(runner_ids)
+                self.rfid_scanner.start()
+                
+                self.rfid_connected = True
+                self.rfid_scanner_failed = False
+                
+                # Store protocol information for UI display
+                self.rfid_protocol = 'llrp'
+                self.rfid_address = address
+                self.rfid_port = 5084
+                
+                # Cache the working address for future use
+                try:
+                    discovery._cache_results([{
+                        'address': address,
+                        'protocol': 'llrp', 
+                        'port': 5084,
+                        'timestamp': time.time()
+                    }])
+                except:
+                    pass  # Caching failure shouldn't break connection
+                    
+                return {"ok": True, "msg": f"RFID scanner connected at {address} (assumed LLRP).", "state": self.get_state()}
+                
+        except ConnectionTimeoutError as e:
+            self.rfid_scanner_failed = True
+            self._clear_rfid_connection_info()
+            return {"ok": False, "msg": f"Connection timeout: {e}", "state": self.get_state()}
+        except ProtocolError as e:
+            self.rfid_scanner_failed = True
+            self._clear_rfid_connection_info()
+            return {"ok": False, "msg": f"Protocol error: {e}", "state": self.get_state()}
+        except Exception as e:
+            self.rfid_scanner_failed = True
+            self._clear_rfid_connection_info()
+            return {"ok": False, "msg": f"RFID failed: {e}", "state": self.get_state()}
+            
+    def _clear_rfid_connection_info(self):
+        """Helper method to clear RFID connection information."""
+        self.rfid_protocol = None
+        self.rfid_address = None
+        self.rfid_port = None
 
     # ------------------------------------------------------------------
     # Option 4 – Connect NFC

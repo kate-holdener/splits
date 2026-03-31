@@ -210,9 +210,8 @@ class NFCReader(Reader):
 
     def __init__(
         self,
-        event_q: Queue
     ):
-        super().__init__(event_q)
+        super().__init__()
         self._observer = _TagObserver(self.tag_detected, None)
         self._monitor = CardMonitor()
         available = readers()

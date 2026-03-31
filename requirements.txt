@@ -4,3 +4,4 @@ pywebview
 reportlab
 requests
 sllurp
+zeroconf

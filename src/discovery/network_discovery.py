@@ -7,7 +7,7 @@ with proper error handling.
 
 import socket
 import time
-import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional, Callable
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf, ServiceInfo
 
@@ -103,47 +103,39 @@ class NetworkScanner:
     def __init__(self, timeout: float = 3.0):
         self.timeout = timeout
         
-    def scan_subnet(self, subnet_base: str, max_hosts: int = 254) -> List[Dict[str, Any]]:
+    def scan_hosts(self, addresses: List[str]) -> List[Dict[str, Any]]:
         """
-        Scan a subnet for RFID scanners.
-        
+        Scan a list of addresses for RFID scanners in parallel.
+
         Args:
-            subnet_base: Base IP like '192.168.1' or '169.254.1'
-            max_hosts: Maximum number of hosts to scan
-            
+            addresses: List of IP addresses to test
+
         Returns:
             List of discovered scanner info dicts
         """
         discovered = []
-        threads = []
-        lock = threading.Lock()
-        
-        def scan_host(host_num: int):
-            address = f"{subnet_base}.{host_num}"
-            results = self._test_address_comprehensive(address)
-            if results:
-                with lock:
+        with ThreadPoolExecutor(max_workers=min(50, len(addresses))) as executor:
+            futures = {executor.submit(self._test_address_comprehensive, addr): addr
+                       for addr in addresses}
+            for future in as_completed(futures):
+                results = future.result()
+                if results:
                     discovered.extend(results)
-                    
-        # Limit concurrent threads for performance
-        max_threads = min(50, max_hosts)
-        for i in range(1, min(max_hosts + 1, 255)):
-            if len(threads) >= max_threads:
-                # Wait for some threads to complete
-                for t in threads[:10]:
-                    t.join()
-                threads = [t for t in threads if t.is_alive()]
-                
-            thread = threading.Thread(target=scan_host, args=(i,))
-            thread.start()
-            threads.append(thread)
-            
-        # Wait for all threads to complete
-        for thread in threads:
-            thread.join()
-            
         return discovered
-        
+
+    def scan_subnet(self, subnet_base: str, max_hosts: int = 254) -> List[Dict[str, Any]]:
+        """
+        Scan a subnet for RFID scanners.
+
+        Args:
+            subnet_base: Base IP like '192.168.1' or '169.254.1'
+            max_hosts: Maximum number of hosts to scan
+
+        Returns:
+            List of discovered scanner info dicts
+        """
+        addresses = [f"{subnet_base}.{i}" for i in range(1, min(max_hosts + 1, 255))]
+        return self.scan_hosts(addresses)
     def _test_address_comprehensive(self, address: str) -> List[Dict[str, Any]]:
         """Comprehensive test of an address for RFID scanner protocols."""
         results = []

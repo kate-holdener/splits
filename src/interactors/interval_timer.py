@@ -30,7 +30,7 @@ class IntervalTimer:
                 try:
                     lap_event = self.lap_queue.get_nowait()
                     self._process_lap_event(lap_event)
-                except Queue.Empty:
+                except Empty:
                     pass
 
 

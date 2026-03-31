@@ -108,6 +108,27 @@ class RFIDDiscovery:
                 json.dump(self._cached_addresses, f, indent=2)
         except Exception as e:
             print(f"Warning: Could not save scanner cache: {e}")
+
+    @classmethod
+    def get_arp_hosts(cls) -> List[str]:
+        """Get list of active hosts on the local network from the ARP cache."""
+        hosts = []
+        try:
+            output = subprocess.check_output(['arp', '-a'], text=True)
+            local_subnets = cls.get_local_subnets()
+            for line in output.splitlines():
+                # Skip incomplete entries — no MAC address means host is not reachable
+                if 'incomplete' in line.lower():
+                    continue
+                ips = re.findall(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', line)
+                for ip in ips:
+                    if (not ip.endswith('.255')
+                            and not ip.endswith('.0')
+                            and any(ip.startswith(subnet + '.') for subnet in local_subnets)):
+                        hosts.append(ip)
+        except Exception as e:
+            print(f"Could not read ARP cache: {e}")
+        return hosts
                
     def discover(self, 
                  protocol: str = 'both',
@@ -254,25 +275,36 @@ class RFIDDiscovery:
 
 
     def _network_discovery(self, protocol: str) -> List[Dict[str, Any]]:
+        """Perform network-wide discovery scan."""
         discovered = []
         scanner = NetworkScanner(timeout=self.timeout)
-        max_hosts = self.config.get_max_hosts_per_subnet()
 
-        # Use auto-detected local subnets, fall back to config if detection fails
-        subnets = self.get_local_subnets()
-        if not subnets:
-            print("Warning: Could not auto-detect local subnet, falling back to config")
-            subnets = self.config.get_network_scan_subnets()
-
-        for subnet in subnets:
-            results = scanner.scan_subnet(subnet, max_hosts=max_hosts)
+        # Try ARP cache first — only tests hosts with known MAC addresses,
+        # skipping the ~240 stale/incomplete entries common on large networks
+        """arp_hosts = self.get_arp_hosts()
+        if arp_hosts:
+            print(f"Scanning {len(arp_hosts)} ARP-known hosts")
+            results = scanner.scan_hosts(arp_hosts)
             if protocol != 'both':
                 results = [r for r in results if r.get('protocol') == protocol]
-            discovered.extend(results)
+            discovered.extend(results)"""
 
-            # Stop early if we found some scanners
-            #if discovered:
-            #    break
+        # Fall back to full subnet scan if ARP found nothing
+        if not discovered:
+            print("ARP scan found nothing, falling back to full subnet scan")
+            max_hosts = self.config.get_max_hosts_per_subnet()
+            if max_hosts < 254:
+                print(f"Warning: max_hosts_per_subnet is {max_hosts}, this may miss scanners.")
+            subnets = self.get_local_subnets()
+            if not subnets:
+                subnets = self.config.get_network_scan_subnets()
+            for subnet in subnets:
+                results = scanner.scan_subnet(subnet, max_hosts=max_hosts)
+                if protocol != 'both':
+                    results = [r for r in results if r.get('protocol') == protocol]
+                discovered.extend(results)
+                if discovered:
+                    break
 
         return discovered
 

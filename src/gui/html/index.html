@@ -290,7 +290,6 @@ let _autoConnectAttempted = false;
 
 function applyState(s){
   if(!s) return;
-
   setPill('pill-athletes', s.athletesLoaded, s.athleteCount+' Athletes');
   setPill('pill-workout',  s.workoutConfigured, 'Workout Set');
   setPill('pill-rfid',     s.rfidConnected, 'RFID',  s.rfidFailed);

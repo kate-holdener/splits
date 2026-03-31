@@ -23,9 +23,10 @@ from interactors.stats_calculator import calculate_performance
 from readers.acr122u_nfc import NFCReader
 from readers.sllurp_reader import LLRPReader
 from reader import Reader
+from discovery.utils import discover_scanner
+from discovery.exceptions import ConnectionTimeoutError, ProtocolError, NoScannersFoundError
 
-scanner_address = '169.254.1.1'
-#scanner_address = '169.254.45.107'
+
 class AppState(Enum):
     """Application state machine states."""
     INITIAL = auto()
@@ -208,32 +209,69 @@ class IntervalTrainingCLI:
             print("[ERROR] Invalid input. Please enter numeric values.")
 
     def option_3_connect_rfid(self) -> None:
-        """Connect to RFID scanner."""
+        """Connect to RFID scanner with auto-discovery."""
         if not (self.athletes_loaded and self.workout_configured):
             print("[ERROR] Must complete options 1 and 2 first.")
             return
         
-        # Dummy implementation
-        print("[] Attempting to connect to RFID scanner...")
+        print("[] Discovering RFID scanners...")
         
-        # Simulate success (change to False to test failure path)
-        runner_ids = [r.lap_id for r in self.athletes]
-        success = False
         try:
-            self.rfid_scanner = LLRPReader(self.lap_event_q, scanner_address)
-            #self.rfid_scanner.filter_by_id(runner_ids)
+            # Try to discover RFID scanner (both LLRP and REST protocols)
+            scanner_info = discover_scanner(protocol='both', interactive=True, return_full_info=True)
+            
+            if not scanner_info:
+                print("[FAILED] No RFID scanner address provided.")
+                self.rfid_scanner_failed = True
+                return
+                
+            address = scanner_info['address']
+            protocol = scanner_info['protocol']
+            port = scanner_info.get('port', 5084)
+            
+            print(f"[] Attempting to connect to {protocol.upper()} RFID scanner at {address}...")
+            
+            # Filter by runner lap IDs
+            runner_ids = [r.lap_id for r in self.athletes]
+            
+            # Create appropriate reader based on detected protocol
+            if protocol == 'llrp':
+                self.rfid_scanner = LLRPReader(self.lap_event_q, address)
+                protocol_name = f"LLRP (port {port})"
+            elif protocol == 'rest':
+                from readers.impinj_rest_reader import ImpinjRestReader
+                self.rfid_scanner = ImpinjRestReader(self.lap_event_q, address)
+                protocol_name = f"REST API (port {port})"
+            else:
+                print(f"[FAILED] Unknown protocol '{protocol}' for scanner at {address}")
+                self.rfid_scanner_failed = True
+                return
+                
+            self.rfid_scanner.filter_by_id(runner_ids)
             self.rfid_scanner.start()
-            success = True
-        except Exception as e:
-            print(f"{e}")
-            success = False
-        if success:
+            
             self.rfid_connected = True
             self.rfid_scanner_failed = False
-            print("[SUCCESS] RFID scanner connected.")
-        else:
+            print(f"[SUCCESS] RFID scanner connected at {address} using {protocol_name}.")
+            
+        except ConnectionTimeoutError as e:
+            print(f"[FAILED] Connection timeout: {e}")
             self.rfid_scanner_failed = True
-            print("[FAILED] Could not connect to RFID scanner.")
+            print("[WARNING] Further options are now blocked.")
+            
+        except ProtocolError as e:
+            print(f"[FAILED] Protocol error: {e}")
+            self.rfid_scanner_failed = True
+            print("[WARNING] Further options are now blocked.")
+            
+        except NoScannersFoundError:
+            print("[FAILED] No RFID scanners found on network.")
+            self.rfid_scanner_failed = True
+            print("[WARNING] Further options are now blocked.")
+            
+        except Exception as e:
+            print(f"[FAILED] Unexpected error: {e}")
+            self.rfid_scanner_failed = True
             print("[WARNING] Further options are now blocked.")
 
     def option_4_connect_nfc(self) -> None:

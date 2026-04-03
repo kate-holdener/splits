@@ -178,6 +178,7 @@
           <table>
             <thead>
               <tr>
+                <th style="width:24px"></th>
                 <th style="width:48px"><input type="checkbox" id="select-all-cb" title="Select all inactive" onchange="toggleSelectAll(this)"/></th>
                 <th>Name</th>
                 <th>Status</th>
@@ -540,8 +541,52 @@ document.addEventListener('mousemove', e => {
 });
 
 // ============================================================
-// WORKOUT ATHLETES TABLE
+// WORKOUT ATHLETES TABLE — sorting + drag-and-drop
 // ============================================================
+let _athleteOrder = []; // persists across refreshes; start_tags in desired display order
+let _dragSrcRow   = null;
+
+function _statusPriority(status){
+  if(status==='RUNNING') return 0;
+  if(status==='RESTING') return 1;
+  return 2;
+}
+
+function _onDragStart(e){
+  _dragSrcRow = e.currentTarget;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', _dragSrcRow.dataset.tag);
+  setTimeout(()=>{ if(_dragSrcRow) _dragSrcRow.classList.add('dragging'); }, 0);
+}
+
+function _onDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const row = e.currentTarget;
+  document.querySelectorAll('.athlete-row.drag-over').forEach(r=>r.classList.remove('drag-over'));
+  if(row !== _dragSrcRow) row.classList.add('drag-over');
+}
+
+function _onDrop(e){
+  e.preventDefault();
+  const targetRow = e.currentTarget;
+  if(!_dragSrcRow || _dragSrcRow === targetRow) return;
+  const tbody = targetRow.closest('tbody');
+  const rows   = [...tbody.querySelectorAll('tr.athlete-row')];
+  const srcIdx = rows.indexOf(_dragSrcRow);
+  const tgtIdx = rows.indexOf(targetRow);
+  if(srcIdx < tgtIdx) targetRow.after(_dragSrcRow);
+  else                targetRow.before(_dragSrcRow);
+  // Rebuild _athleteOrder from new DOM order
+  _athleteOrder = [...tbody.querySelectorAll('tr.athlete-row')].map(r=>r.dataset.tag);
+}
+
+function _onDragEnd(e){
+  if(_dragSrcRow) _dragSrcRow.classList.remove('dragging');
+  document.querySelectorAll('.athlete-row.drag-over').forEach(r=>r.classList.remove('drag-over'));
+  _dragSrcRow = null;
+}
+
 async function loadWorkoutAthletes(){
   const r = await pywebview.api.list_athletes_with_status();
   const tbody = document.getElementById('athletes-status-tbody');
@@ -554,7 +599,24 @@ async function loadWorkoutAthletes(){
 
   // Preserve current checked state across refreshes
   const checked = new Set([...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value));
-  tbody.innerHTML = r.athletes.map(a=>{
+
+  // Sort: RUNNING/RESTING first, then INACTIVE.
+  // Within the same status group, respect the coach's custom drag order.
+  const sorted = [...r.athletes].sort((a, b) => {
+    const pa = _statusPriority(a.status), pb = _statusPriority(b.status);
+    if(pa !== pb) return pa - pb;
+    const ia = _athleteOrder.indexOf(a.start_tag);
+    const ib = _athleteOrder.indexOf(b.start_tag);
+    if(ia === -1 && ib === -1) return 0;
+    if(ia === -1) return 1;
+    if(ib === -1) return -1;
+    return ia - ib;
+  });
+
+  // Persist the new sorted order so it survives the next refresh
+  _athleteOrder = sorted.map(a => a.start_tag);
+
+  tbody.innerHTML = sorted.map(a=>{
     const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
     const inactive = a.status === 'INACTIVE';
     const isChecked = inactive && checked.has(a.start_tag);
@@ -569,7 +631,11 @@ async function loadWorkoutAthletes(){
       statusCell = `<span class="tag inactive">INACTIVE</span>`;
     }
     const tag = a.start_tag ? a.start_tag.replace(/'/g,"&#39;") : '';
-    return `<tr onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()">
+    return `<tr class="athlete-row" draggable="true" data-tag="${a.start_tag||''}"
+      onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()"
+      ondragstart="_onDragStart(event)" ondragover="_onDragOver(event)"
+      ondrop="_onDrop(event)" ondragend="_onDragEnd(event)">
+      <td class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</td>
       <td><input type="checkbox" class="athlete-cb" value="${a.start_tag||''}"
         ${inactive ? '' : 'disabled'} ${isChecked ? 'checked' : ''}
         onchange="updateSelectedCount()"/></td>

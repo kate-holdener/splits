@@ -777,3 +777,33 @@ tr:hover td       { background: #ffffff12; }
   font-size: 16px;
   color: var(--muted);
 }
+
+/* ============================================================
+   ATHLETE TABLE DRAG AND DROP
+   ============================================================ */
+
+td.drag-handle {
+  color: var(--border);
+  cursor: grab;
+  font-size: 20px;
+  text-align: center;
+  user-select: none;
+  width: 24px;
+  padding: 14px 4px;
+}
+
+td.drag-handle:active {
+  cursor: grabbing;
+}
+
+tr.athlete-row {
+  transition: opacity 0.15s;
+}
+
+tr.athlete-row.dragging {
+  opacity: 0.35;
+}
+
+tr.athlete-row.drag-over td {
+  border-top: 2px solid var(--accent);
+}

@@ -178,6 +178,7 @@
           <table>
             <thead>
               <tr>
+                <th style="width:24px"></th>
                 <th style="width:48px"><input type="checkbox" id="select-all-cb" title="Select all inactive" onchange="toggleSelectAll(this)"/></th>
                 <th>Name</th>
                 <th>Status</th>
@@ -540,9 +541,79 @@ document.addEventListener('mousemove', e => {
 });
 
 // ============================================================
-// WORKOUT ATHLETES TABLE
+// WORKOUT ATHLETES TABLE — sorting + drag-and-drop
 // ============================================================
+let _originalOrder = []; // CSV load order, captured once on first fetch; never changes
+let _athleteOrder  = []; // custom drag-and-drop order; overrides _originalOrder when set
+let _dragSrcRow    = null;
+let _isDragging    = false; // true while a drag is in flight; suppresses DOM re-render
+
+function _statusPriority(status){
+  // RUNNING and RESTING are both "active" — treat them identically so
+  // a RUNNING↔RESTING transition never causes a row to move.
+  if(status==='RUNNING' || status==='RESTING') return 0;
+  return 1;
+}
+
+function _onDragStart(e){
+  _dragSrcRow = e.currentTarget;
+  _isDragging = true;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', _dragSrcRow.dataset.tag);
+  setTimeout(()=>{ if(_dragSrcRow) _dragSrcRow.classList.add('dragging'); }, 0);
+}
+
+function _onDragOver(e){
+  if(!_dragSrcRow) return;
+  const row = e.currentTarget;
+  // When the pointer is over the source row itself (which happens after the row
+  // has been moved to its new position), mark it as a valid drop target so the
+  // browser will still fire the 'drop' event on release — but skip DOM moves.
+  if(row === _dragSrcRow){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return;
+  }
+  // Never allow an active row to be dropped into the inactive section.
+  // Only call preventDefault() for valid targets so the browser does not fire
+  // a drop event on inactive rows.
+  if(row.dataset.inactive === 'true') return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  // Move the source row live so the coach sees a real-time preview of the new order.
+  // Insert before or after the hovered row depending on which half the pointer is in.
+  const rect = row.getBoundingClientRect();
+  if(e.clientY < rect.top + rect.height / 2){
+    row.parentNode.insertBefore(_dragSrcRow, row);
+  } else {
+    row.parentNode.insertBefore(_dragSrcRow, row.nextSibling);
+  }
+}
+
+function _onDrop(e){
+  e.preventDefault();
+  // The DOM is already in the correct order from the live moves in _onDragOver.
+  // Just persist the new order so it survives the next refresh.
+  const tbody = _dragSrcRow
+    ? _dragSrcRow.closest('tbody')
+    : document.getElementById('athletes-status-tbody');
+  if(tbody){
+    // Only record active rows; inactive rows are always sorted last by status
+    // and must not pollute _athleteOrder (otherwise a runner that was inactive
+    // when the drag happened would be stuck behind runners they precede in the
+    // original order once they become active).
+    _athleteOrder = [...tbody.querySelectorAll('tr.athlete-row:not([data-inactive="true"])')].map(r=>r.dataset.tag);
+  }
+}
+
+function _onDragEnd(e){
+  if(_dragSrcRow) _dragSrcRow.classList.remove('dragging');
+  _dragSrcRow = null;
+  _isDragging = false;
+}
+
 async function loadWorkoutAthletes(){
+  if(_isDragging) return; // Don't replace the DOM while a drag is in flight
   const r = await pywebview.api.list_athletes_with_status();
   const tbody = document.getElementById('athletes-status-tbody');
   if(!tbody) return;
@@ -554,7 +625,27 @@ async function loadWorkoutAthletes(){
 
   // Preserve current checked state across refreshes
   const checked = new Set([...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value));
-  tbody.innerHTML = r.athletes.map(a=>{
+
+  // Capture original CSV order on first load; never update it again.
+  if(_originalOrder.length === 0){
+    _originalOrder = r.athletes.map(a => a.start_tag);
+  }
+
+  // Sort: active runners (RUNNING + RESTING) first, INACTIVE last.
+  // Within each group use the coach's drag order (_athleteOrder) if set,
+  // otherwise fall back to original CSV order (_originalOrder).
+  const sorted = [...r.athletes].sort((a, b) => {
+    const pa = _statusPriority(a.status), pb = _statusPriority(b.status);
+    if(pa !== pb) return pa - pb;
+    const ia = _athleteOrder.indexOf(a.start_tag);
+    const ib = _athleteOrder.indexOf(b.start_tag);
+    if(ia !== -1 && ib !== -1) return ia - ib;
+    return _originalOrder.indexOf(a.start_tag) - _originalOrder.indexOf(b.start_tag);
+  });
+
+  // _athleteOrder is intentionally NOT updated here — only _onDrop rebuilds it.
+
+  tbody.innerHTML = sorted.map(a=>{
     const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
     const inactive = a.status === 'INACTIVE';
     const isChecked = inactive && checked.has(a.start_tag);
@@ -569,7 +660,17 @@ async function loadWorkoutAthletes(){
       statusCell = `<span class="tag inactive">INACTIVE</span>`;
     }
     const tag = a.start_tag ? a.start_tag.replace(/'/g,"&#39;") : '';
-    return `<tr onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()">
+    const dragAttrs = inactive
+      ? 'draggable="false"'
+      : 'draggable="true" ondragstart="_onDragStart(event)"';
+    const dropAttrs = inactive ? '' : 'ondrop="_onDrop(event)"';
+    const handleCell = inactive
+      ? '<td class="drag-handle drag-handle--inactive" aria-hidden="true"></td>'
+      : '<td class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</td>';
+    return `<tr class="athlete-row" ${dragAttrs} data-tag="${a.start_tag||''}" data-inactive="${inactive}"
+      onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()"
+      ondragover="_onDragOver(event)" ${dropAttrs} ondragend="_onDragEnd(event)">
+      ${handleCell}
       <td><input type="checkbox" class="athlete-cb" value="${a.start_tag||''}"
         ${inactive ? '' : 'disabled'} ${isChecked ? 'checked' : ''}
         onchange="updateSelectedCount()"/></td>

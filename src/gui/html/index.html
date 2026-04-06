@@ -566,7 +566,14 @@ function _onDragStart(e){
 function _onDragOver(e){
   if(!_dragSrcRow) return;
   const row = e.currentTarget;
-  if(row === _dragSrcRow) return;
+  // When the pointer is over the source row itself (which happens after the row
+  // has been moved to its new position), mark it as a valid drop target so the
+  // browser will still fire the 'drop' event on release — but skip DOM moves.
+  if(row === _dragSrcRow){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return;
+  }
   // Never allow an active row to be dropped into the inactive section.
   // Only call preventDefault() for valid targets so the browser does not fire
   // a drop event on inactive rows.

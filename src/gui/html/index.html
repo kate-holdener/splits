@@ -543,13 +543,15 @@ document.addEventListener('mousemove', e => {
 // ============================================================
 // WORKOUT ATHLETES TABLE — sorting + drag-and-drop
 // ============================================================
-let _athleteOrder = []; // persists across refreshes; start_tags in desired display order
-let _dragSrcRow   = null;
+let _originalOrder = []; // CSV load order, captured once on first fetch; never changes
+let _athleteOrder  = []; // custom drag-and-drop order; overrides _originalOrder when set
+let _dragSrcRow    = null;
 
 function _statusPriority(status){
-  if(status==='RUNNING') return 0;
-  if(status==='RESTING') return 1;
-  return 2;
+  // RUNNING and RESTING are both "active" — treat them identically so
+  // a RUNNING↔RESTING transition never causes a row to move.
+  if(status==='RUNNING' || status==='RESTING') return 0;
+  return 1;
 }
 
 function _onDragStart(e){
@@ -600,21 +602,24 @@ async function loadWorkoutAthletes(){
   // Preserve current checked state across refreshes
   const checked = new Set([...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value));
 
-  // Sort: RUNNING/RESTING first, then INACTIVE.
-  // Within the same status group, respect the coach's custom drag order.
+  // Capture original CSV order on first load; never update it again.
+  if(_originalOrder.length === 0){
+    _originalOrder = r.athletes.map(a => a.start_tag);
+  }
+
+  // Sort: active runners (RUNNING + RESTING) first, INACTIVE last.
+  // Within each group use the coach's drag order (_athleteOrder) if set,
+  // otherwise fall back to original CSV order (_originalOrder).
   const sorted = [...r.athletes].sort((a, b) => {
     const pa = _statusPriority(a.status), pb = _statusPriority(b.status);
     if(pa !== pb) return pa - pb;
     const ia = _athleteOrder.indexOf(a.start_tag);
     const ib = _athleteOrder.indexOf(b.start_tag);
-    if(ia === -1 && ib === -1) return 0;
-    if(ia === -1) return 1;
-    if(ib === -1) return -1;
-    return ia - ib;
+    if(ia !== -1 && ib !== -1) return ia - ib;
+    return _originalOrder.indexOf(a.start_tag) - _originalOrder.indexOf(b.start_tag);
   });
 
-  // Persist the new sorted order so it survives the next refresh
-  _athleteOrder = sorted.map(a => a.start_tag);
+  // _athleteOrder is intentionally NOT updated here — only _onDrop rebuilds it.
 
   tbody.innerHTML = sorted.map(a=>{
     const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';

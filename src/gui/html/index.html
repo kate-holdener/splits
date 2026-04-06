@@ -546,6 +546,7 @@ document.addEventListener('mousemove', e => {
 let _originalOrder = []; // CSV load order, captured once on first fetch; never changes
 let _athleteOrder  = []; // custom drag-and-drop order; overrides _originalOrder when set
 let _dragSrcRow    = null;
+let _isDragging    = false; // true while a drag is in flight; suppresses DOM re-render
 
 function _statusPriority(status){
   // RUNNING and RESTING are both "active" — treat them identically so
@@ -556,6 +557,7 @@ function _statusPriority(status){
 
 function _onDragStart(e){
   _dragSrcRow = e.currentTarget;
+  _isDragging = true;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', _dragSrcRow.dataset.tag);
   setTimeout(()=>{ if(_dragSrcRow) _dragSrcRow.classList.add('dragging'); }, 0);
@@ -564,32 +566,39 @@ function _onDragStart(e){
 function _onDragOver(e){
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
+  if(!_dragSrcRow) return;
   const row = e.currentTarget;
-  document.querySelectorAll('.athlete-row.drag-over').forEach(r=>r.classList.remove('drag-over'));
-  if(row !== _dragSrcRow) row.classList.add('drag-over');
+  if(row === _dragSrcRow) return;
+  // Move the source row live so the coach sees a real-time preview of the new order.
+  // Insert before or after the hovered row depending on which half the pointer is in.
+  const rect = row.getBoundingClientRect();
+  if(e.clientY < rect.top + rect.height / 2){
+    row.parentNode.insertBefore(_dragSrcRow, row);
+  } else {
+    row.parentNode.insertBefore(_dragSrcRow, row.nextSibling);
+  }
 }
 
 function _onDrop(e){
   e.preventDefault();
-  const targetRow = e.currentTarget;
-  if(!_dragSrcRow || _dragSrcRow === targetRow) return;
-  const tbody = targetRow.closest('tbody');
-  const rows   = [...tbody.querySelectorAll('tr.athlete-row')];
-  const srcIdx = rows.indexOf(_dragSrcRow);
-  const tgtIdx = rows.indexOf(targetRow);
-  if(srcIdx < tgtIdx) targetRow.after(_dragSrcRow);
-  else                targetRow.before(_dragSrcRow);
-  // Rebuild _athleteOrder from new DOM order
-  _athleteOrder = [...tbody.querySelectorAll('tr.athlete-row')].map(r=>r.dataset.tag);
+  // The DOM is already in the correct order from the live moves in _onDragOver.
+  // Just persist the new order so it survives the next refresh.
+  const tbody = _dragSrcRow
+    ? _dragSrcRow.closest('tbody')
+    : document.getElementById('athletes-status-tbody');
+  if(tbody){
+    _athleteOrder = [...tbody.querySelectorAll('tr.athlete-row')].map(r=>r.dataset.tag);
+  }
 }
 
 function _onDragEnd(e){
   if(_dragSrcRow) _dragSrcRow.classList.remove('dragging');
-  document.querySelectorAll('.athlete-row.drag-over').forEach(r=>r.classList.remove('drag-over'));
   _dragSrcRow = null;
+  _isDragging = false;
 }
 
 async function loadWorkoutAthletes(){
+  if(_isDragging) return; // Don't replace the DOM while a drag is in flight
   const r = await pywebview.api.list_athletes_with_status();
   const tbody = document.getElementById('athletes-status-tbody');
   if(!tbody) return;

@@ -796,6 +796,12 @@ td.drag-handle:active {
   cursor: grabbing;
 }
 
+td.drag-handle--inactive {
+  cursor: default;
+  width: 24px;
+  padding: 14px 4px;
+}
+
 tr.athlete-row {
   transition: opacity 0.15s;
 }

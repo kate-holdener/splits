@@ -569,6 +569,8 @@ function _onDragOver(e){
   if(!_dragSrcRow) return;
   const row = e.currentTarget;
   if(row === _dragSrcRow) return;
+  // Never allow an active row to be dropped into the inactive section.
+  if(row.dataset.inactive === 'true') return;
   // Move the source row live so the coach sees a real-time preview of the new order.
   // Insert before or after the hovered row depending on which half the pointer is in.
   const rect = row.getBoundingClientRect();
@@ -645,11 +647,16 @@ async function loadWorkoutAthletes(){
       statusCell = `<span class="tag inactive">INACTIVE</span>`;
     }
     const tag = a.start_tag ? a.start_tag.replace(/'/g,"&#39;") : '';
-    return `<tr class="athlete-row" draggable="true" data-tag="${a.start_tag||''}"
+    const dragAttrs = inactive
+      ? 'draggable="false"'
+      : 'draggable="true" ondragstart="_onDragStart(event)"';
+    const handleCell = inactive
+      ? '<td class="drag-handle drag-handle--inactive" aria-hidden="true"></td>'
+      : '<td class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</td>';
+    return `<tr class="athlete-row" ${dragAttrs} data-tag="${a.start_tag||''}" data-inactive="${inactive}"
       onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()"
-      ondragstart="_onDragStart(event)" ondragover="_onDragOver(event)"
-      ondrop="_onDrop(event)" ondragend="_onDragEnd(event)">
-      <td class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</td>
+      ondragover="_onDragOver(event)" ondrop="_onDrop(event)" ondragend="_onDragEnd(event)">
+      ${handleCell}
       <td><input type="checkbox" class="athlete-cb" value="${a.start_tag||''}"
         ${inactive ? '' : 'disabled'} ${isChecked ? 'checked' : ''}
         onchange="updateSelectedCount()"/></td>

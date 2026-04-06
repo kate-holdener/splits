@@ -564,13 +564,15 @@ function _onDragStart(e){
 }
 
 function _onDragOver(e){
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
   if(!_dragSrcRow) return;
   const row = e.currentTarget;
   if(row === _dragSrcRow) return;
   // Never allow an active row to be dropped into the inactive section.
+  // Only call preventDefault() for valid targets so the browser does not fire
+  // a drop event on inactive rows.
   if(row.dataset.inactive === 'true') return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
   // Move the source row live so the coach sees a real-time preview of the new order.
   // Insert before or after the hovered row depending on which half the pointer is in.
   const rect = row.getBoundingClientRect();
@@ -589,7 +591,11 @@ function _onDrop(e){
     ? _dragSrcRow.closest('tbody')
     : document.getElementById('athletes-status-tbody');
   if(tbody){
-    _athleteOrder = [...tbody.querySelectorAll('tr.athlete-row')].map(r=>r.dataset.tag);
+    // Only record active rows; inactive rows are always sorted last by status
+    // and must not pollute _athleteOrder (otherwise a runner that was inactive
+    // when the drag happened would be stuck behind runners they precede in the
+    // original order once they become active).
+    _athleteOrder = [...tbody.querySelectorAll('tr.athlete-row:not([data-inactive="true"])')].map(r=>r.dataset.tag);
   }
 }
 
@@ -650,12 +656,13 @@ async function loadWorkoutAthletes(){
     const dragAttrs = inactive
       ? 'draggable="false"'
       : 'draggable="true" ondragstart="_onDragStart(event)"';
+    const dropAttrs = inactive ? '' : 'ondrop="_onDrop(event)"';
     const handleCell = inactive
       ? '<td class="drag-handle drag-handle--inactive" aria-hidden="true"></td>'
       : '<td class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</td>';
     return `<tr class="athlete-row" ${dragAttrs} data-tag="${a.start_tag||''}" data-inactive="${inactive}"
       onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()"
-      ondragover="_onDragOver(event)" ondrop="_onDrop(event)" ondragend="_onDragEnd(event)">
+      ondragover="_onDragOver(event)" ${dropAttrs} ondragend="_onDragEnd(event)">
       ${handleCell}
       <td><input type="checkbox" class="athlete-cb" value="${a.start_tag||''}"
         ${inactive ? '' : 'disabled'} ${isChecked ? 'checked' : ''}

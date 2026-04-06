@@ -184,19 +184,20 @@ class Api:
     # ------------------------------------------------------------------
     # Option 2 – Configure workout
     # ------------------------------------------------------------------
-    def configure_workout(self, distance: str, laps: str):
+    def configure_workout(self, distance: str, laps: str, rest_time: str = "0"):
         try:
             dist_int = int(distance)
             laps_int = int(laps)
+            rest_int = int(rest_time)
             self.workout = Workout(datetime.now())
-            self.workout.configure(dist_int, laps_int)
+            self.workout.configure(dist_int, laps_int, rest_int)
             self.workout_configured = True
             if self.athletes:
                 for a in self.athletes:
                     a.add_workout(self.workout)
             return {
                 "ok": True,
-                "msg": f"Workout configured: {dist_int}m × {laps_int} laps.",
+                "msg": f"Workout configured: {dist_int}m × {laps_int} laps, {rest_int}s rest.",
                 "state": self.get_state()
             }
         except ValueError:

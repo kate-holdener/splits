@@ -675,6 +675,7 @@ async function loadWorkoutAthletes(){
 }
 
 async function finishWorkout(){
+  if(!confirm('End the workout? This will clear all running and resting state.')) return;
   const r = await pywebview.api.finish_workout();
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);

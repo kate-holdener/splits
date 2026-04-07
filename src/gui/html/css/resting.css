@@ -239,6 +239,56 @@ body {
 }
 
 /* ============================================================
+   OVERDUE SECTION
+   ============================================================ */
+
+#overdue-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overdue-header {
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--danger);
+  padding: 0 4px 4px;
+}
+
+.overdue-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #1a0000;
+  border: 1px solid var(--danger);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius);
+}
+
+.overdue-name {
+  font-family: var(--font-head);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+
+.overdue-go {
+  font-family: var(--font-head);
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--danger);
+  flex-shrink: 0;
+}
+
+/* ============================================================
    SCROLLBAR
    ============================================================ */
 

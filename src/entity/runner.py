@@ -33,6 +33,9 @@ class Runner:
         """
         self.current_workout = workout
 
+    def get_workout(self) -> Workout:
+        return self.current_workout
+
     def get_status(self) -> RunnerState:
         """
         Retrieves the current status of the runner.

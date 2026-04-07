@@ -290,13 +290,9 @@ class IntervalTrackApi:
     # ------------------------------------------------------------------
     def get_resting(self):
         """Always returns the current resting list with timing data; no setup check."""
-        rest_duration = (
-            self.workout.rest_duration_seconds
-            if self.workout and hasattr(self.workout, 'rest_duration_seconds')
-            else 90
-        )
         athletes = []
         for r in self.runner_observer.resting:
+            rest_duration = r.get_workout().get_rest_time()
             d = r.to_dict()
             d['rest_elapsed'] = round(self.runner_observer.rest_elapsed(r), 1)
             d['rest_duration'] = rest_duration

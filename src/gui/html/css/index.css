@@ -488,6 +488,20 @@ input[type=checkbox]:checked::before {
 input:focus        { border-color: var(--accent); }
 input::placeholder { color: #666666; }
 
+/* Hide number-input spinners on the workout configure fields */
+#wk-distance::-webkit-outer-spin-button,
+#wk-distance::-webkit-inner-spin-button,
+#wk-laps::-webkit-outer-spin-button,
+#wk-laps::-webkit-inner-spin-button,
+#wk-rest::-webkit-outer-spin-button,
+#wk-rest::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#wk-distance,
+#wk-laps,
+#wk-rest { -moz-appearance: textfield; }
+
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -776,4 +790,38 @@ tr:hover td       { background: #ffffff12; }
   font-family: var(--font-mono);
   font-size: 16px;
   color: var(--muted);
+}
+
+/* ============================================================
+   ATHLETE TABLE DRAG AND DROP
+   ============================================================ */
+
+td.drag-handle {
+  color: var(--border);
+  cursor: grab;
+  font-size: 20px;
+  text-align: center;
+  user-select: none;
+  width: 24px;
+  padding: 14px 4px;
+}
+
+td.drag-handle:active {
+  cursor: grabbing;
+}
+
+td.drag-handle--inactive {
+  cursor: default;
+  width: 24px;
+  padding: 14px 4px;
+}
+
+tr.athlete-row {
+  transition: opacity 0.15s;
+}
+
+tr.athlete-row.dragging {
+  opacity: 0.35;
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
 }

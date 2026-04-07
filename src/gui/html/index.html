@@ -177,8 +177,9 @@
             Athletes
             <div style="display:flex;align-items:center;gap:12px">
               <span id="selected-count" style="font-family:var(--font-head);font-size:16px;color:var(--muted)">0 selected</span>
-              <button class="btn btn-success" id="start-selected-btn" onclick="startSelected()" disabled>🏁 Start Group</button>
-              <button class="btn btn-primary btn-sm" onclick="showRestingRunners()">👁️ Show Resting Runners</button>
+              <button class="btn btn-success btn-sm" id="start-selected-btn" onclick="startSelected()" disabled>Start</button>
+              <button class="btn btn-primary btn-sm" onclick="showRestingRunners()">Resting</button>
+              <button class="btn btn-danger btn-sm" onclick="finishWorkout()">Finish</button>
               <button class="btn btn-ghost btn-sm" onclick="loadWorkoutAthletes()">↻</button>
             </div>
           </div>
@@ -198,14 +199,6 @@
         <!-- Performance -->
         <!-- Removed: performance now shown as hover tooltip on each athlete row -->
 
-        <!-- Finish -->
-        <div class="card">
-          <div class="card-title warn">Finish Workout</div>
-          <p style="color:var(--muted);font-size:14px;margin-bottom:16px">
-            Clears all running and resting state and ends the session.
-          </p>
-          <button class="btn btn-danger" onclick="finishWorkout()">⏹ Finish Workout</button>
-        </div>
 
       </div>
     </div>
@@ -695,6 +688,7 @@ async function loadWorkoutAthletes(){
 }
 
 async function finishWorkout(){
+  if(!confirm('End the workout? This will clear all running and resting state.')) return;
   const r = await pywebview.api.finish_workout();
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);

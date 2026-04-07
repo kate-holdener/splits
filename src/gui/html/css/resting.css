@@ -15,6 +15,35 @@
   --radius: 6px;
   --font-head: system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+  /* Derived / component-level tokens */
+  --on-accent: #000000;
+  --card-odd-bg: #111111;
+  --card-even-bg: #2d2d2d;
+  --overdue-bg: #1a0000;
+  --badge-bg: rgba(255,255,0,0.133);
+  --badge-border: rgba(255,255,0,0.4);
+}
+
+/* ============================================================
+   LIGHT MODE THEME
+   ============================================================ */
+
+body.light-mode {
+  --bg: #f0f0f0;
+  --panel: #ffffff;
+  --border: #bbbbbb;
+  --accent: #0044bb;
+  --text: #111111;
+  --muted: #555555;
+  --success: #006600;
+  --warning: #bb5500;
+  --danger: #cc0000;
+  --on-accent: #ffffff;
+  --card-odd-bg: #f5f5f5;
+  --card-even-bg: #eaeaea;
+  --overdue-bg: #ffeeee;
+  --badge-bg: rgba(0,68,187,0.133);
+  --badge-border: rgba(0,68,187,0.4);
 }
 
 * {
@@ -44,7 +73,7 @@ body {
   gap: 14px;
   padding: 13px 22px;
   border-bottom: 1px solid var(--border);
-  background: #111111;
+  background: var(--panel);
   flex-shrink: 0;
 }
 
@@ -111,8 +140,8 @@ body {
 .runner-card.urgent { border-left-color: var(--danger); }
 .runner-card.done   { border-left-color: var(--success); }
 
-#list-area .runner-card:nth-child(odd)  { background: #111111; }
-#list-area .runner-card:nth-child(even) { background: #2d2d2d; }
+#list-area .runner-card:nth-child(odd)  { background: var(--card-odd-bg); }
+#list-area .runner-card:nth-child(even) { background: var(--card-even-bg); }
 
 /* ============================================================
    COUNTDOWN NUMBER
@@ -173,9 +202,9 @@ body {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 1px;
-  background: #ffff0022;
+  background: var(--badge-bg);
   color: var(--accent);
-  border: 1px solid #ffff0066;
+  border: 1px solid var(--badge-border);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -220,7 +249,7 @@ body {
 
 #footer {
   border-top: 1px solid var(--border);
-  background: #111111;
+  background: var(--panel);
   padding: 10px 22px;
   display: flex;
   align-items: center;
@@ -266,7 +295,7 @@ body {
   align-items: center;
   gap: 16px;
   padding: 10px 16px;
-  background: #1a0000;
+  background: var(--overdue-bg);
   border: 1px solid var(--danger);
   border-left: 4px solid var(--danger);
   border-radius: var(--radius);
@@ -295,3 +324,28 @@ body {
 ::-webkit-scrollbar       { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ============================================================
+   THEME TOGGLE BUTTON
+   ============================================================ */
+
+#theme-toggle {
+  position: fixed;
+  top: 10px;
+  right: 16px;
+  z-index: 9999;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  user-select: none;
+}
+
+#theme-toggle:hover {
+  border-color: var(--accent);
+}

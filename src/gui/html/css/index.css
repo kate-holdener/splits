@@ -16,6 +16,46 @@
   --radius: 6px;
   --font-head: system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+  /* Derived / component-level tokens */
+  --on-accent: #000000;
+  --on-success: #000000;
+  --accent-hover: #ffff66;
+  --accent-tint: rgba(255,255,0,0.067);
+  --input-bg: #111111;
+  --input-placeholder: #666666;
+  --tag-running-bg: #003311;
+  --tag-resting-bg: #332200;
+  --tag-inactive-bg: #222222;
+  --td-sep: rgba(255,255,255,0.094);
+  --td-hover: rgba(255,255,255,0.071);
+}
+
+/* ============================================================
+   LIGHT MODE THEME
+   ============================================================ */
+
+body.light-mode {
+  --bg: #f0f0f0;
+  --panel: #ffffff;
+  --border: #bbbbbb;
+  --accent: #0044bb;
+  --accent3: #0044bb;
+  --text: #111111;
+  --muted: #555555;
+  --success: #006600;
+  --warning: #bb5500;
+  --danger: #cc0000;
+  --on-accent: #ffffff;
+  --on-success: #ffffff;
+  --accent-hover: #2266dd;
+  --accent-tint: rgba(0,68,187,0.067);
+  --input-bg: #ffffff;
+  --input-placeholder: #999999;
+  --tag-running-bg: #ccffdd;
+  --tag-resting-bg: #ffe8cc;
+  --tag-inactive-bg: #e0e0e0;
+  --td-sep: rgba(0,0,0,0.094);
+  --td-hover: rgba(0,0,0,0.04);
 }
 
 * {
@@ -202,7 +242,7 @@ body {
   gap: 14px;
   padding: 10px 22px;
   border-bottom: 1px solid var(--border);
-  background: #111111;
+  background: var(--panel);
   flex-shrink: 0;
 }
 
@@ -281,7 +321,7 @@ body {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--border);
-  background: #111111;
+  background: var(--panel);
   flex-shrink: 0;
   padding: 0 22px;
 }
@@ -428,7 +468,7 @@ label {
 input[type=text],
 input[type=number] {
   width: 100%;
-  background: #111111;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   color: var(--text);
   padding: 14px 18px;
@@ -455,8 +495,8 @@ input[type=checkbox] {
 }
 
 input[type=checkbox]:hover {
-  border-color: #ffff66;
-  background: #ffff0011;
+  border-color: var(--accent-hover);
+  background: var(--accent-tint);
 }
 
 input[type=checkbox]:focus {
@@ -470,8 +510,8 @@ input[type=checkbox]:checked {
 }
 
 input[type=checkbox]:checked:hover {
-  background: #ffff66;
-  border-color: #ffff66;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 input[type=checkbox]:checked::before {
@@ -479,14 +519,14 @@ input[type=checkbox]:checked::before {
   position: absolute;
   top: -2px;
   left: 2px;
-  color: #000000;
+  color: var(--on-accent);
   font-size: 16px;
   font-weight: bold;
   line-height: 1;
 }
 
 input:focus        { border-color: var(--accent); }
-input::placeholder { color: #666666; }
+input::placeholder { color: var(--input-placeholder); }
 
 /* Hide number-input spinners on the workout configure fields */
 #wk-distance::-webkit-outer-spin-button,
@@ -513,7 +553,7 @@ input::placeholder { color: #666666; }
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #111111;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 8px 8px 14px;
@@ -535,7 +575,7 @@ input::placeholder { color: #666666; }
 }
 
 #csv-path-display.placeholder {
-  color: #666666;
+  color: var(--input-placeholder);
 }
 
 /* Buttons */
@@ -552,11 +592,11 @@ input::placeholder { color: #666666; }
   text-transform: uppercase;
 }
 
-.btn-primary              { background: var(--accent);  color: #000; }
-.btn-primary:hover        { background: #ffff66; }
+.btn-primary              { background: var(--accent);  color: var(--on-accent); }
+.btn-primary:hover        { background: var(--accent-hover); }
 .btn-danger               { background: var(--danger);  color: #fff; }
 .btn-danger:hover         { background: #ff6666; }
-.btn-success              { background: var(--success); color: #000; }
+.btn-success              { background: var(--success); color: var(--on-success); }
 .btn-success:hover        { background: #66ff99; }
 .btn-warn                 { background: var(--warning); color: #000; }
 .btn-warn:hover           { background: #ffbb44; }
@@ -583,13 +623,13 @@ th {
 
 td {
   padding: 14px;
-  border-bottom: 1px solid #ffffff18;
+  border-bottom: 1px solid var(--td-sep);
   font-size: 16px;
   color: var(--text);
 }
 
 tr:last-child td  { border-bottom: none; }
-tr:hover td       { background: #ffffff12; }
+tr:hover td       { background: var(--td-hover); }
 
 .tag {
   display: inline-block;
@@ -599,9 +639,9 @@ tr:hover td       { background: #ffffff12; }
   font-weight: 700;
 }
 
-.tag.running  { background: #003311; color: var(--success); border: 1px solid #00ff66; }
-.tag.resting  { background: #332200; color: var(--warning); border: 1px solid #ffaa00; }
-.tag.inactive { background: #222222; color: var(--muted);   border: 1px solid #666666; }
+.tag.running  { background: var(--tag-running-bg);  color: var(--success); border: 1px solid var(--success); }
+.tag.resting  { background: var(--tag-resting-bg);  color: var(--warning); border: 1px solid var(--warning); }
+.tag.inactive { background: var(--tag-inactive-bg); color: var(--muted);   border: 1px solid var(--border); }
 
 /* Connector rows */
 .connector {
@@ -609,7 +649,7 @@ tr:hover td       { background: #ffffff12; }
   align-items: center;
   gap: 14px;
   padding: 16px;
-  background: #111111;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 10px;
@@ -677,7 +717,7 @@ tr:hover td       { background: #ffffff12; }
 
 #log-bar {
   border-top: 1px solid var(--border);
-  background: #000000;
+  background: var(--bg);
   padding: 0 22px;
   height: 150px;
   display: flex;
@@ -763,7 +803,7 @@ tr:hover td       { background: #ffffff12; }
   display: none;
   position: fixed;
   z-index: 1000;
-  background: #111111;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 18px;
@@ -845,3 +885,32 @@ tr.athlete-row.dragging {
   outline: 2px dashed var(--accent);
   outline-offset: -2px;
 }
+
+/* ============================================================
+   THEME TOGGLE BUTTON
+   ============================================================ */
+
+#theme-toggle {
+  position: fixed;
+  top: 10px;
+  right: 16px;
+  z-index: 9999;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  user-select: none;
+}
+
+#theme-toggle:hover {
+  border-color: var(--accent);
+}
+
+/* Light mode overrides for btn-success/warn hover */
+body.light-mode .btn-success:hover { background: #009900; }
+body.light-mode .btn-warn:hover    { background: #dd7700; }

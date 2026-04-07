@@ -118,7 +118,8 @@
               </div>
               <div class="form-group">
                 <label>Rest Time (s)</label>
-                <input type="number" id="wk-rest" placeholder="60" min="0"/>
+                <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
+                       oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
               </div>
             </div>
             <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>

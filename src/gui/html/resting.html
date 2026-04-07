@@ -55,7 +55,7 @@ async function refresh(){
     const active = [], overdue = [];
     for(const athlete of athletes){
       const secsLeft = (athlete.rest_duration || DEFAULT_REST_DURATION_S) - (athlete.rest_elapsed || 0);
-      if(secsLeft < 0 - OVERDUE_THRESHOLD_S){
+      if(secsLeft > 0 - OVERDUE_THRESHOLD_S){
         active.push(athlete);
       } else {
         overdue.push(athlete);

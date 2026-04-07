@@ -106,15 +106,22 @@
           <!-- Workout card -->
           <div class="card">
             <div class="card-title">Configure Workout</div>
-            <p class="subtitle">Set interval distance and laps.</p>
+            <p class="subtitle">Set interval distance, laps, and rest time.</p>
             <div class="row">
               <div class="form-group">
                 <label>Distance (m)</label>
-                <input type="number" id="wk-distance" placeholder="400" min="1"/>
+                <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
+                       oninput="digitsOnly(this)"/>
               </div>
               <div class="form-group">
                 <label>Laps</label>
-                <input type="number" id="wk-laps" placeholder="4" min="1"/>
+                <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
+                       oninput="digitsOnly(this)"/>
+              </div>
+              <div class="form-group">
+                <label>Rest Time (s)</label>
+                <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
+                       oninput="digitsOnly(this)"/>
               </div>
             </div>
             <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>
@@ -243,6 +250,11 @@
 </div>
 
 <script>
+// ============================================================
+// UTILITIES
+// ============================================================
+function digitsOnly(el){ el.value = el.value.replace(/[^0-9]/g, ''); }
+
 // ============================================================
 // SCREEN NAVIGATION
 // ============================================================
@@ -409,7 +421,8 @@ async function loadAthleteList(){
 async function configureWorkout(){
   const dist = document.getElementById('wk-distance').value;
   const laps = document.getElementById('wk-laps').value;
-  const r    = await pywebview.api.configure_workout(dist, laps);
+  const rest = document.getElementById('wk-rest').value;
+  const r    = await pywebview.api.configure_workout(dist, laps, rest);
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);
 }

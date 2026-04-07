@@ -1,22 +1,14 @@
 /* ============================================================
    IntervalTrack — main window styles
+   Shared tokens (--bg, --accent, --text, etc.) live in shared.css.
+   ============================================================ */
+
+/* ============================================================
+   MAIN-WINDOW–SPECIFIC TOKENS (dark mode defaults)
    ============================================================ */
 
 :root {
-  --bg: #000000;
-  --panel: #111111;
-  --border: #444444;
-  --accent: #ffff00;
-  --text: #ffffff;
-  --muted: #aaaaaa;
-  --success: #00ff66;
-  --warning: #ffaa00;
-  --danger: #ff3333;
-  --radius: 6px;
-  --font-head: system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
   /* Derived / component-level tokens */
-  --on-accent: #000000;
   --on-success: #000000;
   --accent-hover: #ffff66;
   --accent-tint: rgba(255,255,0,0.067);
@@ -32,20 +24,10 @@
 }
 
 /* ============================================================
-   LIGHT MODE THEME
+   LIGHT MODE — MAIN-WINDOW–SPECIFIC TOKEN OVERRIDES
    ============================================================ */
 
 body.light-mode {
-  --bg: #f0f0f0;
-  --panel: #ffffff;
-  --border: #bbbbbb;
-  --accent: #0044bb;
-  --text: #111111;
-  --muted: #555555;
-  --success: #006600;
-  --warning: #bb5500;
-  --danger: #cc0000;
-  --on-accent: #ffffff;
   --on-success: #ffffff;
   --accent-hover: #2266dd;
   --accent-tint: rgba(0,68,187,0.067);
@@ -60,21 +42,8 @@ body.light-mode {
   --td-hover: rgba(0,0,0,0.04);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
   font-size: 17px;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 /* ============================================================
@@ -790,14 +759,6 @@ tr:hover td       { background: var(--td-hover); }
 }
 
 /* ============================================================
-   SCROLLBAR
-   ============================================================ */
-
-::-webkit-scrollbar       { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* ============================================================
    PERFORMANCE TOOLTIP
    ============================================================ */
 
@@ -886,29 +847,4 @@ tr.athlete-row.dragging {
   opacity: 0.35;
   outline: 2px dashed var(--accent);
   outline-offset: -2px;
-}
-
-/* ============================================================
-   THEME TOGGLE BUTTON
-   ============================================================ */
-
-#theme-toggle {
-  position: fixed;
-  top: 10px;
-  right: 16px;
-  z-index: 9999;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: var(--radius);
-  padding: 6px 12px;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-  user-select: none;
-}
-
-#theme-toggle:hover {
-  border-color: var(--accent);
 }

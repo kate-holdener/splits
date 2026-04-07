@@ -1,6 +1,8 @@
 /**
- * IntervalTrack — shared theme toggle logic.
+ * IntervalTrack — shared theme logic.
  * Loaded by both index.html and resting.html.
+ * The toggle button lives in index.html only; resting.html syncs
+ * automatically via the browser's 'storage' event.
  * Preference is persisted in localStorage under 'intervaltrack-theme'.
  */
 
@@ -26,4 +28,11 @@ function toggleTheme() {
 document.addEventListener('DOMContentLoaded', function () {
   const saved = localStorage.getItem('intervaltrack-theme') || 'dark';
   applyTheme(saved);
+});
+
+// Sync theme when changed in another window (main window → resting window)
+window.addEventListener('storage', function (e) {
+  if (e.key === 'intervaltrack-theme') {
+    applyTheme(e.newValue || 'dark');
+  }
 });

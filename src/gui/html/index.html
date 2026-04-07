@@ -142,11 +142,11 @@
           <div class="connector">
             <div class="connector-icon">📡</div>
             <div class="connector-info">
-              <div class="connector-name">LLRP RFID</div>
+              <div class="connector-name" id="rfid-name">RFID Scanner</div>
               <div class="connector-status idle" id="rfid-status-text">Not connected</div>
-              <div class="form-group" style="margin-top:10px;margin-bottom:0">
+              <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none;">
                 <label>IP Address</label>
-                <input type="text" id="rfid-address" value="169.254.1.1" style="max-width:220px"/>
+                <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
               </div>
             </div>
             <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
@@ -177,8 +177,9 @@
             Athletes
             <div style="display:flex;align-items:center;gap:12px">
               <span id="selected-count" style="font-family:var(--font-head);font-size:16px;color:var(--muted)">0 selected</span>
-              <button class="btn btn-success" id="start-selected-btn" onclick="startSelected()" disabled>🏁 Start Group</button>
-              <button class="btn btn-primary btn-sm" onclick="showRestingRunners()">👁️ Show Resting Runners</button>
+              <button class="btn btn-success btn-sm" id="start-selected-btn" onclick="startSelected()" disabled>Start</button>
+              <button class="btn btn-primary btn-sm" onclick="showRestingRunners()">Resting</button>
+              <button class="btn btn-danger btn-sm" onclick="finishWorkout()">Finish</button>
               <button class="btn btn-ghost btn-sm" onclick="loadWorkoutAthletes()">↻</button>
             </div>
           </div>
@@ -198,14 +199,6 @@
         <!-- Performance -->
         <!-- Removed: performance now shown as hover tooltip on each athlete row -->
 
-        <!-- Finish -->
-        <div class="card">
-          <div class="card-title warn">Finish Workout</div>
-          <p style="color:var(--muted);font-size:14px;margin-bottom:16px">
-            Clears all running and resting state and ends the session.
-          </p>
-          <button class="btn btn-danger" onclick="finishWorkout()">⏹ Finish Workout</button>
-        </div>
 
       </div>
     </div>
@@ -303,7 +296,6 @@ let _autoConnectAttempted = false;
 
 function applyState(s){
   if(!s) return;
-
   setPill('pill-athletes', s.athletesLoaded, s.athleteCount+' Athletes');
   setPill('pill-workout',  s.workoutConfigured, 'Workout Set');
   setPill('pill-rfid',     s.rfidConnected, 'RFID',  s.rfidFailed);
@@ -335,7 +327,7 @@ function applyState(s){
 
   document.getElementById('group-count') && (document.getElementById('group-count').textContent = s.groupCount || 0);
 
-  updateConnector('rfid-status-text', s.rfidConnected, s.rfidFailed);
+  updateRfidConnector(s);
   updateConnector('nfc-status-text',  s.nfcConnected,  s.nfcFailed);
 
   // Auto-connect once setup becomes complete
@@ -363,6 +355,64 @@ function updateConnector(id, ok, failed){
   if(ok)     { el.textContent='Connected';         el.className='connector-status ok'; }
   else if(failed){ el.textContent='Connection failed'; el.className='connector-status fail'; }
   else       { el.textContent='Not connected';     el.className='connector-status idle'; }
+}
+
+function updateRfidConnector(state) {
+  const statusEl = document.getElementById('rfid-status-text');
+  const nameEl = document.getElementById('rfid-name');
+  const addressGroupEl = document.getElementById('rfid-address-group');
+  const addressInputEl = document.getElementById('rfid-address');
+  const connectBtnEl = document.getElementById('rfid-btn');
+  
+  if (!statusEl || !nameEl || !addressGroupEl || !addressInputEl || !connectBtnEl) return;
+  
+  if (state.rfidConnected) {
+    // Scanner is connected
+    statusEl.textContent = 'Connected';
+    statusEl.className = 'connector-status ok';
+    
+    // Update scanner name with protocol info
+    if (state.rfidProtocol && state.rfidAddress) {
+      const protocolName = state.rfidProtocol.toUpperCase();
+      const portInfo = state.rfidPort ? `:${state.rfidPort}` : '';
+      nameEl.textContent = `${protocolName} RFID (${state.rfidAddress}${portInfo})`;
+    } else {
+      nameEl.textContent = 'RFID Scanner';
+    }
+    
+    // Hide IP address input when connected
+    addressGroupEl.style.display = 'none';
+    
+    // Show disconnect button
+    connectBtnEl.textContent = 'Disconnect';
+    connectBtnEl.onclick = disconnectRfid;
+    
+  } else if (state.rfidFailed) {
+    // Connection failed
+    statusEl.textContent = 'Connection failed';
+    statusEl.className = 'connector-status fail';
+    nameEl.textContent = 'RFID Scanner';
+    
+    // Show IP address input for retry
+    addressGroupEl.style.display = 'block';
+    
+    // Show connect button
+    connectBtnEl.textContent = 'Connect';
+    connectBtnEl.onclick = connectRfid;
+    
+  } else {
+    // Not connected
+    statusEl.textContent = 'Not connected';
+    statusEl.className = 'connector-status idle';
+    nameEl.textContent = 'RFID Scanner';
+    
+    // Show IP address input for connection
+    addressGroupEl.style.display = 'block';
+    
+    // Show connect button
+    connectBtnEl.textContent = 'Connect';
+    connectBtnEl.onclick = connectRfid;
+  }
 }
 
 // ============================================================
@@ -429,12 +479,26 @@ async function configureWorkout(){
 
 async function connectRfid(){
   document.getElementById('rfid-btn').disabled = true;
-  const address = (document.getElementById('rfid-address').value || '').trim() || '169.254.1.1';
+  const addressInput = document.getElementById('rfid-address');
+  const address = (addressInput.value || '').trim();
+  
+  if (!address) {
+    log('Please enter an IP address for the RFID scanner.', 'err');
+    document.getElementById('rfid-btn').disabled = false;
+    return;
+  }
+  
   log(`Connecting to RFID scanner at ${address}…`, 'info');
   const r = await pywebview.api.connect_rfid_with_address(address);
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);
   document.getElementById('rfid-btn').disabled = false;
+}
+
+async function disconnectRfid(){
+  // For now, we don't have a disconnect API, so this would be a placeholder
+  // In a full implementation, you'd call a disconnect API
+  log('Disconnect functionality not yet implemented', 'info');
 }
 
 async function connectNfc(){
@@ -448,7 +512,17 @@ async function connectNfc(){
 
 async function autoConnectScanners(){
   log('Setup complete — auto-connecting scanners…', 'info');
-  await Promise.all([connectRfid(), connectNfc()]);
+  
+  // For RFID, use the backend's auto-discovery instead of manual address entry
+  document.getElementById('rfid-btn').disabled = true;
+  log('Auto-discovering RFID scanner…', 'info');
+  const rfidResult = await pywebview.api.connect_rfid(); // Uses auto-discovery
+  log(rfidResult.msg, rfidResult.ok ? 'ok' : 'err');
+  if(rfidResult.state) applyState(rfidResult.state);
+  document.getElementById('rfid-btn').disabled = false;
+  
+  // Connect NFC as usual
+  await connectNfc();
 }
 
 async function startSelected(){
@@ -695,6 +769,7 @@ async function loadWorkoutAthletes(){
 }
 
 async function finishWorkout(){
+  if(!confirm('End the workout? This will clear all running and resting state.')) return;
   const r = await pywebview.api.finish_workout();
   log(r.msg, r.ok ? 'ok' : 'err');
   if(r.state) applyState(r.state);

@@ -5,15 +5,16 @@ import threading
 import time
 
 class Reader(Protocol):
-    def __init__(self, queue):
+    def __init__(self):
         self.thread = None
         self.running = False
-        self.queue = queue
+        self.queue = None
    
     def _run(self):
         raise NotImplementedError
  
-    def start(self):
+    def start(self, event_queue: Queue):
+        self.queue = event_queue
         """Start the reader thread."""
         if self.thread is not None and self.thread.is_alive():
             print("Reader is already running")
@@ -28,3 +29,9 @@ class Reader(Protocol):
         self.running = False
         if self.thread is not None:
             self.thread.join()
+
+    def get_protocol(self)->str:
+        pass
+
+    def get_address(self)->str:
+        pass

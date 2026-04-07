@@ -1,100 +1,123 @@
-"""
-Interval Training GUI - pywebview-based GUI for the Interval Training CLI.
+from queue import Queue
+from typing import Optional, Set
+from datetime import datetime
 
-Dependencies:
-    pip install pywebview
+from interactors.interval_timer import IntervalTimer
+from interactors.stats_calculator import calculate_performance
+from readers.acr122u_nfc import NFCReader
+from controller.start_controller import ManualStartController
+from api.runnerObserver import RunnerObserver
+from entity.runner import Runner
+from entity.workout import Workout
+from parser.runner_parser import parse_runner_data
+from discovery.auto_connect import auto_connect_to_rfid_scanner
 
-Usage:
-    python interval_training_gui.py
-
-The HTML/CSS/JS frontend communicates with the Python backend via
-webview's JavaScript API (js_api). All CLI business logic is preserved;
-only the presentation layer changes.
-"""
-
-import webview
-import os
-from api.IntervalTrackApi import IntervalTrackApi
-import json as _json
-
-
-class PyWebViewAPI:
+class IntervalTrackApi:
+    # Session file path (relative to src/)
+    SESSION_FILE_PATH = "../data/athletes_session.json"
+    
     def __init__(self):
-        self.track_api = IntervalTrackApi()
-    def log(self, data):
-        print(data)
+        self.athletes: list[Runner] = []
+        self.workout: Optional[object] = None
 
+        self.rfid_connected = False
+        self.nfc_connected = False
+        self.rfid_scanner_failed = False
+        self.nfc_scanner_failed = False
+        self.athletes_loaded = False
+        self.workout_configured = False
+        self.workout_active = False
+        self.session_loaded = False  # Track if session was loaded on startup
+        
+        # Protocol information for scanners
+        self.rfid_protocol = None      # 'llrp' or 'rest' when connected
+        self.rfid_address = None       # IP address when connected
+        self.rfid_port = None          # Port number when connected
+
+        self.group_start_athletes: Set = set()
+        self.runner_observer = RunnerObserver()
+
+        self.start_event_q = Queue()
+        self.lap_event_q = Queue()
+        self.manual_start_controller = ManualStartController(self.start_event_q)
+
+        self.nfc_scanner = None
+        self.rfid_scanner = None
+        self.timer = None
+
+        self.resting_window = None
+        
+        # Attempt to load previous session on startup
+        self._load_session_on_startup()
+
+
+
+    # ------------------------------------------------------------------
+    # State helper returned to the frontend
+    # ------------------------------------------------------------------
     def get_state(self):
-        return self.track_api.get_state()
-    
+        return {
+            "athletesLoaded": self.athletes_loaded,
+            "workoutConfigured": self.workout_configured,
+            "rfidConnected": self.rfid_connected,
+            "nfcConnected": self.nfc_connected,
+            "rfidFailed": self.rfid_scanner_failed,
+            "nfcFailed": self.nfc_scanner_failed,
+            "workoutActive": self.workout_active,
+            "athleteCount": len(self.athletes),
+            "groupCount": len(self.group_start_athletes),
+            "sessionLoaded": self.session_loaded,
+            # Protocol information for scanners
+            "rfidProtocol": self.rfid_protocol,
+            "rfidAddress": self.rfid_address,
+            "rfidPort": self.rfid_port,
+        }
+
+    # ------------------------------------------------------------------
+    # Load athletes
+    # ------------------------------------------------------------------
     def load_athletes(self, csv_path: str):
-        return self.track_api.load_athletes(csv_path)
-    
-    def configure_workout(self, distance: str, laps: str):
-        return self.track_api.configure_workout(distance, laps)
-    
-    def connect_rfid(self):
-        return self.track_api.connect_rfid()
-    
-    def connect_rfid_manually(self, address: str, port: int, protocol: str):
-        pass
-
-    def list_athletes(self):
-        return self.track_api.list_athletes()
-
-    def list_athletes_with_status(self):
-        return self.track_api.list_athletes_with_status()
-    
-    def connect_nfc(self):
-        return self.track_api.connect_nfc()
-
-    def start_selected(self, tag_ids_json: str):
+        if not csv_path.strip():
+            return {"ok": False, "msg": "CSV file path is required."}
         try:
-            tag_ids = _json.loads(tag_ids_json)
-            self.track_api.start_selected(tag_ids)
-        except Exception:
-            return {"ok": False, "msg": "Invalid tag IDs format."}
-    
-    def get_resting(self):
-        return self.track_api.get_resting()
-    
-    def finish_workout(self):
-        return self.track_api.finish_workout()
-    # ------------------------------------------------------------------
-    # File dialog – called from JS to open a native CSV picker
-    # ------------------------------------------------------------------
-    def pick_csv_file(self):
-        import webview as _wv
-        # create_file_dialog returns a tuple of selected paths, or None
-        result = _wv.windows[0].create_file_dialog(
-            dialog_type=_wv.OPEN_DIALOG,
-            allow_multiple=False,
-            file_types=('CSV files (*.csv)', 'All files (*.*)')
-        )
-        if result and len(result) > 0:
-            return {"path": result[0]}
-        return {"path": None}
-    
-    def add_resting_window(self, resting_window):
-        self.resting_window = resting_window
+            athletes = parse_runner_data(csv_path.strip())
+            result = self.init_athletes(athletes)
+            # Save session after successful load
+            self._save_session()
+            return result
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+        
+    def init_athletes(self, athletes):
+        self.athletes = athletes
+        self.athletes_loaded = True
+        for a in self.athletes:
+            a.add_observer(self.runner_observer)
+        if self.workout:
+            for a in self.athletes:
+                a.add_workout(self.workout) 
+        self.timer = IntervalTimer(self.start_event_q, self.lap_event_q, self.athletes)
+        self.timer.start()
+        self.athletes_loaded = True
+        
+        return {"ok": True, "msg": f"Loaded {len(self.athletes)} athletes.", "state": self.get_state()}
 
     # ------------------------------------------------------------------
-    # Option 2 – Configure workout
+    # Configure workout
     # ------------------------------------------------------------------
-    def configure_workout(self, distance: str, laps: str, rest_time: str = "0"):
+    def configure_workout(self, distance: str, laps: str):
         try:
             dist_int = int(distance)
             laps_int = int(laps)
-            rest_int = int(rest_time)
             self.workout = Workout(datetime.now())
-            self.workout.configure(dist_int, laps_int, rest_int)
+            self.workout.configure(dist_int, laps_int)
             self.workout_configured = True
             if self.athletes:
                 for a in self.athletes:
                     a.add_workout(self.workout)
             return {
                 "ok": True,
-                "msg": f"Workout configured: {dist_int}m × {laps_int} laps, {rest_int}s rest.",
+                "msg": f"Workout configured: {dist_int}m × {laps_int} laps.",
                 "state": self.get_state()
             }
         except ValueError:
@@ -106,38 +129,40 @@ class PyWebViewAPI:
     # Option 3 – Connect RFID
     # ------------------------------------------------------------------
     def connect_rfid(self):
-        return self.connect_rfid_with_address(SCANNER_ADDRESS)
-
-    def connect_rfid_with_address(self, address: str):
+        print("connecting rfid")
+        """Connect to RFID scanner with auto-discovery."""
         if not (self.athletes_loaded and self.workout_configured):
-            return {"ok": False, "msg": "Complete steps 1 and 2 first."}
+            return {"ok": False, "msg": "Complete steps 1 and 2 first.", "state": self.get_state()}
+            
         try:
-            runner_ids = [r.lap_id for r in self.athletes]
-            self.rfid_scanner = LLRPReader(self.lap_event_q, address.strip())
-            #self.rfid_scanner = ImpinjRestReader(self.lap_event_q, "127.0.0.1:5001")
-            self.rfid_scanner.filter_by_id(runner_ids)
-            self.rfid_scanner.start()
+            self.rfid_scanner = auto_connect_to_rfid_scanner()
+            self.rfid_scanner.start(self.lap_event_q)
             self.rfid_connected = True
-            self.rfid_scanner_failed = False
-            return {"ok": True, "msg": f"RFID scanner connected ({address.strip()}).", "state": self.get_state()}
+            self.rfid_protocol = self.rfid_scanner.get_protocol()
+            self.rfid_address = self.rfid_scanner.get_address()
+
+            return {"ok": True, "msg": f"Connected to {self.rfid_protocol} on {self.rfid_address}", "state": self.get_state()}
         except Exception as e:
-            self.rfid_scanner_failed = True
-            return {"ok": False, "msg": f"RFID failed: {e}", "state": self.get_state()}
+            return {"ok": False, "msg": f"Auto-connection failed: {e}", "state": self.get_state()}
 
     # ------------------------------------------------------------------
     # Option 4 – Connect NFC
     # ------------------------------------------------------------------
     def connect_nfc(self):
+        print("Connecting nfc")
         if not (self.athletes_loaded and self.workout_configured):
+            print("Not ready")
             return {"ok": False, "msg": "Complete steps 1 and 2 first."}
         try:
-            self.nfc_scanner = NFCReader(self.start_event_q)
-            self.nfc_scanner.start()
+            self.nfc_scanner = NFCReader()
+            self.nfc_scanner.start(self.start_event_q)
             self.nfc_connected = True
             self.nfc_scanner_failed = False
+            print("Connected to NFC")
             return {"ok": True, "msg": "NFC scanner connected.", "state": self.get_state()}
         except Exception as e:
             self.nfc_scanner_failed = True
+            print("Failed to connect")
             return {"ok": False, "msg": f"NFC failed: {e}", "state": self.get_state()}
 
     # ------------------------------------------------------------------
@@ -200,14 +225,9 @@ class PyWebViewAPI:
     # ------------------------------------------------------------------
     # Start a specific set of athletes by start_tag (new UI)
     # ------------------------------------------------------------------
-    def start_selected(self, tag_ids_json: str):
-        import json as _json
+    def start_selected(self, tag_ids: list[str]):
         if not self._full_setup_ok():
             return {"ok": False, "msg": "Setup not complete."}
-        try:
-            tag_ids = _json.loads(tag_ids_json)
-        except Exception:
-            return {"ok": False, "msg": "Invalid tag IDs format."}
         if not tag_ids:
             return {"ok": False, "msg": "No athletes selected."}
         valid_ids = {a.start_id for a in self.athletes}
@@ -221,6 +241,7 @@ class PyWebViewAPI:
 
     # ------------------------------------------------------------------
     # Option 6 – Add athlete to group start
+    # TODO: THIS IS NOT USED
     # ------------------------------------------------------------------
     def add_to_group(self, tag_id: str):
         if not self._full_setup_ok():
@@ -234,6 +255,7 @@ class PyWebViewAPI:
 
     # ------------------------------------------------------------------
     # Option 7 – Start group
+    # TODO: THIS IS NOT USED
     # ------------------------------------------------------------------
     def start_group(self):
         if not self._full_setup_ok():
@@ -249,6 +271,7 @@ class PyWebViewAPI:
 
     # ------------------------------------------------------------------
     # Option 8 – Running athletes
+    # TODO: THIS IS NOT USED
     # ------------------------------------------------------------------
     def list_running(self):
         if not self._full_setup_ok():
@@ -257,6 +280,7 @@ class PyWebViewAPI:
 
     # ------------------------------------------------------------------
     # Option 9 – Resting athletes (main window, requires full setup)
+    # TODO: THIS IS NOT USED
     # ------------------------------------------------------------------
     def list_resting(self):
         if not self._full_setup_ok():
@@ -283,6 +307,7 @@ class PyWebViewAPI:
 
     # ------------------------------------------------------------------
     # Option 10 – Performance
+    # TODO: THIS IS NOT USED
     # ------------------------------------------------------------------
     def view_performance(self):
         if not self._full_setup_ok():
@@ -303,19 +328,6 @@ class PyWebViewAPI:
         self.runner_observer.resting.clear()
         self.workout_active = False
         return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
-
-    # ------------------------------------------------------------------
-    # Option 12 – Generate reports
-    # ------------------------------------------------------------------
-    def generate_reports(self, directory: str):
-        if not directory.strip():
-            return {"ok": False, "msg": "Directory path is required."}
-        # Placeholder – wire up your real report generation here
-        return {
-            "ok": True,
-            "msg": f"Reports generated in: {directory.strip()}",
-            "files": ["athlete_summary.pdf", "lap_times.csv", "workout_overview.html"]
-        }
 
     # ------------------------------------------------------------------
     # Helpers
@@ -377,7 +389,6 @@ class PyWebViewAPI:
                 self.athletes = []
                 self.athletes_loaded = False
                 self.session_loaded = False
-                self.csv_file = None
                 
                 # Stop timer if running
                 if self.timer:
@@ -411,65 +422,3 @@ class PyWebViewAPI:
         if self.timer:
             self.timer.stop()
         return {"ok": True}
-
-
-    def show_resting_runners(self):
-        print('show resting runners')
-        print(self.resting_window)
-        if self.resting_window:
-            self.resting_window.show()
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-def main():
-    api = PyWebViewAPI()
-    
-    # Get HTML path - check environment variable first (for bundled app)
-    html_path = os.environ.get('GUI_HTML_PATH', os.path.join(os.path.dirname(__file__), "html"))
-    ui_path = os.path.join(html_path, "index.html")
-    
-    # Primary window
-    main_window = webview.create_window(
-        title="IntervalTrack",
-        url=ui_path,
-        js_api=api,
-        width=1100,
-        height=720,
-        min_size=(900, 600),
-        background_color="#000000",
-    )
-
-    # Secondary window – resting runners (shares the same Api instance)
-    resting_path=os.path.join(os.path.dirname(__file__), "html", "resting.html")
-    resting_window = webview.create_window(
-        title="Resting Runners",
-        url=resting_path,
-        js_api=api,
-        width=600,
-        height=800,
-        min_size=(400, 500),
-        background_color="#000000",
-        x=1120,
-        y=0,
-        hidden=True
-    )
-    api.add_resting_window(resting_window)
-
-    def on_closing_resting():
-        print('hiding resting runners')
-        resting_window.hide()
-        return False
-
-    resting_window.events.closing += on_closing_resting
-
-    def on_closed():
-        resting_window.events.closing -= on_closing_resting
-        resting_window.destroy()
-        api.shutdown()
-
-    main_window.events.closed += on_closed
-    webview.start(debug=False)
-
-
-if __name__ == "__main__":
-    main()

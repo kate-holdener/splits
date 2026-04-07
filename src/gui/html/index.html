@@ -204,10 +204,10 @@
     </div>
 
     <!-- Log bar (shared across all tabs) -->
-    <div id="log-bar">
-      <div class="log-header">
-        <span>▸</span> Activity Log
-        <button class="btn btn-ghost" style="margin-left:auto;padding:2px 10px;font-size:10px" onclick="clearLog()">Clear</button>
+    <div id="log-bar" class="collapsed">
+      <div class="log-header" onclick="toggleLog()">
+        <span id="log-toggle-arrow" class="log-arrow">▸</span> Activity Log
+        <button class="btn btn-ghost" style="margin-left:auto;padding:2px 10px;font-size:10px" onclick="event.stopPropagation();clearLog()">Clear</button>
       </div>
       <div id="log-body"></div>
     </div>
@@ -288,6 +288,10 @@ function log(msg, type='info'){
   body.prepend(div);
 }
 function clearLog(){ document.getElementById('log-body').innerHTML=''; }
+function toggleLog(){
+  const bar = document.getElementById('log-bar');
+  bar.classList.toggle('collapsed');
+}
 
 // ============================================================
 // STATE

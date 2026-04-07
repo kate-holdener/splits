@@ -11,4 +11,6 @@ class Workout:
         self.interval_distance = distance
         self.laps_per_interval = laps_per_interval
         self.rest_time = rest_time
-    
+   
+    def get_rest_time(self):
+        return self.rest_time 

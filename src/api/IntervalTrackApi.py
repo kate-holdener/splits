@@ -105,19 +105,17 @@ class IntervalTrackApi:
     # ------------------------------------------------------------------
     # Configure workout
     # ------------------------------------------------------------------
-    def configure_workout(self, distance: str, laps: str):
+    def configure_workout(self, distance: int, laps: int, rest: int):
         try:
-            dist_int = int(distance)
-            laps_int = int(laps)
             self.workout = Workout(datetime.now())
-            self.workout.configure(dist_int, laps_int)
+            self.workout.configure(distance, laps, rest)
             self.workout_configured = True
             if self.athletes:
                 for a in self.athletes:
                     a.add_workout(self.workout)
             return {
                 "ok": True,
-                "msg": f"Workout configured: {dist_int}m × {laps_int} laps.",
+                "msg": f"Workout configured: {distance}m × {laps} laps with {rest} second rest.",
                 "state": self.get_state()
             }
         except ValueError:
@@ -292,13 +290,9 @@ class IntervalTrackApi:
     # ------------------------------------------------------------------
     def get_resting(self):
         """Always returns the current resting list with timing data; no setup check."""
-        rest_duration = (
-            self.workout.rest_duration_seconds
-            if self.workout and hasattr(self.workout, 'rest_duration_seconds')
-            else 90
-        )
         athletes = []
         for r in self.runner_observer.resting:
+            rest_duration = r.get_workout().get_rest_time()
             d = r.to_dict()
             d['rest_elapsed'] = round(self.runner_observer.rest_elapsed(r), 1)
             d['rest_duration'] = rest_duration

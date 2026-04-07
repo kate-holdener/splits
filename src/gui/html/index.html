@@ -111,17 +111,17 @@
               <div class="form-group">
                 <label>Distance (m)</label>
                 <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
-                       oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+                       oninput="digitsOnly(this)"/>
               </div>
               <div class="form-group">
                 <label>Laps</label>
                 <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
-                       oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+                       oninput="digitsOnly(this)"/>
               </div>
               <div class="form-group">
                 <label>Rest Time (s)</label>
                 <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
-                       oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+                       oninput="digitsOnly(this)"/>
               </div>
             </div>
             <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>
@@ -250,6 +250,11 @@
 </div>
 
 <script>
+// ============================================================
+// UTILITIES
+// ============================================================
+function digitsOnly(el){ el.value = el.value.replace(/[^0-9]/g, ''); }
+
 // ============================================================
 // SCREEN NAVIGATION
 // ============================================================

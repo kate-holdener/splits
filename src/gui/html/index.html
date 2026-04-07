@@ -110,11 +110,13 @@
             <div class="row">
               <div class="form-group">
                 <label>Distance (m)</label>
-                <input type="number" id="wk-distance" placeholder="400" min="1"/>
+                <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
+                       oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
               </div>
               <div class="form-group">
                 <label>Laps</label>
-                <input type="number" id="wk-laps" placeholder="4" min="1"/>
+                <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
+                       oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
               </div>
               <div class="form-group">
                 <label>Rest Time (s)</label>

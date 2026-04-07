@@ -488,12 +488,18 @@ input[type=checkbox]:checked::before {
 input:focus        { border-color: var(--accent); }
 input::placeholder { color: #666666; }
 
-/* Hide number-input spinners on the rest-time field */
+/* Hide number-input spinners on the workout configure fields */
+#wk-distance::-webkit-outer-spin-button,
+#wk-distance::-webkit-inner-spin-button,
+#wk-laps::-webkit-outer-spin-button,
+#wk-laps::-webkit-inner-spin-button,
 #wk-rest::-webkit-outer-spin-button,
 #wk-rest::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+#wk-distance,
+#wk-laps,
 #wk-rest { -moz-appearance: textfield; }
 
 .row {

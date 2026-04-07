@@ -5,12 +5,13 @@
  */
 
 function applyTheme(mode) {
+  const toggle = document.getElementById('theme-toggle');
   if (mode === 'light') {
     document.body.classList.add('light-mode');
-    document.getElementById('theme-toggle').textContent = '🌙';
+    if (toggle) toggle.textContent = '🌙';
   } else {
     document.body.classList.remove('light-mode');
-    document.getElementById('theme-toggle').textContent = '☀';
+    if (toggle) toggle.textContent = '☀';
   }
 }
 

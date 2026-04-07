@@ -51,7 +51,7 @@ async function refresh(){
     const athletes = r.athletes || [];
     setStatus('Updated '+new Date().toLocaleTimeString());
 
-    // Partition: active rest (secsLeft > threshold) vs. overdue (everything else)
+    // Partition: still-resting / borderline (secsLeft >= -threshold) vs. clearly overdue (secsLeft < -threshold)
     const active = [], overdue = [];
     for(const athlete of athletes){
       const secsLeft = (athlete.rest_duration || DEFAULT_REST_DURATION_S) - (athlete.rest_elapsed || 0);

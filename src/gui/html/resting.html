@@ -30,6 +30,7 @@
 
 <script>
 const OVERDUE_DELAY_MS = 5000;
+const DEFAULT_REST_DURATION_S = 90;
 
 function cardClass(secsLeft, duration){
   if(secsLeft <= 0)              return 'done';
@@ -67,7 +68,7 @@ async function refresh(){
     // Partition athletes: those with remaining rest vs. overdue (rest ended ≥ 5 s ago)
     const active = [], overdue = [];
     for(const athlete of athletes){
-      const secsLeft = (athlete.rest_duration || 90) - (athlete.rest_elapsed || 0);
+      const secsLeft = (athlete.rest_duration || DEFAULT_REST_DURATION_S) - (athlete.rest_elapsed || 0);
       const key = getRunnerStorageKey(athlete);
       if(secsLeft > 0){
         sessionStorage.removeItem('overdue_' + key);
@@ -99,7 +100,7 @@ async function refresh(){
 
     let html = active.map(athlete => {
       const elapsed  = athlete.rest_elapsed  || 0;
-      const duration = athlete.rest_duration || 90;
+      const duration = athlete.rest_duration || DEFAULT_REST_DURATION_S;
       const secsLeft = duration - elapsed;
       const cls      = cardClass(secsLeft, duration);
       const label    = secsLeft <= 0 ? 'GO' : Math.ceil(Math.max(0, secsLeft));

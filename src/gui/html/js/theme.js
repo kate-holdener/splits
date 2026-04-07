@@ -21,8 +21,8 @@ function toggleTheme() {
   applyTheme(next);
 }
 
-// Apply saved theme immediately on load
-(function () {
+// Apply saved theme after the DOM is fully parsed
+document.addEventListener('DOMContentLoaded', function () {
   const saved = localStorage.getItem('intervaltrack-theme') || 'dark';
   applyTheme(saved);
-})();
+});

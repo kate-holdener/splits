@@ -20,6 +20,8 @@
   --on-success: #000000;
   --accent-hover: #ffff66;
   --accent-tint: rgba(255,255,0,0.067);
+  --success-hover: #66ff99;
+  --warning-hover: #ffbb44;
   --input-bg: #111111;
   --input-placeholder: #666666;
   --tag-running-bg: #003311;
@@ -47,6 +49,8 @@ body.light-mode {
   --on-success: #ffffff;
   --accent-hover: #2266dd;
   --accent-tint: rgba(0,68,187,0.067);
+  --success-hover: #009900;
+  --warning-hover: #dd7700;
   --input-bg: #ffffff;
   --input-placeholder: #999999;
   --tag-running-bg: #ccffdd;
@@ -595,9 +599,9 @@ input::placeholder { color: var(--input-placeholder); }
 .btn-danger               { background: var(--danger);  color: #fff; }
 .btn-danger:hover         { background: #ff6666; }
 .btn-success              { background: var(--success); color: var(--on-success); }
-.btn-success:hover        { background: #66ff99; }
+.btn-success:hover        { background: var(--success-hover); }
 .btn-warn                 { background: var(--warning); color: #000; }
-.btn-warn:hover           { background: #ffbb44; }
+.btn-warn:hover           { background: var(--warning-hover); }
 .btn-ghost                { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-ghost:hover          { border-color: var(--accent); color: var(--accent); }
 .btn-sm                   { padding: 10px 20px; font-size: 16px; }
@@ -908,7 +912,3 @@ tr.athlete-row.dragging {
 #theme-toggle:hover {
   border-color: var(--accent);
 }
-
-/* Light mode overrides for btn-success/warn hover */
-body.light-mode .btn-success:hover { background: #009900; }
-body.light-mode .btn-warn:hover    { background: #dd7700; }

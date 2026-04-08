@@ -115,7 +115,7 @@ def main():
         width=1100,
         height=720,
         min_size=(900, 600),
-        background_color="#000000",
+        background_color="#f0f0f0",
     )
 
     # Secondary window – resting runners (shares the same Api instance)
@@ -127,7 +127,7 @@ def main():
         width=600,
         height=800,
         min_size=(400, 500),
-        background_color="#000000",
+        background_color="#f0f0f0",
         x=1120,
         y=0,
         hidden=True

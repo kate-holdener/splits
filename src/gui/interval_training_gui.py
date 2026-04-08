@@ -17,6 +17,9 @@ import os
 from api.IntervalTrackApi import IntervalTrackApi
 import json as _json
 
+# Default (light-mode) background color — must match --bg in shared.css
+LIGHT_MODE_BG = "#f0f0f0"
+
 
 class PyWebViewAPI:
     def __init__(self):
@@ -115,7 +118,7 @@ def main():
         width=1100,
         height=720,
         min_size=(900, 600),
-        background_color="#f0f0f0",
+        background_color=LIGHT_MODE_BG,
     )
 
     # Secondary window – resting runners (shares the same Api instance)
@@ -127,7 +130,7 @@ def main():
         width=600,
         height=800,
         min_size=(400, 500),
-        background_color="#f0f0f0",
+        background_color=LIGHT_MODE_BG,
         x=1120,
         y=0,
         hidden=True

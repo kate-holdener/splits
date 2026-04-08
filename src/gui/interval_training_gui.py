@@ -21,6 +21,7 @@ import json as _json
 class PyWebViewAPI:
     def __init__(self):
         self.track_api = IntervalTrackApi()
+        self._theme = 'light'
     def log(self, data):
         print(data)
 
@@ -80,6 +81,16 @@ class PyWebViewAPI:
     
     def add_resting_window(self, resting_window):
         self.resting_window = resting_window
+
+    def get_theme(self):
+        return self._theme
+
+    def set_theme(self, mode: str):
+        if mode not in ('light', 'dark'):
+            return
+        self._theme = mode
+        if hasattr(self, 'resting_window') and self.resting_window:
+            self.resting_window.evaluate_js(f'applyTheme("{mode}")')
     
     def show_resting_runners(self):
         print('show resting runners')

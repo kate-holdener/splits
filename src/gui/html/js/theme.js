@@ -26,13 +26,13 @@ function toggleTheme() {
 
 // Apply saved theme after the DOM is fully parsed
 document.addEventListener('DOMContentLoaded', function () {
-  const saved = localStorage.getItem('intervaltrack-theme') || 'dark';
+  const saved = localStorage.getItem('intervaltrack-theme') || 'light';
   applyTheme(saved);
 });
 
 // Sync theme when changed in another window (main window → resting window)
 window.addEventListener('storage', function (e) {
   if (e.key === 'intervaltrack-theme') {
-    applyTheme(e.newValue || 'dark');
+    applyTheme(e.newValue || 'light');
   }
 });

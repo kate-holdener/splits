@@ -460,18 +460,41 @@ function renderSeasonsList(seasons) {
   }
 
   // Populate menu
+  menu.replaceChildren();
   if (!seasons || !seasons.length) {
-    menu.innerHTML = '<div style="padding:14px 18px;color:var(--muted);font-size:15px">No seasons yet.</div>';
+    const emptyState = document.createElement('div');
+    emptyState.style.padding = '14px 18px';
+    emptyState.style.color = 'var(--muted)';
+    emptyState.style.fontSize = '15px';
+    emptyState.textContent = 'No seasons yet.';
+    menu.appendChild(emptyState);
     return;
   }
-  menu.innerHTML = seasons.map(s => {
-    const date = s.created_at ? new Date(s.created_at).toLocaleDateString() : '';
-    return `<div class="season-picker__option${s.is_active ? ' active' : ''}" onclick="onSeasonOptionClick('${s.id}')">
-      <span class="season-picker__dot"></span>
-      <span class="season-picker__option-name">${s.name}</span>
-      <span class="season-picker__option-date">${date}</span>
-    </div>`;
-  }).join('');
+
+  seasons.forEach(s => {
+    const option = document.createElement('div');
+    option.className = 'season-picker__option';
+    if (s.is_active) {
+      option.classList.add('active');
+    }
+    option.addEventListener('click', () => onSeasonOptionClick(s.id));
+
+    const dot = document.createElement('span');
+    dot.className = 'season-picker__dot';
+
+    const name = document.createElement('span');
+    name.className = 'season-picker__option-name';
+    name.textContent = s.name;
+
+    const date = document.createElement('span');
+    date.className = 'season-picker__option-date';
+    date.textContent = s.created_at ? new Date(s.created_at).toLocaleDateString() : '';
+
+    option.appendChild(dot);
+    option.appendChild(name);
+    option.appendChild(date);
+    menu.appendChild(option);
+  });
 }
 
 function toggleSeasonDropdown(e) {

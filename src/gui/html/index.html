@@ -4,10 +4,17 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>IntervalTrack</title>
-<!-- Google Fonts removed for outdoor readability - using system fonts -->
 <link rel="stylesheet" href="css/shared.css"/>
 <link rel="stylesheet" href="css/index.css"/>
-<script src="js/theme.js" defer></script>
+<script src="js/theme.js"   defer></script>
+<script src="js/log.js"     defer></script>
+<script src="js/state.js"   defer></script>
+<script src="js/seasons.js" defer></script>
+<script src="js/athletes.js" defer></script>
+<script src="js/scanners.js" defer></script>
+<script src="js/workout.js"  defer></script>
+<script src="js/reports.js"  defer></script>
+<script src="js/init.js"     defer></script>
 </head>
 <body class="light-mode">
 
@@ -57,13 +64,13 @@
 
   <!-- Tab bar -->
   <div id="tab-bar">
-    <button class="tab active partial" id="tab-setup" onclick="switchTab('setup')">
+    <button class="tab active partial" id="tab-setup"    onclick="switchTab('setup')">
       <span class="tab-dot"></span>Setup
     </button>
     <button class="tab" id="tab-scanners" onclick="switchTab('scanners')">
       <span class="tab-dot"></span>Scanners
     </button>
-    <button class="tab" id="tab-workout" onclick="switchTab('workout')">
+    <button class="tab" id="tab-workout"  onclick="switchTab('workout')">
       <span class="tab-dot"></span>Workout
     </button>
   </div>
@@ -75,7 +82,7 @@
       <div class="scroll-area">
         <div class="setup-grid">
 
-          <!-- Seasons card — full width -->
+          <!-- Season card — full width -->
           <div class="card" style="grid-column:1/-1">
             <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
               Season
@@ -107,7 +114,7 @@
             </div>
           </div>
 
-          <!-- Workout card -->
+          <!-- Workout config card -->
           <div class="card">
             <div class="card-title">Configure Workout</div>
             <p class="subtitle">Set interval distance, laps, and rest time.</p>
@@ -148,7 +155,7 @@
             <div class="connector-info">
               <div class="connector-name" id="rfid-name">RFID Scanner</div>
               <div class="connector-status idle" id="rfid-status-text">Not connected</div>
-              <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none;">
+              <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none">
                 <label>IP Address</label>
                 <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
               </div>
@@ -174,8 +181,6 @@
     <!-- ── WORKOUT TAB ── -->
     <div class="tab-content" id="tc-workout">
       <div class="scroll-area">
-
-        <!-- Athletes table -->
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
             Athletes
@@ -183,8 +188,8 @@
               <span id="selected-count" style="font-family:var(--font-head);font-size:16px;color:var(--muted)">0 selected</span>
               <button class="btn btn-success btn-sm" id="start-selected-btn" onclick="startSelected()" disabled>Start</button>
               <button class="btn btn-primary btn-sm" onclick="showRestingRunners()">Resting</button>
-              <button class="btn btn-danger btn-sm" onclick="finishWorkout()">Finish</button>
-              <button class="btn btn-ghost btn-sm" onclick="loadWorkoutAthletes()">↻</button>
+              <button class="btn btn-danger btn-sm"  onclick="finishWorkout()">Finish</button>
+              <button class="btn btn-ghost btn-sm"   onclick="loadWorkoutAthletes()">↻</button>
             </div>
           </div>
           <table>
@@ -199,11 +204,6 @@
             <tbody id="athletes-status-tbody"></tbody>
           </table>
         </div>
-
-        <!-- Performance -->
-        <!-- Removed: performance now shown as hover tooltip on each athlete row -->
-
-
       </div>
     </div>
 
@@ -211,7 +211,8 @@
     <div id="log-bar" class="collapsed">
       <div class="log-header" onclick="toggleLog()">
         <span id="log-toggle-arrow" class="log-arrow">▸</span> Activity Log
-        <button class="btn btn-ghost" style="margin-left:auto;padding:2px 10px;font-size:10px" onclick="event.stopPropagation();clearLog()">Clear</button>
+        <button class="btn btn-ghost" style="margin-left:auto;padding:2px 10px;font-size:10px"
+                onclick="event.stopPropagation();clearLog()">Clear</button>
       </div>
       <div id="log-body"></div>
     </div>
@@ -250,774 +251,36 @@
 
     <div class="form-group">
       <label>Season Name</label>
-      <input type="text" id="modal-season-name" placeholder="e.g., Spring 2026" oninput="updateModalCreateBtn()"/>
+      <input type="text" id="modal-season-name" placeholder="e.g., Spring 2026"
+             oninput="updateModalCreateBtn()"/>
     </div>
 
     <div class="form-group" style="margin-bottom:0">
-      <label>Import Roster from CSV <span style="color:var(--muted);font-size:12px;letter-spacing:0;text-transform:none">(optional — can add later)</span></label>
+      <label>Import Roster from CSV
+        <span style="color:var(--muted);font-size:12px;letter-spacing:0;text-transform:none">(optional — can add later)</span>
+      </label>
       <div class="file-picker" id="modal-file-picker">
-        <span id="modal-csv-display" style="flex:1;font-family:var(--font-mono);font-size:14px;color:var(--input-placeholder);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">No file selected…</span>
+        <span id="modal-csv-display"
+              style="flex:1;font-family:var(--font-mono);font-size:14px;color:var(--input-placeholder);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">No file selected…</span>
         <button class="btn btn-ghost btn-sm" onclick="pickModalCsv()">📂 Browse</button>
       </div>
     </div>
 
-    <div id="modal-error" style="display:none;margin-top:14px;padding:10px 14px;border-radius:var(--radius);background:rgba(255,51,51,0.1);border:1px solid rgba(255,51,51,0.4);color:var(--danger);font-size:14px"></div>
+    <div id="modal-error"
+         style="display:none;margin-top:14px;padding:10px 14px;border-radius:var(--radius);background:rgba(255,51,51,0.1);border:1px solid rgba(255,51,51,0.4);color:var(--danger);font-size:14px"></div>
 
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn btn-ghost" style="flex:1" onclick="closeSeasonModal()">Cancel</button>
+      <button class="btn btn-ghost"   style="flex:1" onclick="closeSeasonModal()">Cancel</button>
       <button class="btn btn-primary" style="flex:2" id="modal-create-btn" onclick="submitNewSeason()" disabled>Create Season</button>
     </div>
   </div>
 </div>
 
+<!-- Performance tooltip -->
 <div id="perf-tooltip">
   <div class="tip-name" id="tip-name"></div>
   <div id="tip-body"></div>
 </div>
 
-<script>
-// ============================================================
-// UTILITIES
-// ============================================================
-function digitsOnly(el){ el.value = el.value.replace(/[^0-9]/g, ''); }
-
-// ============================================================
-// SCREEN NAVIGATION
-// ============================================================
-function goTo(screenId){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(screenId).classList.add('active');
-}
-
-// ============================================================
-// TAB SWITCHING
-// ============================================================
-let _workoutRefreshTimer = null;
-
-function switchTab(name){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  document.getElementById('tc-'+name).classList.add('active');
-
-  // Stop any running workout refresh
-  if(_workoutRefreshTimer){ clearInterval(_workoutRefreshTimer); _workoutRefreshTimer = null; }
-
-  if(name==='workout'){
-    loadWorkoutAthletes();
-    _workoutRefreshTimer = setInterval(loadWorkoutAthletes, 1000);
-  }
-}
-
-// ============================================================
-// LOG
-// ============================================================
-function log(msg, type='info'){
-  const body = document.getElementById('log-body');
-  const ts   = new Date().toLocaleTimeString();
-  const div  = document.createElement('div');
-  div.className = `log-entry ${type}`;
-  div.innerHTML = `<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
-  body.prepend(div);
-}
-function clearLog(){ document.getElementById('log-body').innerHTML=''; }
-function toggleLog(){
-  const bar = document.getElementById('log-bar');
-  bar.classList.toggle('collapsed');
-}
-
-// ============================================================
-// STATE
-// ============================================================
-let _autoConnectAttempted = false;
-
-function applyState(s){
-  if(!s) return;
-  setPill('pill-athletes', s.athletesLoaded, s.athleteCount+' Athletes');
-  setPill('pill-workout',  s.workoutConfigured, 'Workout Set');
-  setPill('pill-rfid',     s.rfidConnected, 'RFID',  s.rfidFailed);
-  setPill('pill-nfc',      s.nfcConnected,  'NFC',   s.nfcFailed);
-
-  // Update athletes "Add from CSV" button state
-  updateSeasonUI(s.currentSeason || null);
-
-  // Tab dots
-  const setupOk = s.athletesLoaded && s.workoutConfigured;
-  const scannersOk = s.rfidConnected && s.nfcConnected;
-  const scannersFail = s.rfidFailed || s.nfcFailed;
-  setTabState('tab-setup',
-    setupOk ? 'ready' : (s.athletesLoaded || s.workoutConfigured ? 'partial' : ''));
-  setTabState('tab-scanners',
-    scannersOk ? 'ready' : (scannersFail ? 'error' : ''));
-  setTabState('tab-workout',
-    (setupOk && scannersOk) ? 'ready' : '');
-
-  document.getElementById('group-count') && (document.getElementById('group-count').textContent = s.groupCount || 0);
-
-  updateRfidConnector(s);
-  updateConnector('nfc-status-text',  s.nfcConnected,  s.nfcFailed);
-
-  // Auto-connect once setup becomes complete
-  if(setupOk && !_autoConnectAttempted){
-    _autoConnectAttempted = true;
-    autoConnectScanners();
-  }
-}
-
-function setPill(id, ok, label, failed=false){
-  const el = document.getElementById(id);
-  if(!el) return;
-  el.textContent = ok ? label : (failed ? 'FAILED' : label.split(' ')[0]);
-  el.className = 'pill ' + (ok ? 'ok' : (failed ? 'fail' : 'idle'));
-}
-function setTabState(id, state){
-  const el = document.getElementById(id);
-  if(!el) return;
-  el.classList.remove('ready','partial','error');
-  if(state) el.classList.add(state);
-}
-function updateConnector(id, ok, failed){
-  const el = document.getElementById(id);
-  if(!el) return;
-  if(ok)     { el.textContent='Connected';         el.className='connector-status ok'; }
-  else if(failed){ el.textContent='Connection failed'; el.className='connector-status fail'; }
-  else       { el.textContent='Not connected';     el.className='connector-status idle'; }
-}
-
-function updateRfidConnector(state) {
-  const statusEl = document.getElementById('rfid-status-text');
-  const nameEl = document.getElementById('rfid-name');
-  const addressGroupEl = document.getElementById('rfid-address-group');
-  const addressInputEl = document.getElementById('rfid-address');
-  const connectBtnEl = document.getElementById('rfid-btn');
-  
-  if (!statusEl || !nameEl || !addressGroupEl || !addressInputEl || !connectBtnEl) return;
-  
-  if (state.rfidConnected) {
-    // Scanner is connected
-    statusEl.textContent = 'Connected';
-    statusEl.className = 'connector-status ok';
-    
-    // Update scanner name with protocol info
-    if (state.rfidProtocol && state.rfidAddress) {
-      const protocolName = state.rfidProtocol.toUpperCase();
-      const portInfo = state.rfidPort ? `:${state.rfidPort}` : '';
-      nameEl.textContent = `${protocolName} RFID (${state.rfidAddress}${portInfo})`;
-    } else {
-      nameEl.textContent = 'RFID Scanner';
-    }
-    
-    // Hide IP address input when connected
-    addressGroupEl.style.display = 'none';
-    
-    // Show disconnect button
-    connectBtnEl.textContent = 'Disconnect';
-    connectBtnEl.onclick = disconnectRfid;
-    
-  } else if (state.rfidFailed) {
-    // Connection failed
-    statusEl.textContent = 'Connection failed';
-    statusEl.className = 'connector-status fail';
-    nameEl.textContent = 'RFID Scanner';
-    
-    // Show IP address input for retry
-    addressGroupEl.style.display = 'block';
-    
-    // Show connect button
-    connectBtnEl.textContent = 'Connect';
-    connectBtnEl.onclick = connectRfid;
-    
-  } else {
-    // Not connected
-    statusEl.textContent = 'Not connected';
-    statusEl.className = 'connector-status idle';
-    nameEl.textContent = 'RFID Scanner';
-    
-    // Show IP address input for connection
-    addressGroupEl.style.display = 'block';
-    
-    // Show connect button
-    connectBtnEl.textContent = 'Connect';
-    connectBtnEl.onclick = connectRfid;
-  }
-}
-
-// ============================================================
-// SEASON UI
-// ============================================================
-function renderSeasonsList(seasons) {
-  const menu = document.getElementById('season-picker-menu');
-  const label = document.getElementById('season-selected-label');
-  if (!menu || !label) return;
-
-  const activeSeason = (seasons || []).find(s => s.is_active);
-
-  // Update trigger label
-  if (activeSeason) {
-    label.textContent = activeSeason.name;
-    label.classList.remove('placeholder');
-  } else {
-    label.textContent = '— No season selected —';
-    label.classList.add('placeholder');
-  }
-
-  // Populate menu
-  menu.replaceChildren();
-  if (!seasons || !seasons.length) {
-    const emptyState = document.createElement('div');
-    emptyState.style.padding = '14px 18px';
-    emptyState.style.color = 'var(--muted)';
-    emptyState.style.fontSize = '15px';
-    emptyState.textContent = 'No seasons yet.';
-    menu.appendChild(emptyState);
-    return;
-  }
-
-  seasons.forEach(s => {
-    const option = document.createElement('div');
-    option.className = 'season-picker__option';
-    if (s.is_active) {
-      option.classList.add('active');
-    }
-    option.addEventListener('click', () => onSeasonOptionClick(s.id));
-
-    const dot = document.createElement('span');
-    dot.className = 'season-picker__dot';
-
-    const name = document.createElement('span');
-    name.className = 'season-picker__option-name';
-    name.textContent = s.name;
-
-    const date = document.createElement('span');
-    date.className = 'season-picker__option-date';
-    date.textContent = s.created_at ? new Date(s.created_at).toLocaleDateString() : '';
-
-    option.appendChild(dot);
-    option.appendChild(name);
-    option.appendChild(date);
-    menu.appendChild(option);
-  });
-}
-
-function toggleSeasonDropdown(e) {
-  e.stopPropagation();
-  const trigger = document.getElementById('season-trigger');
-  const menu = document.getElementById('season-picker-menu');
-  const isOpen = menu.classList.contains('open');
-  closeSeasonDropdown();
-  if (!isOpen) {
-    trigger.classList.add('open');
-    menu.classList.add('open');
-  }
-}
-
-function closeSeasonDropdown() {
-  document.getElementById('season-trigger')?.classList.remove('open');
-  document.getElementById('season-picker-menu')?.classList.remove('open');
-}
-
-async function onSeasonOptionClick(seasonId) {
-  closeSeasonDropdown();
-  const r = await pywebview.api.select_season(seasonId);
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if (!r.ok) return;
-  if (r.state) applyState(r.state);
-  loadAthleteList();
-  // Re-fetch season list so active dot updates
-  const lr = await pywebview.api.list_seasons();
-  if (lr.seasons) renderSeasonsList(lr.seasons);
-}
-
-function updateSeasonUI(season) {
-  const addBtn = document.getElementById('add-athletes-btn');
-  const subtitle = document.getElementById('athletes-subtitle');
-  if (addBtn) addBtn.disabled = !season;
-  if (subtitle) subtitle.textContent = season
-    ? `Athletes in ${season.name}.`
-    : 'Select a season to view and manage its roster.';
-}
-
-// Modal
-let _modalCsvPath = '';
-
-function openSeasonModal() {
-  _modalCsvPath = '';
-  document.getElementById('modal-season-name').value = '';
-  document.getElementById('modal-csv-display').textContent = 'No file selected…';
-  document.getElementById('modal-csv-display').style.color = 'var(--input-placeholder)';
-  document.getElementById('modal-create-btn').disabled = true;
-  const err = document.getElementById('modal-error');
-  err.style.display = 'none';
-  err.textContent = '';
-  const modal = document.getElementById('season-modal');
-  modal.style.display = 'flex';
-  setTimeout(() => document.getElementById('modal-season-name').focus(), 50);
-}
-
-function closeSeasonModal() {
-  document.getElementById('season-modal').style.display = 'none';
-}
-
-function updateModalCreateBtn() {
-  const name = document.getElementById('modal-season-name').value.trim();
-  document.getElementById('modal-create-btn').disabled = !name;
-  const err = document.getElementById('modal-error');
-  if (name) { err.style.display = 'none'; err.textContent = ''; }
-}
-
-async function pickModalCsv() {
-  const result = await window.pywebview.api.pick_csv_file();
-  if (result && result.path) {
-    _modalCsvPath = result.path;
-    const disp = document.getElementById('modal-csv-display');
-    disp.textContent = result.path.split(/[/\\]/).pop();
-    disp.style.color = 'var(--text)';
-  }
-}
-
-async function submitNewSeason() {
-  const name = document.getElementById('modal-season-name').value.trim();
-  if (!name) return;
-
-  document.getElementById('modal-create-btn').disabled = true;
-
-  // 1. Create the season
-  const r = await pywebview.api.create_season(name);
-  if (!r.ok) {
-    const err = document.getElementById('modal-error');
-    err.textContent = r.msg || 'Failed to create season.';
-    err.style.display = 'block';
-    document.getElementById('modal-create-btn').disabled = false;
-    return;
-  }
-  log('Season created.', 'ok');
-
-  // 2. Optionally import athletes from CSV
-  if (_modalCsvPath) {
-    const ar = await pywebview.api.add_athletes_from_csv(_modalCsvPath);
-    log(ar.msg, ar.ok ? 'ok' : 'err');
-    if (ar.state) applyState(ar.state);
-    if (ar.seasons) renderSeasonsList(ar.seasons);
-    if (ar.ok) loadAthleteList();
-  } else {
-    if (r.state) applyState(r.state);
-    if (r.seasons) renderSeasonsList(r.seasons);
-    updateSeasonUI(r.season);
-    document.getElementById('athletes-ok').style.display = 'none';
-    document.getElementById('athlete-tbody').innerHTML = '';
-  }
-
-  closeSeasonModal();
-}
-
-async function loadSeasonsList() {
-  const r = await pywebview.api.list_seasons();
-  if (r.seasons) renderSeasonsList(r.seasons);
-}
-
-// ============================================================
-// API CALLS
-// ============================================================
-async function pickAndAddAthletes() {
-  const result = await window.pywebview.api.pick_csv_file();
-  if (!result || !result.path) return;
-  const r = await pywebview.api.add_athletes_from_csv(result.path);
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if (r.state) applyState(r.state);
-  if (r.seasons) renderSeasonsList(r.seasons);
-  if (r.ok) loadAthleteList();
-}
-
-async function loadAthleteList(){
-  const r = await pywebview.api.list_athletes();
-  const tbody = document.getElementById('athlete-tbody');
-  const wrap  = document.getElementById('athletes-ok');
-  if(!r.ok || !r.athletes.length){ wrap.style.display='none'; return; }
-  wrap.style.display='block';
-  tbody.innerHTML = r.athletes.map(a=>`<tr>
-    <td>${a.first_name||'—'}</td><td>${a.last_name||'—'}</td>
-    <td><code>${a.finish_tag||'—'}</code></td><td><code>${a.start_tag||'—'}</code></td>
-  </tr>`).join('');
-}
-
-async function configureWorkout(){
-  const dist = document.getElementById('wk-distance').value;
-  const laps = document.getElementById('wk-laps').value;
-  const rest = document.getElementById('wk-rest').value;
-  const r    = await pywebview.api.configure_workout(dist, laps, rest);
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if(r.state) applyState(r.state);
-}
-
-async function connectRfid(){
-  document.getElementById('rfid-btn').disabled = true;
-  const addressInput = document.getElementById('rfid-address');
-  const address = (addressInput.value || '').trim();
-  
-  if (!address) {
-    log('Please enter an IP address for the RFID scanner.', 'err');
-    document.getElementById('rfid-btn').disabled = false;
-    return;
-  }
-  
-  log(`Connecting to RFID scanner at ${address}…`, 'info');
-  const r = await pywebview.api.connect_rfid_with_address(address);
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if(r.state) applyState(r.state);
-  document.getElementById('rfid-btn').disabled = false;
-}
-
-async function disconnectRfid(){
-  // For now, we don't have a disconnect API, so this would be a placeholder
-  // In a full implementation, you'd call a disconnect API
-  log('Disconnect functionality not yet implemented', 'info');
-}
-
-async function connectNfc(){
-  document.getElementById('nfc-btn').disabled = true;
-  log('Connecting to NFC scanner…','info');
-  const r = await pywebview.api.connect_nfc();
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if(r.state) applyState(r.state);
-  document.getElementById('nfc-btn').disabled = false;
-}
-
-async function autoConnectScanners(){
-  log('Setup complete — auto-connecting scanners…', 'info');
-  
-  // For RFID, use the backend's auto-discovery instead of manual address entry
-  document.getElementById('rfid-btn').disabled = true;
-  log('Auto-discovering RFID scanner…', 'info');
-  const rfidResult = await pywebview.api.connect_rfid(); // Uses auto-discovery
-  log(rfidResult.msg, rfidResult.ok ? 'ok' : 'err');
-  if(rfidResult.state) applyState(rfidResult.state);
-  document.getElementById('rfid-btn').disabled = false;
-  
-  // Connect NFC as usual
-  await connectNfc();
-}
-
-async function startSelected(){
-  const checked = [...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value);
-  if(!checked.length){ log('No athletes selected.','err'); return; }
-  const r = await pywebview.api.start_selected(JSON.stringify(checked));
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if(r.state) applyState(r.state);
-  // Uncheck all after start
-  document.querySelectorAll('.athlete-cb').forEach(cb=>cb.checked=false);
-  document.getElementById('select-all-cb').checked = false;
-  updateSelectedCount();
-}
-
-function updateSelectedCount(){
-  const n = document.querySelectorAll('.athlete-cb:checked').length;
-  document.getElementById('selected-count').textContent = n + ' selected';
-  document.getElementById('start-selected-btn').disabled = (n === 0);
-}
-
-function toggleSelectAll(masterCb){
-  document.querySelectorAll('.athlete-cb:not(:disabled)').forEach(cb=>cb.checked=masterCb.checked);
-  updateSelectedCount();
-}
-
-// ============================================================
-// PERFORMANCE TOOLTIP
-// ============================================================
-const _perfData = new Map(); // start_tag -> athlete data
-
-function formatInterval(ms){
-  const totalMs = Math.round(ms);
-  const mins    = Math.floor(totalMs / 60000);
-  const secs    = Math.floor((totalMs % 60000) / 1000);
-  const millis  = totalMs % 1000;
-  return `${mins}:${String(secs).padStart(2,'0')}.${String(millis).padStart(3,'0')}`;
-}
-
-function formatRest(ms){
-  return Math.round(ms / 1000) + 's';
-}
-
-function buildTooltipHTML(a){
-  const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
-  const intervals = a.intervals || [];
-  const rests     = a.rests     || [];
-  const isRunning = a.status === 'RUNNING';
-
-  if(!intervals.length && !isRunning){
-    return { name, body: '<div class="tip-empty">No completed intervals yet</div>' };
-  }
-
-  let rows = '';
-  for(let i = 0; i < intervals.length; i++){
-    const restCell = rests[i] != null
-      ? `<td class="tip-label">Rest</td><td>${formatRest(rests[i])}</td>`
-      : `<td></td><td></td>`;
-    rows += `<tr>
-      <td class="tip-label">Interval ${i+1}</td>
-      <td>${formatInterval(intervals[i])}</td>
-      ${restCell}
-    </tr>`;
-  }
-  // Live in-progress interval for running athletes — show dash (not elapsed)
-  if(isRunning){
-    rows += `<tr>
-      <td class="tip-label">Interval ${intervals.length+1}</td>
-      <td style="color:var(--muted)">—</td>
-      <td></td><td></td>
-    </tr>`;
-  }
-
-  return { name, body: `<table>${rows}</table>` };
-}
-
-function showTooltip(e, startTag){
-  const a = _perfData.get(startTag);
-  if(!a) return;
-  const tip = document.getElementById('perf-tooltip');
-  const { name, body } = buildTooltipHTML(a);
-  document.getElementById('tip-name').textContent = name;
-  document.getElementById('tip-body').innerHTML = body;
-  tip.style.display = 'block';
-  positionTooltip(e);
-}
-
-function positionTooltip(e){
-  const tip = document.getElementById('perf-tooltip');
-  const x = e.clientX + 16;
-  const y = e.clientY + 8;
-  const tipW = tip.offsetWidth  || 280;
-  const tipH = tip.offsetHeight || 100;
-  tip.style.left = (x + tipW > window.innerWidth  ? x - tipW - 32 : x) + 'px';
-  tip.style.top  = (y + tipH > window.innerHeight ? y - tipH - 16 : y) + 'px';
-}
-
-function hideTooltip(){
-  document.getElementById('perf-tooltip').style.display = 'none';
-}
-
-document.addEventListener('mousemove', e => {
-  if(document.getElementById('perf-tooltip').style.display !== 'none') positionTooltip(e);
-});
-
-// ============================================================
-// WORKOUT ATHLETES TABLE — sorting + drag-and-drop
-// ============================================================
-let _originalOrder = []; // CSV load order, captured once on first fetch; never changes
-let _athleteOrder  = []; // custom drag-and-drop order; overrides _originalOrder when set
-let _dragSrcRow    = null;
-let _isDragging    = false; // true while a drag is in flight; suppresses DOM re-render
-
-function _statusPriority(status){
-  // RUNNING and RESTING are both "active" — treat them identically so
-  // a RUNNING↔RESTING transition never causes a row to move.
-  if(status==='RUNNING' || status==='RESTING') return 0;
-  return 1;
-}
-
-function _onDragStart(e){
-  _dragSrcRow = e.currentTarget;
-  _isDragging = true;
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', _dragSrcRow.dataset.tag);
-  setTimeout(()=>{ if(_dragSrcRow) _dragSrcRow.classList.add('dragging'); }, 0);
-}
-
-function _onDragOver(e){
-  if(!_dragSrcRow) return;
-  const row = e.currentTarget;
-  // When the pointer is over the source row itself (which happens after the row
-  // has been moved to its new position), mark it as a valid drop target so the
-  // browser will still fire the 'drop' event on release — but skip DOM moves.
-  if(row === _dragSrcRow){
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    return;
-  }
-  // Never allow an active row to be dropped into the inactive section.
-  // Only call preventDefault() for valid targets so the browser does not fire
-  // a drop event on inactive rows.
-  if(row.dataset.inactive === 'true') return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  // Move the source row live so the coach sees a real-time preview of the new order.
-  // Insert before or after the hovered row depending on which half the pointer is in.
-  const rect = row.getBoundingClientRect();
-  if(e.clientY < rect.top + rect.height / 2){
-    row.parentNode.insertBefore(_dragSrcRow, row);
-  } else {
-    row.parentNode.insertBefore(_dragSrcRow, row.nextSibling);
-  }
-}
-
-function _onDrop(e){
-  e.preventDefault();
-  // The DOM is already in the correct order from the live moves in _onDragOver.
-  // Just persist the new order so it survives the next refresh.
-  const tbody = _dragSrcRow
-    ? _dragSrcRow.closest('tbody')
-    : document.getElementById('athletes-status-tbody');
-  if(tbody){
-    // Only record active rows; inactive rows are always sorted last by status
-    // and must not pollute _athleteOrder (otherwise a runner that was inactive
-    // when the drag happened would be stuck behind runners they precede in the
-    // original order once they become active).
-    _athleteOrder = [...tbody.querySelectorAll('tr.athlete-row:not([data-inactive="true"])')].map(r=>r.dataset.tag);
-  }
-}
-
-function _onDragEnd(e){
-  if(_dragSrcRow) _dragSrcRow.classList.remove('dragging');
-  _dragSrcRow = null;
-  _isDragging = false;
-}
-
-async function loadWorkoutAthletes(){
-  if(_isDragging) return; // Don't replace the DOM while a drag is in flight
-  const r = await pywebview.api.list_athletes_with_status();
-  const tbody = document.getElementById('athletes-status-tbody');
-  if(!tbody) return;
-  if(!r.ok||!r.athletes||!r.athletes.length){
-    tbody.innerHTML='<tr><td colspan="4" style="color:var(--muted)">No athletes loaded.</td></tr>'; return;
-  }
-  // Cache performance data for tooltips
-  r.athletes.forEach(a => _perfData.set(a.start_tag, a));
-
-  // Preserve current checked state across refreshes
-  const checked = new Set([...document.querySelectorAll('.athlete-cb:checked')].map(cb=>cb.value));
-
-  // Capture original CSV order on first load; never update it again.
-  if(_originalOrder.length === 0){
-    _originalOrder = r.athletes.map(a => a.start_tag);
-  }
-
-  // Sort: active runners (RUNNING + RESTING) first, INACTIVE last.
-  // Within each group use the coach's drag order (_athleteOrder) if set,
-  // otherwise fall back to original CSV order (_originalOrder).
-  const sorted = [...r.athletes].sort((a, b) => {
-    const pa = _statusPriority(a.status), pb = _statusPriority(b.status);
-    if(pa !== pb) return pa - pb;
-    const ia = _athleteOrder.indexOf(a.start_tag);
-    const ib = _athleteOrder.indexOf(b.start_tag);
-    if(ia !== -1 && ib !== -1) return ia - ib;
-    return _originalOrder.indexOf(a.start_tag) - _originalOrder.indexOf(b.start_tag);
-  });
-
-  // _athleteOrder is intentionally NOT updated here — only _onDrop rebuilds it.
-
-  tbody.innerHTML = sorted.map(a=>{
-    const name = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
-    const inactive = a.status === 'INACTIVE';
-    const isChecked = inactive && checked.has(a.start_tag);
-    let statusCell = '';
-    if(a.status==='RUNNING'){
-      const t = a.elapsed_seconds != null ? ` · ${a.elapsed_seconds}s` : '';
-      statusCell = `<span class="tag running">RUNNING${t}</span>`;
-    } else if(a.status==='RESTING'){
-      const t = a.rest_remaining_seconds != null ? ` · ${a.rest_remaining_seconds}s left` : '';
-      statusCell = `<span class="tag resting">RESTING${t}</span>`;
-    } else {
-      statusCell = `<span class="tag inactive">INACTIVE</span>`;
-    }
-    const tag = a.start_tag ? a.start_tag.replace(/'/g,"&#39;") : '';
-    const dragAttrs = inactive
-      ? 'draggable="false"'
-      : 'draggable="true" ondragstart="_onDragStart(event)"';
-    const dropAttrs = inactive ? '' : 'ondrop="_onDrop(event)"';
-    const handleCell = inactive
-      ? '<td class="drag-handle drag-handle--inactive" aria-hidden="true"></td>'
-      : '<td class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</td>';
-    return `<tr class="athlete-row" ${dragAttrs} data-tag="${a.start_tag||''}" data-inactive="${inactive}"
-      onmouseenter="showTooltip(event,'${tag}')" onmouseleave="hideTooltip()"
-      ondragover="_onDragOver(event)" ${dropAttrs} ondragend="_onDragEnd(event)">
-      ${handleCell}
-      <td><input type="checkbox" class="athlete-cb" value="${a.start_tag||''}"
-        ${inactive ? '' : 'disabled'} ${isChecked ? 'checked' : ''}
-        onchange="updateSelectedCount()"/></td>
-      <td>${name}</td>
-      <td>${statusCell}</td>
-    </tr>`;
-  }).join('');
-  updateSelectedCount();
-}
-
-async function finishWorkout(){
-  if(!confirm('End the workout? This will clear all running and resting state.')) return;
-  const r = await pywebview.api.finish_workout();
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if(r.state) applyState(r.state);
-}
-
-async function showRestingRunners(){
-  const r = await pywebview.api.show_resting_runners();
-  log(r.msg, r.ok ? 'ok' : 'err');
-}
-
-async function generateReports(){
-  const dir = document.getElementById('report-dir').value.trim();
-  const r   = await pywebview.api.generate_reports(dir);
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if(r.ok && r.files){
-    document.getElementById('report-files').innerHTML =
-      '<div class="card" style="max-width:520px"><div class="card-title">Generated Files</div>'
-      + r.files.map(f=>`<div style="padding:5px 0;font-size:14px">📄 ${f}</div>`).join('')
-      + '</div>';
-  }
-}
-
-window.addEventListener('pywebviewready', ()=>{
-  log('IntervalTrack ready.','info');
-  loadInitialState();
-});
-
-// Close season picker dropdown when clicking outside it
-document.addEventListener('click', e => {
-  if (!document.getElementById('season-picker')?.contains(e.target)) {
-    closeSeasonDropdown();
-  }
-});
-
-// Close season modal on Escape; submit on Enter (when name field focused)
-document.addEventListener('keydown', e => {
-  const modal = document.getElementById('season-modal');
-  if (modal && modal.style.display === 'flex') {
-    if (e.key === 'Escape') closeSeasonModal();
-    if (e.key === 'Enter') {
-      const name = document.getElementById('modal-season-name').value.trim();
-      if (name) submitNewSeason();
-    }
-  }
-});
-
-// Close modal when clicking the dark overlay (not the card itself)
-document.getElementById('season-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('season-modal')) closeSeasonModal();
-});
-
-// ============================================================
-// THEME — see js/theme.js
-// ============================================================
-
-async function loadInitialState() {
-  try {
-    const [state, seasonsResult] = await Promise.all([
-      pywebview.api.get_state(),
-      pywebview.api.list_seasons()
-    ]);
-    applyState(state);
-    if (seasonsResult.seasons) renderSeasonsList(seasonsResult.seasons);
-
-    if (state.athletesLoaded && state.athleteCount > 0) {
-      loadAthleteList();
-      if (state.currentSeason) {
-        log(`Season '${state.currentSeason.name}' loaded with ${state.athleteCount} athletes.`, 'info');
-      }
-    } else if (state.currentSeason) {
-      log(`Season '${state.currentSeason.name}' is active (no athletes yet).`, 'info');
-    }
-  } catch (e) {
-    console.error('Error loading initial state:', e);
-  }
-}
-</script>
 </body>
 </html>

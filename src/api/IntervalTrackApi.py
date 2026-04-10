@@ -10,7 +10,7 @@ from api.runnerObserver import RunnerObserver
 from entity.runner import Runner
 from entity.workout import Workout
 from parser.runner_parser import parse_runner_data
-from discovery.auto_connect import auto_connect_to_rfid_scanner
+from discovery.auto_connect import auto_connect_to_rfid_scanner, connect_rfid_with_scanner_info
 from persistence.season_persistence import (
     get_active_season, create_season as _create_season,
     load_season_roster, merge_athletes_from_csv,
@@ -190,7 +190,7 @@ class IntervalTrackApi:
         """Connect to RFID scanner with auto-discovery."""
         if not (self.athletes_loaded and self.workout_configured):
             return {"ok": False, "msg": "Complete steps 1 and 2 first.", "state": self.get_state()}
-            
+
         try:
             self.rfid_scanner = auto_connect_to_rfid_scanner()
             self.rfid_scanner.start(self.lap_event_q)
@@ -201,6 +201,28 @@ class IntervalTrackApi:
             return {"ok": True, "msg": f"Connected to {self.rfid_protocol} on {self.rfid_address}", "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": f"Auto-connection failed: {e}", "state": self.get_state()}
+
+    def connect_rfid_with_address(self, address: str):
+        """Connect to RFID scanner at a specific IP address, trying LLRP then REST."""
+        if not (self.athletes_loaded and self.workout_configured):
+            return {"ok": False, "msg": "Complete setup first.", "state": self.get_state()}
+        if not address or not address.strip():
+            return {"ok": False, "msg": "IP address is required.", "state": self.get_state()}
+        address = address.strip()
+        # Try LLRP first, then REST
+        for protocol in ('llrp', 'rest'):
+            scanner_info = {"address": address, "protocol": protocol, "port": 5084}
+            result, reader = connect_rfid_with_scanner_info(scanner_info)
+            if result["ok"] and reader:
+                reader.start(self.lap_event_q)
+                self.rfid_scanner = reader
+                self.rfid_connected = True
+                self.rfid_scanner_failed = False
+                self.rfid_protocol = reader.get_protocol()
+                self.rfid_address = reader.get_address()
+                return {"ok": True, "msg": f"Connected via {self.rfid_protocol} to {self.rfid_address}", "state": self.get_state()}
+        self.rfid_scanner_failed = True
+        return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}.", "state": self.get_state()}
 
     # ------------------------------------------------------------------
     # Option 4 – Connect NFC
@@ -362,6 +384,34 @@ class IntervalTrackApi:
     # Option 10 – Performance
     # TODO: THIS IS NOT USED
     # ------------------------------------------------------------------
+    def generate_reports(self, output_dir: str):
+        """Generate PDF reports for all athletes with recorded intervals."""
+        if not output_dir or not output_dir.strip():
+            return {"ok": False, "msg": "Output directory is required."}
+        import os
+        output_dir = output_dir.strip()
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+        except Exception as e:
+            return {"ok": False, "msg": f"Cannot create directory: {e}"}
+        if not self.athletes:
+            return {"ok": False, "msg": "No athletes loaded."}
+        from report.pdf_report_runner import generate_runner_report
+        generated = []
+        for athlete in self.athletes:
+            if not athlete.get_intervals():
+                continue
+            safe_name = f"{athlete.name}_{athlete.lname}".replace(" ", "_")
+            filename = os.path.join(output_dir, f"{safe_name}_report.pdf")
+            try:
+                generate_runner_report(athlete, filename)
+                generated.append(filename)
+            except Exception as e:
+                print(f"Failed to generate report for {athlete.name}: {e}")
+        if not generated:
+            return {"ok": True, "msg": "No athletes with interval data — no reports generated.", "files": []}
+        return {"ok": True, "msg": f"Generated {len(generated)} report(s).", "files": generated}
+
     def view_performance(self):
         if not self._full_setup_ok():
             return {"ok": False, "msg": "Setup not complete."}

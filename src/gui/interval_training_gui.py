@@ -74,7 +74,7 @@ class PyWebViewAPI:
         import webview as _wv
         # create_file_dialog returns a tuple of selected paths, or None
         result = _wv.windows[0].create_file_dialog(
-            dialog_type=_wv.OPEN_DIALOG,
+            dialog_type=_wv.FileDialog.OPEN,
             allow_multiple=False,
             file_types=('CSV files (*.csv)', 'All files (*.*)')
         )

@@ -78,11 +78,15 @@
           <!-- Seasons card — full width -->
           <div class="card" style="grid-column:1/-1">
             <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Seasons
+              Season
               <button class="btn btn-primary btn-sm" onclick="openSeasonModal()">+ New Season</button>
             </div>
-            <div id="seasons-list">
-              <p class="subtitle" style="margin:0">No seasons yet. Create your first season to get started.</p>
+            <div class="season-picker" id="season-picker">
+              <button class="season-picker__trigger" id="season-trigger" onclick="toggleSeasonDropdown(event)">
+                <span class="season-picker__label placeholder" id="season-selected-label">— No season selected —</span>
+                <span class="season-picker__chevron">&#8964;</span>
+              </button>
+              <div class="season-picker__menu" id="season-picker-menu"></div>
             </div>
           </div>
 
@@ -440,30 +444,63 @@ function updateRfidConnector(state) {
 // SEASON UI
 // ============================================================
 function renderSeasonsList(seasons) {
-  const container = document.getElementById('seasons-list');
-  if (!container) return;
+  const menu = document.getElementById('season-picker-menu');
+  const label = document.getElementById('season-selected-label');
+  if (!menu || !label) return;
+
+  const activeSeason = (seasons || []).find(s => s.is_active);
+
+  // Update trigger label
+  if (activeSeason) {
+    label.textContent = activeSeason.name;
+    label.classList.remove('placeholder');
+  } else {
+    label.textContent = '— No season selected —';
+    label.classList.add('placeholder');
+  }
+
+  // Populate menu
   if (!seasons || !seasons.length) {
-    container.innerHTML = '<p class="subtitle" style="margin:0">No seasons yet. Create your first season to get started.</p>';
+    menu.innerHTML = '<div style="padding:14px 18px;color:var(--muted);font-size:15px">No seasons yet.</div>';
     return;
   }
-  container.innerHTML = seasons.map(s => {
-    const activeTag = s.is_active
-      ? '<span style="font-size:12px;font-weight:700;letter-spacing:1px;color:var(--success);background:rgba(0,240,160,0.12);border:1px solid rgba(0,240,160,0.4);border-radius:20px;padding:3px 10px;margin-left:10px">ACTIVE</span>'
-      : '';
-    const selectBtn = s.is_active
-      ? '<button class="btn btn-ghost btn-sm" disabled style="opacity:.35">Selected</button>'
-      : `<button class="btn btn-ghost btn-sm" onclick="selectSeason('${s.id}')">Select</button>`;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--td-sep)">
-      <div style="flex:1">
-        <span style="font-family:var(--font-head);font-size:18px;font-weight:700;letter-spacing:1px">${s.name}</span>${activeTag}
-        <div style="font-size:13px;color:var(--muted);margin-top:2px">${s.created_at ? new Date(s.created_at).toLocaleDateString() : ''}</div>
-      </div>
-      ${selectBtn}
+  menu.innerHTML = seasons.map(s => {
+    const date = s.created_at ? new Date(s.created_at).toLocaleDateString() : '';
+    return `<div class="season-picker__option${s.is_active ? ' active' : ''}" onclick="onSeasonOptionClick('${s.id}')">
+      <span class="season-picker__dot"></span>
+      <span class="season-picker__option-name">${s.name}</span>
+      <span class="season-picker__option-date">${date}</span>
     </div>`;
   }).join('');
-  // Remove border on last item
-  const items = container.querySelectorAll('[style*="border-bottom"]');
-  if (items.length) items[items.length - 1].style.borderBottom = 'none';
+}
+
+function toggleSeasonDropdown(e) {
+  e.stopPropagation();
+  const trigger = document.getElementById('season-trigger');
+  const menu = document.getElementById('season-picker-menu');
+  const isOpen = menu.classList.contains('open');
+  closeSeasonDropdown();
+  if (!isOpen) {
+    trigger.classList.add('open');
+    menu.classList.add('open');
+  }
+}
+
+function closeSeasonDropdown() {
+  document.getElementById('season-trigger')?.classList.remove('open');
+  document.getElementById('season-picker-menu')?.classList.remove('open');
+}
+
+async function onSeasonOptionClick(seasonId) {
+  closeSeasonDropdown();
+  const r = await pywebview.api.select_season(seasonId);
+  log(r.msg, r.ok ? 'ok' : 'err');
+  if (!r.ok) return;
+  if (r.state) applyState(r.state);
+  loadAthleteList();
+  // Re-fetch season list so active dot updates
+  const lr = await pywebview.api.list_seasons();
+  if (lr.seasons) renderSeasonsList(lr.seasons);
 }
 
 function updateSeasonUI(season) {
@@ -539,17 +576,6 @@ async function submitNewSeason() {
   }
 
   closeSeasonModal();
-}
-
-async function selectSeason(seasonId) {
-  const r = await pywebview.api.select_season(seasonId);
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if (!r.ok) return;
-  if (r.state) applyState(r.state);
-  // Re-fetch season list so active indicator updates
-  const lr = await pywebview.api.list_seasons();
-  if (lr.seasons) renderSeasonsList(lr.seasons);
-  loadAthleteList();
 }
 
 async function loadSeasonsList() {
@@ -909,6 +935,13 @@ async function generateReports(){
 window.addEventListener('pywebviewready', ()=>{
   log('IntervalTrack ready.','info');
   loadInitialState();
+});
+
+// Close season picker dropdown when clicking outside it
+document.addEventListener('click', e => {
+  if (!document.getElementById('season-picker')?.contains(e.target)) {
+    closeSeasonDropdown();
+  }
 });
 
 // Close season modal on Escape; submit on Enter (when name field focused)

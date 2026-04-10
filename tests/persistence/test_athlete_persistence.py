@@ -12,11 +12,11 @@ from persistence.athlete_persistence import (
     save_athletes_to_session,
     load_athletes_from_session,
     get_session_file_path,
-    get_user_data_dir,
     session_exists,
     clear_session,
     SessionPersistenceError
 )
+from persistence.user_data_dir import get_user_data_dir
 
 
 class TestAthletePersistence:
@@ -213,44 +213,7 @@ class TestAthletePersistence:
 
 
 class TestUserDataDir:
-    """Tests for cross-platform user data directory detection."""
-
-    def test_get_user_data_dir_returns_path(self):
-        """get_user_data_dir() should return a Path object."""
-        from pathlib import Path
-        result = get_user_data_dir()
-        assert isinstance(result, Path)
-
-    def test_get_user_data_dir_ends_with_interval_timer(self):
-        """User data directory name should be IntervalTimer."""
-        result = get_user_data_dir()
-        assert result.name == 'IntervalTimer'
-
-    def test_get_user_data_dir_creates_directory(self):
-        """get_user_data_dir() should create the directory if it doesn't exist."""
-        import sys
-        import tempfile
-        from pathlib import Path
-        from unittest.mock import patch as _patch
-
-        with tempfile.TemporaryDirectory() as tmp:
-            fake_home = Path(tmp) / "fake_home"
-            fake_home.mkdir()
-
-            # Patch Path.home() and any env vars so the function always uses tmp
-            if os.name == 'nt':
-                with patch.dict(os.environ, {'APPDATA': tmp}):
-                    result = get_user_data_dir()
-            elif sys.platform == 'darwin':
-                with _patch('pathlib.Path.home', return_value=fake_home):
-                    result = get_user_data_dir()
-            else:
-                with patch.dict(os.environ, {'XDG_DATA_HOME': tmp}):
-                    result = get_user_data_dir()
-
-            assert result.exists()
-            assert result.is_dir()
-            assert result.name == 'IntervalTimer'
+    """Tests for cross-platform user data directory detection (see test_user_data_dir.py)."""
 
     def test_get_session_file_path_default_uses_user_data_dir(self):
         """Default get_session_file_path() should be inside the user data dir."""

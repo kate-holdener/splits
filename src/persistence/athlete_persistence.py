@@ -7,41 +7,16 @@ using JSON format storage in a platform-appropriate user data directory.
 
 import json
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional
 from utils.normalized_timestamp import get_timestamp_now
+from persistence.user_data_dir import get_user_data_dir
 
 
 class SessionPersistenceError(Exception):
     """Raised when session persistence operations fail."""
     pass
-
-
-def get_user_data_dir() -> Path:
-    """
-    Get the platform-appropriate user data directory for the application.
-
-    | Platform | Location |
-    |----------|----------|
-    | Windows  | %APPDATA%\\IntervalTimer\\ |
-    | macOS    | ~/Library/Application Support/IntervalTimer/ |
-    | Linux    | $XDG_DATA_HOME/IntervalTimer/ or ~/.local/share/IntervalTimer/ |
-
-    Returns:
-        Path: User data directory, created automatically if it does not exist.
-    """
-    if os.name == 'nt':  # Windows
-        base = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
-    elif sys.platform == 'darwin':  # macOS
-        base = Path.home() / 'Library' / 'Application Support'
-    else:  # Linux / other Unix
-        base = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share'))
-
-    data_dir = base / 'IntervalTimer'
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir
 
 
 def save_athletes_to_session(athletes_list: List, file_path: str) -> bool:

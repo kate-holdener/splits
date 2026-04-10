@@ -11,13 +11,18 @@ from entity.runner import Runner
 from entity.workout import Workout
 from parser.runner_parser import parse_runner_data
 from discovery.auto_connect import auto_connect_to_rfid_scanner
-from persistence.athlete_persistence import get_session_file_path
+from persistence.season_persistence import (
+    get_active_season, create_season as _create_season,
+    load_season_roster, merge_athletes_from_csv,
+    list_seasons as _list_seasons, set_active_season
+)
 
 class IntervalTrackApi:
-    
+
     def __init__(self):
         self.athletes: list[Runner] = []
         self.workout: Optional[object] = None
+        self.current_season: Optional[dict] = None  # {id, name, created_at}
 
         self.rfid_connected = False
         self.nfc_connected = False
@@ -26,8 +31,8 @@ class IntervalTrackApi:
         self.athletes_loaded = False
         self.workout_configured = False
         self.workout_active = False
-        self.session_loaded = False  # Track if session was loaded on startup
-        
+        self.session_loaded = False  # True when an active season with athletes is loaded
+
         # Protocol information for scanners
         self.rfid_protocol = None      # 'llrp' or 'rest' when connected
         self.rfid_address = None       # IP address when connected
@@ -45,9 +50,9 @@ class IntervalTrackApi:
         self.timer = None
 
         self.resting_window = None
-        
-        # Attempt to load previous session on startup
-        self._load_session_on_startup()
+
+        # Load the active season's roster on startup
+        self._load_active_season()
 
 
 
@@ -66,6 +71,7 @@ class IntervalTrackApi:
             "athleteCount": len(self.athletes),
             "groupCount": len(self.group_start_athletes),
             "sessionLoaded": self.session_loaded,
+            "currentSeason": self.current_season,
             # Protocol information for scanners
             "rfidProtocol": self.rfid_protocol,
             "rfidAddress": self.rfid_address,
@@ -73,19 +79,73 @@ class IntervalTrackApi:
         }
 
     # ------------------------------------------------------------------
-    # Load athletes
+    # Season management
     # ------------------------------------------------------------------
-    def load_athletes(self, csv_path: str):
-        if not csv_path.strip():
-            return {"ok": False, "msg": "CSV file path is required."}
+    def get_current_season(self):
+        return {"ok": True, "season": self.current_season}
+
+    def list_seasons(self):
         try:
-            athletes = parse_runner_data(csv_path.strip())
-            result = self.init_athletes(athletes)
-            # Save session after successful load
-            self._save_session()
-            return result
+            seasons = _list_seasons()
+            return {"ok": True, "seasons": seasons}
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "seasons": []}
+
+    def select_season(self, season_id: str):
+        try:
+            season = set_active_season(season_id)
+            if not season:
+                return {"ok": False, "msg": f"Season '{season_id}' not found."}
+            self.current_season = season
+            athletes = load_season_roster(season_id)
+            self._stop_timer()
+            self.init_athletes(athletes or [])
+            self.session_loaded = bool(athletes)
+            return {"ok": True, "msg": f"Season '{season['name']}' selected.", "season": season, "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
+
+    def create_season(self, name: str):
+        if not name or not name.strip():
+            return {"ok": False, "msg": "Season name is required."}
+        try:
+            season = _create_season(name.strip())
+            self.current_season = season
+            self._stop_timer()
+            self.athletes = []
+            self.athletes_loaded = False
+            self.session_loaded = False
+            seasons = _list_seasons()
+            return {"ok": True, "msg": f"Season '{season['name']}' created.", "season": season, "seasons": seasons, "state": self.get_state()}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def add_athletes_from_csv(self, csv_path: str):
+        if not csv_path.strip():
+            return {"ok": False, "msg": "CSV file path is required."}
+        if not self.current_season:
+            return {"ok": False, "msg": "No active season. Create a season first."}
+        try:
+            new_runners = parse_runner_data(csv_path.strip())
+            counts = merge_athletes_from_csv(
+                self.current_season["id"],
+                self.current_season["name"],
+                new_runners
+            )
+            merged = load_season_roster(self.current_season["id"])
+            self._stop_timer()
+            self.init_athletes(merged or [])
+            seasons = _list_seasons()
+            msg = f"Added {counts['added']}, updated {counts['updated']} athletes ({counts['total']} total)."
+            return {"ok": True, "msg": msg, "counts": counts, "seasons": seasons, "state": self.get_state()}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # ------------------------------------------------------------------
+    # Load athletes (kept for backward compatibility)
+    # ------------------------------------------------------------------
+    def load_athletes(self, csv_path: str):
+        return self.add_athletes_from_csv(csv_path)
         
     def init_athletes(self, athletes):
         self.athletes = athletes
@@ -333,83 +393,49 @@ class IntervalTrackApi:
         )
 
     # ------------------------------------------------------------------
-    # Session Management
+    # Session / Season Management
     # ------------------------------------------------------------------
-    def _load_session_on_startup(self):
-        """Load previous athlete session on application startup."""
+    def _load_active_season(self):
+        """Load the active season's roster on application startup."""
         try:
-            from persistence.athlete_persistence import load_athletes_from_session, session_exists
-            
-            if not session_exists():
-                print("No previous session found")
+            season = get_active_season()
+            if not season:
+                print("No active season found")
                 return
-            
-            athletes = load_athletes_from_session(get_session_file_path())
+            self.current_season = season
+            athletes = load_season_roster(season["id"])
             if athletes:
-                self.init_athletes(athletes)           
-                print(f"Session loaded: {len(self.athletes)} athletes from previous session")
+                self.init_athletes(athletes)
+                self.session_loaded = True
+                print(f"Season '{season['name']}' loaded: {len(self.athletes)} athletes")
             else:
-                print("Failed to load previous session")
-                
+                print(f"Season '{season['name']}' loaded with empty roster")
         except Exception as e:
-            print(f"Error loading session on startup: {e}")
-    
-    def _save_session(self):
-        """Save current athletes to session file."""
-        try:
-            from persistence.athlete_persistence import save_athletes_to_session
-            
-            if self.athletes:
-                success = save_athletes_to_session(self.athletes, get_session_file_path())
-                if success:
-                    print(f"Session saved: {len(self.athletes)} athletes")
-                else:
-                    print("Failed to save session")
-            else:
-                print("No athletes to save")
-                
-        except Exception as e:
-            print(f"Error saving session: {e}")
-    
+            print(f"Error loading active season on startup: {e}")
+
+    def _stop_timer(self):
+        """Stop the interval timer if it is running."""
+        if self.timer:
+            self.timer.stop()
+            self.timer = None
+
     def clear_session(self):
-        """Clear the current session (called from frontend)."""
-        try:
-            from persistence.athlete_persistence import clear_session
-            
-            success = clear_session()
-            if success:
-                # Reset application state
-                self.athletes = []
-                self.athletes_loaded = False
-                self.session_loaded = False
-                
-                # Stop timer if running
-                if self.timer:
-                    self.timer.stop()
-                    self.timer = None
-                
-                return {"ok": True, "msg": "Session cleared", "state": self.get_state()}
-            else:
-                return {"ok": False, "msg": "Failed to clear session"}
-                
-        except Exception as e:
-            return {"ok": False, "msg": f"Error clearing session: {e}"}
-    
+        """Clear the current athlete roster (kept for frontend compatibility)."""
+        self._stop_timer()
+        self.athletes = []
+        self.athletes_loaded = False
+        self.session_loaded = False
+        return {"ok": True, "msg": "Athletes cleared.", "state": self.get_state()}
+
     def get_session_info(self):
-        """Get information about the current session (called from frontend)."""
-        try:
-            from persistence.athlete_persistence import session_exists
-            
-            return {
-                "ok": True,
-                "sessionExists": session_exists(),
-                "sessionLoaded": self.session_loaded,
-                "athleteCount": len(self.athletes),
-                "athletesLoaded": self.athletes_loaded
-            }
-            
-        except Exception as e:
-            return {"ok": False, "msg": f"Error getting session info: {e}"}
+        """Return session/season info for the frontend."""
+        return {
+            "ok": True,
+            "sessionLoaded": self.session_loaded,
+            "athleteCount": len(self.athletes),
+            "athletesLoaded": self.athletes_loaded,
+            "currentSeason": self.current_season,
+        }
 
     def shutdown(self):
         if self.timer:

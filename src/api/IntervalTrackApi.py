@@ -11,10 +11,9 @@ from entity.runner import Runner
 from entity.workout import Workout
 from parser.runner_parser import parse_runner_data
 from discovery.auto_connect import auto_connect_to_rfid_scanner
+from persistence.athlete_persistence import get_session_file_path
 
 class IntervalTrackApi:
-    # Session file path (relative to src/)
-    SESSION_FILE_PATH = "../data/athletes_session.json"
     
     def __init__(self):
         self.athletes: list[Runner] = []
@@ -345,7 +344,7 @@ class IntervalTrackApi:
                 print("No previous session found")
                 return
             
-            athletes = load_athletes_from_session(self.SESSION_FILE_PATH)
+            athletes = load_athletes_from_session(get_session_file_path())
             if athletes:
                 self.init_athletes(athletes)           
                 print(f"Session loaded: {len(self.athletes)} athletes from previous session")
@@ -361,7 +360,7 @@ class IntervalTrackApi:
             from persistence.athlete_persistence import save_athletes_to_session
             
             if self.athletes:
-                success = save_athletes_to_session(self.athletes, self.SESSION_FILE_PATH)
+                success = save_athletes_to_session(self.athletes, get_session_file_path())
                 if success:
                     print(f"Session saved: {len(self.athletes)} athletes")
                 else:

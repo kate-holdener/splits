@@ -16,6 +16,7 @@ from persistence.athlete_persistence import (
     clear_session,
     SessionPersistenceError
 )
+from persistence.user_data_dir import get_user_data_dir
 
 
 class TestAthletePersistence:
@@ -209,3 +210,27 @@ class TestAthletePersistence:
         result = clear_session(self.temp_dir)
         
         assert result is True  # Should succeed even if no file exists
+
+
+class TestUserDataDir:
+    """Tests for cross-platform user data directory detection (see test_user_data_dir.py)."""
+
+    def test_get_session_file_path_default_uses_user_data_dir(self):
+        """Default get_session_file_path() should be inside the user data dir."""
+        from pathlib import Path
+        user_dir = get_user_data_dir()
+        session_path = get_session_file_path()
+        assert session_path == str(user_dir / "athletes_session.json")
+
+    def test_get_session_file_path_explicit_dir(self):
+        """Explicit data_dir should override user data dir."""
+        path = get_session_file_path("../test_data")
+        expected = os.path.join("../test_data", "athletes_session.json")
+        assert path == expected
+
+    def test_session_exists_no_args_uses_user_data_dir(self):
+        """session_exists() with no args should check inside user data dir."""
+        user_path = get_session_file_path()
+        if os.path.exists(user_path):
+            os.remove(user_path)
+        assert session_exists() is False

@@ -590,7 +590,7 @@ async function submitNewSeason() {
     document.getElementById('modal-create-btn').disabled = false;
     return;
   }
-  log(`Season "${r.season.name}" created.`, 'ok');
+  log('Season created.', 'ok');
 
   // 2. Optionally import athletes from CSV
   if (_modalCsvPath) {

@@ -7,7 +7,6 @@ using JSON format storage in a platform-appropriate user data directory.
 
 import json
 import os
-import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -240,37 +239,3 @@ def clear_session(data_dir: Optional[str] = None) -> bool:
     except Exception as e:
         print(f"Error clearing session: {e}")
         return False
-
-
-def migrate_legacy_session(legacy_dir: str = "../data") -> bool:
-    """
-    Migrate session data from the legacy project-relative path to the
-    platform-appropriate user data directory.
-
-    The migration is performed only when:
-    - A session file exists at the legacy location, **and**
-    - No session file already exists at the new location.
-
-    The original file is left in place so that development workflows using
-    the legacy directory are not disrupted.
-
-    Args:
-        legacy_dir: Legacy data directory to migrate from (relative to the
-                    working directory when the application was previously run
-                    from ``src/``).
-
-    Returns:
-        True if migration was performed, False otherwise.
-    """
-    legacy_path = os.path.join(legacy_dir, "athletes_session.json")
-    new_path = get_session_file_path()
-
-    if os.path.exists(legacy_path) and not os.path.exists(new_path):
-        try:
-            shutil.copy2(legacy_path, new_path)
-            print(f"Migrated session data from {legacy_path} to {new_path}")
-            return True
-        except Exception as e:
-            print(f"Error migrating session data from {legacy_path}: {e}")
-
-    return False

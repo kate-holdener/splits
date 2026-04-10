@@ -11,10 +11,7 @@ from entity.runner import Runner
 from entity.workout import Workout
 from parser.runner_parser import parse_runner_data
 from discovery.auto_connect import auto_connect_to_rfid_scanner
-from persistence.athlete_persistence import (
-    get_session_file_path,
-    migrate_legacy_session,
-)
+from persistence.athlete_persistence import get_session_file_path
 
 class IntervalTrackApi:
     
@@ -50,7 +47,6 @@ class IntervalTrackApi:
         self.resting_window = None
         
         # Attempt to load previous session on startup
-        migrate_legacy_session()
         self._load_session_on_startup()
 
 

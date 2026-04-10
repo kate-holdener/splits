@@ -15,7 +15,6 @@ from persistence.athlete_persistence import (
     get_user_data_dir,
     session_exists,
     clear_session,
-    migrate_legacy_session,
     SessionPersistenceError
 )
 
@@ -272,60 +271,3 @@ class TestUserDataDir:
         if os.path.exists(user_path):
             os.remove(user_path)
         assert session_exists() is False
-
-
-class TestMigrateSession:
-    """Tests for migrate_legacy_session()."""
-
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        self.legacy_dir = tempfile.mkdtemp()
-        self.new_dir = tempfile.mkdtemp()
-        yield
-        import shutil
-        shutil.rmtree(self.legacy_dir, ignore_errors=True)
-        shutil.rmtree(self.new_dir, ignore_errors=True)
-
-    def test_migrate_copies_file(self):
-        """Migration should copy the session file to the new location."""
-        legacy_file = os.path.join(self.legacy_dir, "athletes_session.json")
-        new_file = os.path.join(self.new_dir, "athletes_session.json")
-
-        with open(legacy_file, 'w') as f:
-            json.dump({"athletes": []}, f)
-
-        with patch('persistence.athlete_persistence.get_session_file_path', return_value=new_file):
-            result = migrate_legacy_session(self.legacy_dir)
-
-        assert result is True
-        assert os.path.exists(new_file)
-        # Original file should still exist
-        assert os.path.exists(legacy_file)
-
-    def test_migrate_skips_when_new_file_exists(self):
-        """Migration should not overwrite an existing session at the new location."""
-        legacy_file = os.path.join(self.legacy_dir, "athletes_session.json")
-        new_file = os.path.join(self.new_dir, "athletes_session.json")
-
-        with open(legacy_file, 'w') as f:
-            json.dump({"athletes": [{"name": "old"}]}, f)
-        with open(new_file, 'w') as f:
-            json.dump({"athletes": [{"name": "new"}]}, f)
-
-        with patch('persistence.athlete_persistence.get_session_file_path', return_value=new_file):
-            result = migrate_legacy_session(self.legacy_dir)
-
-        assert result is False
-        # New file should still have its own content
-        with open(new_file) as f:
-            data = json.load(f)
-        assert data["athletes"][0]["name"] == "new"
-
-    def test_migrate_returns_false_when_no_legacy_file(self):
-        """Migration returns False when there is nothing to migrate."""
-        new_file = os.path.join(self.new_dir, "athletes_session.json")
-
-        with patch('persistence.athlete_persistence.get_session_file_path', return_value=new_file):
-            result = migrate_legacy_session(self.legacy_dir)
-
-        assert result is False

@@ -7,8 +7,12 @@
 <!-- Google Fonts removed for outdoor readability - using system fonts -->
 <link rel="stylesheet" href="css/shared.css"/>
 <link rel="stylesheet" href="css/index.css"/>
+<script src="js/theme.js" defer></script>
 </head>
-<body>
+<body class="light-mode">
+
+<!-- Theme toggle (fixed, visible on all screens) -->
+<button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
 
 <!-- ============================================================
      HOME SCREEN
@@ -802,6 +806,10 @@ window.addEventListener('pywebviewready', ()=>{
   // Load initial state to check for existing session
   loadInitialState();
 });
+
+// ============================================================
+// THEME — see js/theme.js
+// ============================================================
 
 async function loadInitialState() {
   try {

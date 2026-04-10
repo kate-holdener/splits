@@ -17,10 +17,14 @@ import os
 from api.IntervalTrackApi import IntervalTrackApi
 import json as _json
 
+# Default (light-mode) background color — must match --bg in shared.css
+LIGHT_MODE_BG = "#f0f0f0"
+
 
 class PyWebViewAPI:
     def __init__(self):
         self.track_api = IntervalTrackApi()
+        self._theme = 'light'
     def log(self, data):
         print(data)
 
@@ -80,6 +84,16 @@ class PyWebViewAPI:
     
     def add_resting_window(self, resting_window):
         self.resting_window = resting_window
+
+    def get_theme(self):
+        return self._theme
+
+    def set_theme(self, mode: str):
+        if mode not in ('light', 'dark'):
+            return
+        self._theme = mode
+        if hasattr(self, 'resting_window') and self.resting_window:
+            self.resting_window.evaluate_js(f'applyTheme("{mode}")')
     
     def show_resting_runners(self):
         print('show resting runners')
@@ -104,7 +118,7 @@ def main():
         width=1100,
         height=720,
         min_size=(900, 600),
-        background_color="#000000",
+        background_color=LIGHT_MODE_BG,
     )
 
     # Secondary window – resting runners (shares the same Api instance)
@@ -116,7 +130,7 @@ def main():
         width=600,
         height=800,
         min_size=(400, 500),
-        background_color="#000000",
+        background_color=LIGHT_MODE_BG,
         x=1120,
         y=0,
         hidden=True

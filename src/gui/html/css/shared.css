@@ -1,22 +1,44 @@
 /* ============================================================
    IntervalTrack — shared base styles
-   Imported by both index.css and resting.css
+   Imported by both index.html (via index.css) and resting.html
    ============================================================ */
 
 /* ============================================================
-   CSS CUSTOM PROPERTIES (shared subset)
-   Each file defines its own --accent on top of these.
+   CSS CUSTOM PROPERTIES (shared by all pages)
+   Each page's own CSS file may add additional tokens on top.
    ============================================================ */
 
 :root {
   --bg: #000000;
   --panel: #111111;
   --border: #444444;
+  --accent: #ffff00;
   --text: #ffffff;
   --muted: #aaaaaa;
+  --success: #00ff66;
+  --warning: #ffaa00;
+  --danger: #ff3333;
   --radius: 6px;
-  --font-head: 'Barlow Condensed', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-head: system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+  --on-accent: #000000;
+}
+
+/* ============================================================
+   LIGHT MODE THEME (shared tokens)
+   ============================================================ */
+
+body.light-mode {
+  --bg: #f0f0f0;
+  --panel: #ffffff;
+  --border: #bbbbbb;
+  --accent: #0044bb;
+  --text: #111111;
+  --muted: #555555;
+  --success: #006600;
+  --warning: #bb5500;
+  --danger: #cc0000;
+  --on-accent: #ffffff;
 }
 
 /* ============================================================
@@ -51,3 +73,29 @@ body {
 ::-webkit-scrollbar       { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ============================================================
+   THEME TOGGLE BUTTON (lives in index.html only)
+   ============================================================ */
+
+#theme-toggle {
+  position: fixed;
+  top: 10px;
+  right: 16px;
+  z-index: 9999;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  user-select: none;
+}
+
+#theme-toggle:hover {
+  border-color: var(--accent);
+}
+

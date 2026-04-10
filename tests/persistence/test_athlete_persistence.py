@@ -12,8 +12,10 @@ from persistence.athlete_persistence import (
     save_athletes_to_session,
     load_athletes_from_session,
     get_session_file_path,
+    get_user_data_dir,
     session_exists,
     clear_session,
+    migrate_legacy_session,
     SessionPersistenceError
 )
 
@@ -209,3 +211,121 @@ class TestAthletePersistence:
         result = clear_session(self.temp_dir)
         
         assert result is True  # Should succeed even if no file exists
+
+
+class TestUserDataDir:
+    """Tests for cross-platform user data directory detection."""
+
+    def test_get_user_data_dir_returns_path(self):
+        """get_user_data_dir() should return a Path object."""
+        from pathlib import Path
+        result = get_user_data_dir()
+        assert isinstance(result, Path)
+
+    def test_get_user_data_dir_ends_with_interval_timer(self):
+        """User data directory name should be IntervalTimer."""
+        result = get_user_data_dir()
+        assert result.name == 'IntervalTimer'
+
+    def test_get_user_data_dir_creates_directory(self):
+        """get_user_data_dir() should create the directory if it doesn't exist."""
+        import sys
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch as _patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_home = Path(tmp) / "fake_home"
+            fake_home.mkdir()
+
+            # Patch Path.home() and any env vars so the function always uses tmp
+            if os.name == 'nt':
+                with patch.dict(os.environ, {'APPDATA': tmp}):
+                    result = get_user_data_dir()
+            elif sys.platform == 'darwin':
+                with _patch('pathlib.Path.home', return_value=fake_home):
+                    result = get_user_data_dir()
+            else:
+                with patch.dict(os.environ, {'XDG_DATA_HOME': tmp}):
+                    result = get_user_data_dir()
+
+            assert result.exists()
+            assert result.is_dir()
+            assert result.name == 'IntervalTimer'
+
+    def test_get_session_file_path_default_uses_user_data_dir(self):
+        """Default get_session_file_path() should be inside the user data dir."""
+        from pathlib import Path
+        user_dir = get_user_data_dir()
+        session_path = get_session_file_path()
+        assert session_path == str(user_dir / "athletes_session.json")
+
+    def test_get_session_file_path_explicit_dir(self):
+        """Explicit data_dir should override user data dir."""
+        path = get_session_file_path("../test_data")
+        expected = os.path.join("../test_data", "athletes_session.json")
+        assert path == expected
+
+    def test_session_exists_no_args_uses_user_data_dir(self):
+        """session_exists() with no args should check inside user data dir."""
+        user_path = get_session_file_path()
+        if os.path.exists(user_path):
+            os.remove(user_path)
+        assert session_exists() is False
+
+
+class TestMigrateSession:
+    """Tests for migrate_legacy_session()."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.legacy_dir = tempfile.mkdtemp()
+        self.new_dir = tempfile.mkdtemp()
+        yield
+        import shutil
+        shutil.rmtree(self.legacy_dir, ignore_errors=True)
+        shutil.rmtree(self.new_dir, ignore_errors=True)
+
+    def test_migrate_copies_file(self):
+        """Migration should copy the session file to the new location."""
+        legacy_file = os.path.join(self.legacy_dir, "athletes_session.json")
+        new_file = os.path.join(self.new_dir, "athletes_session.json")
+
+        with open(legacy_file, 'w') as f:
+            json.dump({"athletes": []}, f)
+
+        with patch('persistence.athlete_persistence.get_session_file_path', return_value=new_file):
+            result = migrate_legacy_session(self.legacy_dir)
+
+        assert result is True
+        assert os.path.exists(new_file)
+        # Original file should still exist
+        assert os.path.exists(legacy_file)
+
+    def test_migrate_skips_when_new_file_exists(self):
+        """Migration should not overwrite an existing session at the new location."""
+        legacy_file = os.path.join(self.legacy_dir, "athletes_session.json")
+        new_file = os.path.join(self.new_dir, "athletes_session.json")
+
+        with open(legacy_file, 'w') as f:
+            json.dump({"athletes": [{"name": "old"}]}, f)
+        with open(new_file, 'w') as f:
+            json.dump({"athletes": [{"name": "new"}]}, f)
+
+        with patch('persistence.athlete_persistence.get_session_file_path', return_value=new_file):
+            result = migrate_legacy_session(self.legacy_dir)
+
+        assert result is False
+        # New file should still have its own content
+        with open(new_file) as f:
+            data = json.load(f)
+        assert data["athletes"][0]["name"] == "new"
+
+    def test_migrate_returns_false_when_no_legacy_file(self):
+        """Migration returns False when there is nothing to migrate."""
+        new_file = os.path.join(self.new_dir, "athletes_session.json")
+
+        with patch('persistence.athlete_persistence.get_session_file_path', return_value=new_file):
+            result = migrate_legacy_session(self.legacy_dir)
+
+        assert result is False

@@ -2,12 +2,15 @@
 Athlete persistence module for saving and loading athlete sessions.
 
 This module provides functionality to persist athlete rosters between GUI sessions
-using JSON format storage in the data/ directory.
+using JSON format storage in a platform-appropriate user data directory.
 """
 
 import json
 import os
+import shutil
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Optional
 from utils.normalized_timestamp import get_timestamp_now
 
@@ -15,6 +18,31 @@ from utils.normalized_timestamp import get_timestamp_now
 class SessionPersistenceError(Exception):
     """Raised when session persistence operations fail."""
     pass
+
+
+def get_user_data_dir() -> Path:
+    """
+    Get the platform-appropriate user data directory for the application.
+
+    | Platform | Location |
+    |----------|----------|
+    | Windows  | %APPDATA%\\IntervalTimer\\ |
+    | macOS    | ~/Library/Application Support/IntervalTimer/ |
+    | Linux    | $XDG_DATA_HOME/IntervalTimer/ or ~/.local/share/IntervalTimer/ |
+
+    Returns:
+        Path: User data directory, created automatically if it does not exist.
+    """
+    if os.name == 'nt':  # Windows
+        base = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
+    elif sys.platform == 'darwin':  # macOS
+        base = Path.home() / 'Library' / 'Application Support'
+    else:  # Linux / other Unix
+        base = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share'))
+
+    data_dir = base / 'IntervalTimer'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
 
 
 def save_athletes_to_session(athletes_list: List, file_path: str) -> bool:
@@ -63,7 +91,9 @@ def save_athletes_to_session(athletes_list: List, file_path: str) -> bool:
                 continue
         
         # Ensure the parent directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        dir_path = os.path.dirname(file_path)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
         
         # Write to file with atomic operation (write to temp file first)
         temp_path = f"{file_path}.tmp"
@@ -156,42 +186,50 @@ def load_athletes_from_session(file_path: str) -> Optional[List]:
         return None
 
 
-def get_session_file_path(data_dir: str = "../data") -> str:
+def get_session_file_path(data_dir: Optional[str] = None) -> str:
     """
     Get the standard session file path.
-    
+
+    When *data_dir* is ``None`` (default) the path is resolved inside the
+    platform-appropriate user data directory returned by
+    :func:`get_user_data_dir`.  Pass an explicit *data_dir* string to
+    override (useful for tests and legacy callers).
+
     Args:
-        data_dir: Base data directory (relative to src/)
-        
+        data_dir: Optional base data directory.  Pass ``None`` to use the
+                  user data directory, or a string path to override.
+
     Returns:
-        Full path to session file
+        Full path to the session file as a string.
     """
+    if data_dir is None:
+        return str(get_user_data_dir() / "athletes_session.json")
     return os.path.join(data_dir, "athletes_session.json")
 
 
-def session_exists(data_dir: str = "../data") -> bool:
+def session_exists(data_dir: Optional[str] = None) -> bool:
     """
     Check if a session file exists.
-    
+
     Args:
-        data_dir: Base data directory (relative to src/)
-        
+        data_dir: Optional base data directory (``None`` uses user data dir).
+
     Returns:
-        True if session file exists and is readable
+        True if session file exists and is readable.
     """
     session_path = get_session_file_path(data_dir)
     return os.path.exists(session_path) and os.access(session_path, os.R_OK)
 
 
-def clear_session(data_dir: str = "../data") -> bool:
+def clear_session(data_dir: Optional[str] = None) -> bool:
     """
     Clear the current session file.
-    
+
     Args:
-        data_dir: Base data directory (relative to src/)
-        
+        data_dir: Optional base data directory (``None`` uses user data dir).
+
     Returns:
-        True if session cleared successfully
+        True if session cleared successfully.
     """
     try:
         session_path = get_session_file_path(data_dir)
@@ -202,3 +240,37 @@ def clear_session(data_dir: str = "../data") -> bool:
     except Exception as e:
         print(f"Error clearing session: {e}")
         return False
+
+
+def migrate_legacy_session(legacy_dir: str = "../data") -> bool:
+    """
+    Migrate session data from the legacy project-relative path to the
+    platform-appropriate user data directory.
+
+    The migration is performed only when:
+    - A session file exists at the legacy location, **and**
+    - No session file already exists at the new location.
+
+    The original file is left in place so that development workflows using
+    the legacy directory are not disrupted.
+
+    Args:
+        legacy_dir: Legacy data directory to migrate from (relative to the
+                    working directory when the application was previously run
+                    from ``src/``).
+
+    Returns:
+        True if migration was performed, False otherwise.
+    """
+    legacy_path = os.path.join(legacy_dir, "athletes_session.json")
+    new_path = get_session_file_path()
+
+    if os.path.exists(legacy_path) and not os.path.exists(new_path):
+        try:
+            shutil.copy2(legacy_path, new_path)
+            print(f"Migrated session data from {legacy_path} to {new_path}")
+            return True
+        except Exception as e:
+            print(f"Error migrating session data from {legacy_path}: {e}")
+
+    return False

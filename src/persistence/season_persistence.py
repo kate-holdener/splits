@@ -42,10 +42,10 @@ def get_season_roster_path(season_id: str, data_dir=None) -> str:
 
 
 def _slugify(name: str) -> str:
-    """Convert a season name to a safe file ID, e.g., 'Spring 2026' -> 'spring_2026'."""
-    slug = name.lower().strip()
-    slug = re.sub(r'[^a-z0-9]+', '_', slug)
-    return slug.strip('_')
+    """Convert a season name to a comparison/file ID by lowercasing and stripping all
+    non-alphanumeric characters, so 'Spring 2026', 'spring2026', and ' SPRING  2026 '
+    all produce the same ID: 'spring2026'."""
+    return re.sub(r'[^a-z0-9]', '', name.lower())
 
 
 def load_seasons_index(data_dir=None) -> dict:
@@ -125,12 +125,10 @@ def create_season(name: str, data_dir=None) -> dict:
 
     index = load_seasons_index(data_dir)
 
-    # If a season with this ID already exists, just activate it
+    # Reject duplicate names (compared by slug — ignores case and whitespace)
     for season in index.get("seasons", []):
         if season["id"] == season_id:
-            index["active_season_id"] = season_id
-            save_seasons_index(index, data_dir)
-            return season
+            raise ValueError(f"A season named \"{season['name']}\" already exists.")
 
     new_season = {"id": season_id, "name": name, "created_at": now}
     index.setdefault("seasons", []).append(new_season)

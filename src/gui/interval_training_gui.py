@@ -33,7 +33,26 @@ class PyWebViewAPI:
     
     def load_athletes(self, csv_path: str):
         return self.track_api.load_athletes(csv_path)
-    
+
+    # ------------------------------------------------------------------
+    # Season management
+    # ------------------------------------------------------------------
+    def get_current_season(self):
+        return self.track_api.get_current_season()
+
+    def list_seasons(self):
+        return self.track_api.list_seasons()
+
+    def create_season(self, name: str):
+        return self.track_api.create_season(name)
+
+    def select_season(self, season_id: str):
+        return self.track_api.select_season(season_id)
+
+    def add_athletes_from_csv(self, csv_path: str):
+        return self.track_api.add_athletes_from_csv(csv_path)
+
+
     def configure_workout(self, distance: str, laps: str, rest_time: str):
         dist_int = int(distance)
         laps_int = int(laps)
@@ -58,7 +77,7 @@ class PyWebViewAPI:
     def start_selected(self, tag_ids_json: str):
         try:
             tag_ids = _json.loads(tag_ids_json)
-            self.track_api.start_selected(tag_ids)
+            return self.track_api.start_selected(tag_ids)
         except Exception:
             return {"ok": False, "msg": "Invalid tag IDs format."}
     

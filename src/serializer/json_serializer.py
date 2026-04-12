@@ -1,10 +1,17 @@
 def runner_to_json(runner):
     """Serialize a Runner object to a JSON-compatible dictionary."""
     return {
+        "id": runner.lap_id,  # Use lap_id as unique identifier
         "name": runner.name,
+        "first_name": runner.name,  # Add for compatibility
+        "last_name": getattr(runner, 'lname', ''),
         "lname": getattr(runner, 'lname', ''),  # Include last name if available
-        "start_id": runner.start_id,
-        "lap_id": runner.lap_id,
+        "start_tag": runner.start_id,  # Use same field names as Runner.to_dict()
+        "finish_tag": runner.lap_id,  # Use same field names as Runner.to_dict()
+        "start_id": runner.start_id,  # Keep for backward compatibility
+        "lap_id": runner.lap_id,      # Keep for backward compatibility
+        "archived": getattr(runner, 'archived', False),
+        "archived_at": getattr(runner, 'archived_at', None),
         "intervals": [
             {
                 "start_time": interval.start_time,
@@ -55,6 +62,8 @@ def runners_from_json(json_data):
             runner.lname = str(runner_dict.get("lname", ""))  # Optional last name
             runner.start_id = str(runner_dict["start_id"])
             runner.lap_id = str(runner_dict["lap_id"])
+            runner.archived = runner_dict.get("archived", False)
+            runner.archived_at = runner_dict.get("archived_at", None)
             
             # Initialize empty intervals list (we don't persist workout state)
             runner.intervals = []

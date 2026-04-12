@@ -43,6 +43,9 @@ class PyWebViewAPI:
     def list_seasons(self):
         return self.track_api.list_seasons()
 
+    def list_all_seasons_with_archived(self):
+        return self.track_api.list_all_seasons_with_archived()
+
     def create_season(self, name: str):
         return self.track_api.create_season(name)
 
@@ -52,6 +55,29 @@ class PyWebViewAPI:
     def add_athletes_from_csv(self, csv_path: str):
         return self.track_api.add_athletes_from_csv(csv_path)
 
+    def add_athletes_to_season_from_csv(self, season_id: str, csv_path: str):
+        return self.track_api.add_athletes_to_season_from_csv(season_id, csv_path)
+
+    # ------------------------------------------------------------------
+    # Archive methods
+    # ------------------------------------------------------------------
+    def archive_season(self, season_id: str):
+        return self.track_api.archive_season(season_id)
+
+    def restore_season(self, season_id: str):
+        return self.track_api.restore_season(season_id)
+
+    def list_all_athletes(self):
+        return self.track_api.list_all_athletes()
+    
+    def list_athletes_for_season_including_archived(self, season_id: str):
+        return self.track_api.list_athletes_for_season_including_archived(season_id)
+
+    def archive_athlete(self, athlete_id: str):
+        return self.track_api.archive_athlete(athlete_id)
+
+    def restore_athlete(self, athlete_id: str):
+        return self.track_api.restore_athlete(athlete_id)
 
     def configure_workout(self, distance: str, laps: str, rest_time: str):
         dist_int = int(distance)

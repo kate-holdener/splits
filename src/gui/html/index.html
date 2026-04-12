@@ -9,8 +9,10 @@
 <script src="js/theme.js"   defer></script>
 <script src="js/log.js"     defer></script>
 <script src="js/state.js"   defer></script>
+<script src="js/utils.js"   defer></script>
 <script src="js/seasons.js" defer></script>
 <script src="js/athletes.js" defer></script>
+<script src="js/settings.js" defer></script>
 <script src="js/scanners.js" defer></script>
 <script src="js/workout.js"  defer></script>
 <script src="js/reports.js"  defer></script>
@@ -35,6 +37,11 @@
         <div class="tile-icon">🏃‍♀️🏃‍♂️</div>
         <div class="tile-label">Workout</div>
         <div class="tile-sub">Configure, connect scanners<br>and run a session</div>
+      </div>
+      <div class="home-tile settings-tile" onclick="goTo('settings-screen')">
+        <div class="tile-icon">⚙️</div>
+        <div class="tile-label">Settings</div>
+        <div class="tile-sub">Manage seasons, athletes<br>and system configuration</div>
       </div>
       <div class="home-tile reports-tile" onclick="goTo('reports-screen')">
         <div class="tile-icon">📊</div>
@@ -86,7 +93,7 @@
           <div class="card" style="grid-column:1/-1">
             <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
               Season
-              <button class="btn btn-primary btn-sm" onclick="openSeasonModal()">+ New Season</button>
+              <span style="font-size:12px;color:var(--muted);font-weight:normal">Manage seasons in Settings</span>
             </div>
             <div class="season-picker" id="season-picker">
               <button class="season-picker__trigger" id="season-trigger" onclick="toggleSeasonDropdown(event)">
@@ -99,10 +106,7 @@
 
           <!-- Athletes card -->
           <div class="card">
-            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Athletes
-              <button class="btn btn-ghost btn-sm" id="add-athletes-btn" onclick="pickAndAddAthletes()" disabled>📂 Add from CSV</button>
-            </div>
+            <div class="card-title">Athletes</div>
             <p class="subtitle" id="athletes-subtitle">Select a season to view and manage its roster.</p>
             <div id="athletes-ok" style="display:none;margin-top:14px">
               <div class="card" style="margin-bottom:0;padding:12px 16px">
@@ -241,6 +245,86 @@
     <div id="report-files"></div>
   </div>
 </div>
+
+<!-- ============================================================
+     SETTINGS SCREEN
+     ============================================================ -->
+<div class="screen" id="settings-screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="goTo('home-screen')">← Home</button>
+    <div class="screen-title">Settings</div>
+  </div>
+  
+  <div class="scroll-area" style="flex:1">
+    <h2>Season & Athlete Management</h2>
+    <p class="subtitle">Select a season to manage its athletes and settings.</p>
+    
+    <!-- Season Selection Card -->
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        Season Selection
+        <button class="btn btn-primary btn-sm" onclick="openSeasonModal()">+ New Season</button>
+      </div>
+      <div class="season-picker" id="settings-season-picker">
+        <button class="season-picker__trigger" id="settings-season-trigger" onclick="toggleSettingsSeasonDropdown(event)">
+          <span class="season-picker__label placeholder" id="settings-season-selected-label">— Select a season —</span>
+          <span class="season-picker__chevron">&#8964;</span>
+        </button>
+        <div class="season-picker__menu" id="settings-season-picker-menu"></div>
+      </div>
+    </div>
+    
+    <!-- Athletes Management Card (hidden until season selected) -->
+    <div class="card" id="athletes-management-card" style="display:none">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          Athletes
+          <span id="athlete-season-display" style="color:var(--muted);font-weight:normal;margin-left:8px"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="openAddAthleteModal()">+ Add Athlete</button>
+          <button class="btn btn-primary btn-sm" onclick="importAthletesModal()">📂 Import CSV</button>
+        </div>
+      </div>
+      
+      <div class="settings-filters" style="margin-bottom:16px">
+        <button class="filter-btn active" onclick="filterAthletes('all')" data-filter="all">All</button>
+        <button class="filter-btn" onclick="filterAthletes('active')" data-filter="active">Active</button>
+        <button class="filter-btn" onclick="filterAthletes('archived')" data-filter="archived">Archived</button>
+      </div>
+      
+      <table id="athletes-settings-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>RFID Tag</th>
+            <th>NFC Tag</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="athletes-settings-tbody"></tbody>
+      </table>
+    </div>
+    
+    <!-- Season Management Card (hidden until season selected) -->
+    <div class="card" id="season-management-card" style="display:none">
+      <div class="card-title">Season Actions</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="archive-season-btn" onclick="archiveSelectedSeason()" style="display:none">
+          Archive Season
+        </button>
+        <button class="btn btn-ghost btn-sm" id="restore-season-btn" onclick="restoreSelectedSeason()" style="display:none">
+          Restore Season
+        </button>
+        <button class="btn btn-ghost btn-sm" id="activate-season-btn" onclick="activateSelectedSeason()" style="display:none">
+          Set as Active
+        </button>
+        <span id="season-status-display" style="color:var(--muted);font-size:14px"></span>
+      </div>
+    </div>
+  </div>
+</div><!-- /settings-screen -->
 
 <!-- ============================================================
      NEW SEASON MODAL

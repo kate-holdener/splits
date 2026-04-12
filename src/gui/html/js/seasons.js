@@ -19,33 +19,20 @@ function renderSeasonsList(seasons) {
 
   menu.replaceChildren();
 
-  if (!seasons || !seasons.length) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'padding:14px 18px;color:var(--muted);font-size:15px';
-    empty.textContent = 'No seasons yet.';
-    menu.appendChild(empty);
-    return;
-  }
-
-  seasons.forEach(s => {
-    const option = document.createElement('div');
-    option.className = 'season-picker__option' + (s.is_active ? ' active' : '');
-    option.addEventListener('click', () => onSeasonOptionClick(s.id));
-
-    const dot  = document.createElement('span');
-    dot.className = 'season-picker__dot';
-
-    const name = document.createElement('span');
-    name.className = 'season-picker__option-name';
-    name.textContent = s.name;
-
-    const date = document.createElement('span');
-    date.className = 'season-picker__option-date';
-    date.textContent = s.created_at ? new Date(s.created_at).toLocaleDateString() : '';
-
-    option.append(dot, name, date);
-    menu.appendChild(option);
-  });
+  // Create wrapper function for season selection
+  const onSeasonSelect = (season) => onSeasonOptionClick(season.id);
+  
+  renderSeasonDropdownOptions(
+    menu,
+    seasons,
+    null, // No specific selection highlighting for workout screen
+    onSeasonSelect,
+    {
+      emptyMessage: 'No seasons yet.',
+      showArchived: false,
+      customEmptyStyle: true
+    }
+  );
 }
 
 function toggleSeasonDropdown(e) {
@@ -81,9 +68,7 @@ async function onSeasonOptionClick(seasonId) {
 // ============================================================
 
 function updateSeasonUI(season) {
-  const addBtn   = document.getElementById('add-athletes-btn');
   const subtitle = document.getElementById('athletes-subtitle');
-  if (addBtn)   addBtn.disabled = !season;
   if (subtitle) subtitle.textContent = season
     ? `Athletes in ${season.name}.`
     : 'Select a season to view and manage its roster.';

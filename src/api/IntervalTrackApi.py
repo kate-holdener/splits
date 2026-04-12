@@ -14,7 +14,8 @@ from discovery.auto_connect import auto_connect_to_rfid_scanner, connect_rfid_wi
 from persistence.season_persistence import (
     get_active_season, create_season as _create_season,
     load_season_roster, merge_athletes_from_csv,
-    list_seasons as _list_seasons, set_active_season
+    list_seasons as _list_seasons, set_active_season,
+    list_all_seasons as _list_all_seasons
 )
 
 class IntervalTrackApi:
@@ -91,6 +92,13 @@ class IntervalTrackApi:
         except Exception as e:
             return {"ok": False, "msg": str(e), "seasons": []}
 
+    def list_all_seasons_with_archived(self):
+        try:
+            seasons = _list_all_seasons()
+            return {"ok": True, "seasons": seasons}
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "seasons": []}
+
     def select_season(self, season_id: str):
         try:
             season = set_active_season(season_id)
@@ -138,6 +146,130 @@ class IntervalTrackApi:
             seasons = _list_seasons()
             msg = f"Added {counts['added']}, updated {counts['updated']} athletes ({counts['total']} total)."
             return {"ok": True, "msg": msg, "counts": counts, "seasons": seasons, "state": self.get_state()}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def add_athletes_to_season_from_csv(self, season_id: str, csv_path: str):
+        if not season_id or not season_id.strip():
+            return {"ok": False, "msg": "Season ID is required."}
+        if not csv_path.strip():
+            return {"ok": False, "msg": "CSV file path is required."}
+        try:
+            # Get season info
+            seasons = _list_all_seasons()
+            season = next((s for s in seasons if s["id"] == season_id), None)
+            if not season:
+                return {"ok": False, "msg": f"Season '{season_id}' not found."}
+            
+            new_runners = parse_runner_data(csv_path.strip())
+            counts = merge_athletes_from_csv(
+                season_id,
+                season["name"],
+                new_runners
+            )
+            
+            # If this is the current season, refresh the athletes
+            if self.current_season and self.current_season["id"] == season_id:
+                merged = load_season_roster(season_id)
+                self._stop_timer()
+                self.init_athletes(merged or [])
+                
+            msg = f"Added {counts['added']}, updated {counts['updated']} athletes to {season['name']} ({counts['total']} total)."
+            return {"ok": True, "msg": msg, "counts": counts}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # ------------------------------------------------------------------
+    # Archive functionality
+    # ------------------------------------------------------------------
+    def archive_season(self, season_id: str):
+        try:
+            from persistence.season_persistence import archive_season as _archive_season
+            success = _archive_season(season_id)
+            if success:
+                # Refresh season list and current season
+                seasons = _list_seasons()
+                if self.current_season and self.current_season["id"] == season_id:
+                    self.current_season = None
+                    self._stop_timer()
+                    self.athletes = []
+                    self.athletes_loaded = False
+                    self.session_loaded = False
+                return {"ok": True, "msg": "Season archived successfully.", "seasons": seasons, "state": self.get_state()}
+            else:
+                return {"ok": False, "msg": "Failed to archive season."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def restore_season(self, season_id: str):
+        try:
+            from persistence.season_persistence import restore_season as _restore_season
+            success = _restore_season(season_id)
+            if success:
+                seasons = _list_seasons()
+                return {"ok": True, "msg": "Season restored successfully.", "seasons": seasons}
+            else:
+                return {"ok": False, "msg": "Failed to restore season."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def list_all_athletes(self):
+        try:
+            from persistence.season_persistence import list_all_athletes as _list_all_athletes
+            athletes = _list_all_athletes()
+            return {"ok": True, "athletes": athletes}
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "athletes": []}
+
+    def list_athletes_for_season_including_archived(self, season_id: str):
+        try:
+            from persistence.season_persistence import load_season_roster
+            athletes = load_season_roster(season_id, include_archived=True)
+            # Convert Runner objects to dictionaries for JSON serialization
+            athletes_data = [a.to_dict() for a in (athletes or [])]
+            return {"ok": True, "athletes": athletes_data}
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "athletes": []}
+
+    def archive_athlete(self, athlete_id: str):
+        try:
+            from persistence.season_persistence import find_athlete_by_id, archive_athlete as _archive_athlete
+            result = find_athlete_by_id(athlete_id)
+            if not result:
+                return {"ok": False, "msg": "Athlete not found."}
+            
+            season_id, athlete = result
+            success = _archive_athlete(season_id, athlete_id)
+            if success:
+                # Refresh current athletes if this season is active
+                if self.current_season and self.current_season["id"] == season_id:
+                    athletes = load_season_roster(season_id)
+                    self._stop_timer()
+                    self.init_athletes(athletes or [])
+                return {"ok": True, "msg": "Athlete archived successfully.", "state": self.get_state()}
+            else:
+                return {"ok": False, "msg": "Failed to archive athlete."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def restore_athlete(self, athlete_id: str):
+        try:
+            from persistence.season_persistence import find_athlete_by_id, restore_athlete as _restore_athlete
+            result = find_athlete_by_id(athlete_id)
+            if not result:
+                return {"ok": False, "msg": "Athlete not found."}
+            
+            season_id, athlete = result
+            success = _restore_athlete(season_id, athlete_id)
+            if success:
+                # Refresh current athletes if this season is active
+                if self.current_season and self.current_season["id"] == season_id:
+                    athletes = load_season_roster(season_id)
+                    self._stop_timer()
+                    self.init_athletes(athletes or [])
+                return {"ok": True, "msg": "Athlete restored successfully.", "state": self.get_state()}
+            else:
+                return {"ok": False, "msg": "Failed to restore athlete."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 

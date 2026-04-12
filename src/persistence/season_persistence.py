@@ -141,10 +141,11 @@ def create_season(name: str, data_dir=None) -> dict:
     return new_season
 
 
-def load_season_roster(season_id: str, data_dir=None):
+def load_season_roster(season_id: str, data_dir=None, include_archived=False):
     """
     Load Runner objects for the given season.
     Returns a list (possibly empty) or None on error.
+    By default, excludes archived athletes unless include_archived=True.
     """
     roster_path = get_season_roster_path(season_id, data_dir)
     if not os.path.exists(roster_path):
@@ -154,7 +155,13 @@ def load_season_roster(season_id: str, data_dir=None):
             data = json.load(f)
         athletes_data = data.get("athletes", [])
         from serializer.json_serializer import runners_from_json
-        return runners_from_json(athletes_data)
+        all_athletes = runners_from_json(athletes_data)
+        
+        if include_archived:
+            return all_athletes
+        else:
+            # Filter out archived athletes
+            return [athlete for athlete in all_athletes if not getattr(athlete, 'archived', False)]
     except Exception as e:
         print(f"Error loading season roster for {season_id}: {e}")
         return None
@@ -209,7 +216,7 @@ def merge_athletes_from_csv(season_id: str, season_name: str, new_runners: list,
     Updates name fields on match; appends as new if no match.
     Returns {"added": N, "updated": M, "total": T}.
     """
-    existing = load_season_roster(season_id, data_dir) or []
+    existing = load_season_roster(season_id, data_dir, include_archived=True) or []
     by_lap_id = {r.lap_id: r for r in existing}
 
     added = 0
@@ -228,3 +235,177 @@ def merge_athletes_from_csv(season_id: str, season_name: str, new_runners: list,
 
     save_season_roster(season_id, season_name, existing, data_dir)
     return {"added": added, "updated": updated, "total": len(existing)}
+
+
+def archive_season(season_id: str, data_dir=None) -> bool:
+    """
+    Archive a season by setting its archived flag to True.
+    If the archived season was active, clear the active season.
+    Returns True on success, False on error.
+    """
+    index = load_seasons_index(data_dir)
+    
+    for season in index.get("seasons", []):
+        if season["id"] == season_id:
+            season["archived"] = True
+            season["archived_at"] = datetime.now().isoformat()
+            
+            # Clear active season if archiving the active one
+            if index.get("active_season_id") == season_id:
+                index["active_season_id"] = None
+            
+            return save_seasons_index(index, data_dir)
+    
+    return False
+
+
+def restore_season(season_id: str, data_dir=None) -> bool:
+    """
+    Restore an archived season by removing its archived flag.
+    Returns True on success, False on error.
+    """
+    index = load_seasons_index(data_dir)
+    
+    for season in index.get("seasons", []):
+        if season["id"] == season_id and season.get("archived"):
+            season.pop("archived", None)
+            season.pop("archived_at", None)
+            return save_seasons_index(index, data_dir)
+    
+    return False
+
+
+def list_all_seasons(data_dir=None) -> list:
+    """
+    Return all seasons including archived ones with status flags and athlete counts.
+    Returns list with is_active, archived flags, and athlete_count.
+    """
+    index = load_seasons_index(data_dir)
+    active_id = index.get("active_season_id")
+    result = []
+    
+    for season in index.get("seasons", []):
+        # Count active athletes in this season
+        roster = load_season_roster(season["id"], data_dir, include_archived=False) or []
+        athlete_count = len(roster)
+        
+        season_dict = {
+            **season,
+            "is_active": season["id"] == active_id,
+            "archived": season.get("archived", False),
+            "athlete_count": athlete_count
+        }
+        result.append(season_dict)
+    
+    result.reverse()  # most recently created first
+    return result
+
+
+def list_all_athletes(data_dir=None) -> list:
+    """
+    Return all athletes from all seasons with season information and archive status.
+    Returns list of athlete dicts with season_id, season_name, and archived flags.
+    """
+    all_athletes = []
+    seasons = list_all_seasons(data_dir)
+    
+    for season in seasons:
+        roster = load_season_roster(season["id"], data_dir, include_archived=True) or []
+        
+        for athlete in roster:
+            from serializer.json_serializer import runner_to_json
+            athlete_dict = runner_to_json(athlete)
+            athlete_dict.update({
+                "season_id": season["id"],
+                "season_name": season["name"],
+                "season_archived": season.get("archived", False),
+                "archived": athlete_dict.get("archived", False)
+            })
+            all_athletes.append(athlete_dict)
+    
+    return all_athletes
+
+
+def archive_athlete(season_id: str, athlete_lap_id: str, data_dir=None) -> bool:
+    """
+    Archive an athlete within their season by setting their archived flag.
+    Returns True on success, False on error.
+    """
+    roster = load_season_roster(season_id, data_dir, include_archived=True) or []
+    season = None
+    
+    # Get season name for saving
+    index = load_seasons_index(data_dir)
+    for s in index.get("seasons", []):
+        if s["id"] == season_id:
+            season = s
+            break
+    
+    if not season:
+        return False
+    
+    # Find and archive the athlete
+    found = False
+    for athlete in roster:
+        if athlete.lap_id == athlete_lap_id:
+            athlete.archived = True
+            athlete.archived_at = datetime.now().isoformat()
+            found = True
+            break
+    
+    if found:
+        return save_season_roster(season_id, season["name"], roster, data_dir)
+    
+    return False
+
+
+def restore_athlete(season_id: str, athlete_lap_id: str, data_dir=None) -> bool:
+    """
+    Restore an archived athlete within their season by removing their archived flag.
+    Returns True on success, False on error.
+    """
+    roster = load_season_roster(season_id, data_dir, include_archived=True) or []
+    season = None
+    
+    # Get season name for saving
+    index = load_seasons_index(data_dir)
+    for s in index.get("seasons", []):
+        if s["id"] == season_id:
+            season = s
+            break
+    
+    if not season:
+        return False
+    
+    # Find and restore the athlete
+    found = False
+    for athlete in roster:
+        if athlete.lap_id == athlete_lap_id and getattr(athlete, 'archived', False):
+            athlete.archived = False
+            if hasattr(athlete, 'archived_at'):
+                delattr(athlete, 'archived_at')
+            found = True
+            break
+    
+    if found:
+        return save_season_roster(season_id, season["name"], roster, data_dir)
+    
+    return False
+
+
+def find_athlete_by_id(athlete_id: str, data_dir=None) -> Optional[tuple]:
+    """
+    Find an athlete by their unique ID across all seasons.
+    Returns (season_id, athlete) tuple if found, None otherwise.
+    """
+    seasons = list_all_seasons(data_dir)
+    
+    for season in seasons:
+        roster = load_season_roster(season["id"], data_dir, include_archived=True) or []
+        
+        for athlete in roster:
+            # Use lap_id as the unique athlete identifier
+            if athlete.lap_id == athlete_id:
+                return (season["id"], athlete)
+    
+    return None

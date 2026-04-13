@@ -1,4 +1,23 @@
 // ============================================================
+// SCANNERS MODAL
+// ============================================================
+
+function openScannersModal() {
+  document.getElementById('scanners-modal').style.display = 'flex';
+}
+
+function closeScannersModal() {
+  document.getElementById('scanners-modal').style.display = 'none';
+}
+
+// Close when clicking the dark overlay
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('scanners-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('scanners-modal')) closeScannersModal();
+  });
+});
+
+// ============================================================
 // SCANNERS — RFID + NFC connection
 // ============================================================
 

@@ -11,11 +11,8 @@ async function loadInitialState() {
     applyState(state);
     if (rostersResult.rosters) renderRostersList(rostersResult.rosters);
 
-    if (state.athletesLoaded && state.athleteCount > 0) {
-      loadAthleteList();
-      if (state.currentRoster) {
-        log(`Roster '${state.currentRoster.name}' loaded with ${state.athleteCount} athletes.`, 'info');
-      }
+    if (state.athletesLoaded && state.athleteCount > 0 && state.currentRoster) {
+      log(`Roster '${state.currentRoster.name}' loaded with ${state.athleteCount} athletes.`, 'info');
     } else if (state.currentRoster) {
       log(`Roster '${state.currentRoster.name}' is active (no athletes yet).`, 'info');
     }

@@ -61,131 +61,56 @@
   <div class="topbar">
     <button class="back-btn" onclick="goTo('home-screen')">← Home</button>
     <div class="screen-title">Interval<span>Track</span></div>
-    <div id="status-bar">
-      <span class="pill idle" id="pill-athletes">Athletes</span>
-      <span class="pill idle" id="pill-workout">Workout</span>
-      <span class="pill idle" id="pill-rfid">RFID</span>
-      <span class="pill idle" id="pill-nfc">NFC</span>
-    </div>
-  </div>
-
-  <!-- Tab bar -->
-  <div id="tab-bar">
-    <button class="tab active partial" id="tab-setup"    onclick="switchTab('setup')">
-      <span class="tab-dot"></span>Setup
-    </button>
-    <button class="tab" id="tab-scanners" onclick="switchTab('scanners')">
-      <span class="tab-dot"></span>Scanners
-    </button>
-    <button class="tab" id="tab-workout"  onclick="switchTab('workout')">
-      <span class="tab-dot"></span>Workout
-    </button>
   </div>
 
   <div id="workout-body">
+    <div class="scroll-area">
+      <div class="workout-grid">
 
-    <!-- ── SETUP TAB ── -->
-    <div class="tab-content active" id="tc-setup">
-      <div class="scroll-area">
-        <div class="setup-grid">
-
-          <!-- Roster card — full width -->
-          <div class="card" style="grid-column:1/-1">
-            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Roster
-              <span style="font-size:12px;color:var(--muted);font-weight:normal">Manage rosters in Settings</span>
+        <!-- Configure Workout card — full width -->
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            Configure Workout
+            <button class="btn btn-ghost btn-sm" onclick="openScannersModal()">📡 Scanners</button>
+          </div>
+          <p class="subtitle">Set interval distance, laps, and rest time.</p>
+          <div class="row">
+            <div class="form-group">
+              <label>Distance (m)</label>
+              <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
+                     oninput="digitsOnly(this)"/>
             </div>
-            <div class="roster-picker" id="roster-picker">
-              <button class="roster-picker__trigger" id="roster-trigger" onclick="toggleRosterDropdown(event)">
-                <span class="roster-picker__label placeholder" id="roster-selected-label">— No roster selected —</span>
-                <span class="roster-picker__chevron">&#8964;</span>
-              </button>
-              <div class="roster-picker__menu" id="roster-picker-menu"></div>
+            <div class="form-group">
+              <label>Laps</label>
+              <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
+                     oninput="digitsOnly(this)"/>
+            </div>
+            <div class="form-group">
+              <label>Rest Time (s)</label>
+              <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
+                     oninput="digitsOnly(this)"/>
             </div>
           </div>
-
-          <!-- Athletes card -->
-          <div class="card">
-            <div class="card-title">Athletes</div>
-            <p class="subtitle" id="athletes-subtitle">Select a roster to view and manage its athletes.</p>
-            <div id="athletes-ok" style="display:none;margin-top:14px">
-              <div class="card" style="margin-bottom:0;padding:12px 16px">
-                <table>
-                  <thead><tr><th>Name</th><th>Last Name</th><th>RFID Tag</th><th>NFC Tag</th></tr></thead>
-                  <tbody id="athlete-tbody"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Workout config card -->
-          <div class="card">
-            <div class="card-title">Configure Workout</div>
-            <p class="subtitle">Set interval distance, laps, and rest time.</p>
-            <div class="row">
-              <div class="form-group">
-                <label>Distance (m)</label>
-                <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
-                       oninput="digitsOnly(this)"/>
-              </div>
-              <div class="form-group">
-                <label>Laps</label>
-                <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
-                       oninput="digitsOnly(this)"/>
-              </div>
-              <div class="form-group">
-                <label>Rest Time (s)</label>
-                <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
-                       oninput="digitsOnly(this)"/>
-              </div>
-            </div>
-            <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>
-          </div>
-
+          <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>
         </div>
-      </div>
-    </div>
 
-    <!-- ── SCANNERS TAB ── -->
-    <div class="tab-content" id="tc-scanners">
-      <div class="scroll-area">
-        <h2>Scanners</h2>
-        <p class="subtitle">Scanners connect automatically when setup is complete. You can also connect manually.</p>
-
-        <div class="card">
-          <div class="card-title">RFID Reader</div>
-          <div class="connector">
-            <div class="connector-icon">📡</div>
-            <div class="connector-info">
-              <div class="connector-name" id="rfid-name">RFID Scanner</div>
-              <div class="connector-status idle" id="rfid-status-text">Not connected</div>
-              <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none">
-                <label>IP Address</label>
-                <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
-              </div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
+        <!-- Roster card — full width -->
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            Roster
+            <span style="font-size:12px;color:var(--muted);font-weight:normal">Manage rosters in Settings</span>
+          </div>
+          <div class="roster-picker" id="roster-picker">
+            <button class="roster-picker__trigger" id="roster-trigger" onclick="toggleRosterDropdown(event)">
+              <span class="roster-picker__label placeholder" id="roster-selected-label">— No roster selected —</span>
+              <span class="roster-picker__chevron">&#8964;</span>
+            </button>
+            <div class="roster-picker__menu" id="roster-picker-menu"></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">NFC Reader</div>
-          <div class="connector">
-            <div class="connector-icon">🔖</div>
-            <div class="connector-info">
-              <div class="connector-name">ACR122U NFC</div>
-              <div class="connector-status idle" id="nfc-status-text">Not connected</div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="nfc-btn" onclick="connectNfc()">Connect</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── WORKOUT TAB ── -->
-    <div class="tab-content" id="tc-workout">
-      <div class="scroll-area">
-        <div class="card">
+        <!-- Athletes card — full width -->
+        <div class="card" style="grid-column:1/-1">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
             Athletes
             <div style="display:flex;align-items:center;gap:12px">
@@ -208,10 +133,11 @@
             <tbody id="athletes-status-tbody"></tbody>
           </table>
         </div>
+
       </div>
     </div>
 
-    <!-- Log bar (shared across all tabs) -->
+    <!-- Log bar -->
     <div id="log-bar" class="collapsed">
       <div class="log-header" onclick="toggleLog()">
         <span id="log-toggle-arrow" class="log-arrow">▸</span> Activity Log
@@ -350,6 +276,45 @@
     <div style="display:flex;gap:10px;margin-top:14px">
       <button class="btn btn-ghost"   style="flex:1" onclick="closeRosterModal()">Cancel</button>
       <button class="btn btn-primary" style="flex:2" id="modal-create-btn" onclick="submitNewRoster()" disabled>Create Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCANNERS MODAL
+     ============================================================ -->
+<div id="scanners-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
+  <div class="card" style="width:480px;max-width:92vw;margin:0;padding:32px">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+      Scanners
+      <button class="btn btn-ghost btn-sm" onclick="closeScannersModal()">✕</button>
+    </div>
+    <p class="subtitle" style="margin-bottom:20px">Scanners connect automatically when setup is complete. You can also connect manually.</p>
+
+    <div class="connector">
+      <div class="connector-icon">📡</div>
+      <div class="connector-info">
+        <div class="connector-name" id="rfid-name">RFID Scanner</div>
+        <div class="connector-status idle" id="rfid-status-text">Not connected</div>
+        <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none">
+          <label>IP Address</label>
+          <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
+    </div>
+
+    <div class="connector" style="margin-top:20px">
+      <div class="connector-icon">🔖</div>
+      <div class="connector-info">
+        <div class="connector-name">ACR122U NFC</div>
+        <div class="connector-status idle" id="nfc-status-text">Not connected</div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="nfc-btn" onclick="connectNfc()">Connect</button>
+    </div>
+
+    <div style="margin-top:24px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeScannersModal()">Close</button>
     </div>
   </div>
 </div>

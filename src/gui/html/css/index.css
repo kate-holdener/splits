@@ -282,60 +282,6 @@ body {
 }
 
 /* ============================================================
-   TAB BAR
-   ============================================================ */
-
-#tab-bar {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  flex-shrink: 0;
-  padding: 0 22px;
-}
-
-.tab {
-  font-family: var(--font-head);
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  padding: 13px 28px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -1px;
-  transition: color .15s, border-color .15s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tab:hover {
-  color: var(--text);
-}
-
-.tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
-.tab .tab-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--border);
-  flex-shrink: 0;
-  transition: background .2s;
-}
-
-.tab.ready .tab-dot   { background: var(--success); }
-.tab.partial .tab-dot { background: var(--warning); }
-.tab.error .tab-dot   { background: var(--danger); }
-
-/* ============================================================
    WORKOUT SCREEN BODY
    ============================================================ */
 
@@ -346,17 +292,6 @@ body {
   overflow: hidden;
 }
 
-.tab-content {
-  display: none;
-  flex: 1;
-  overflow: hidden;
-  flex-direction: column;
-}
-
-.tab-content.active {
-  display: flex;
-}
-
 .scroll-area {
   flex: 1;
   overflow-y: auto;
@@ -364,17 +299,17 @@ body {
 }
 
 /* ============================================================
-   SETUP TAB — two-column cards
+   WORKOUT SCREEN — two-column grid
    ============================================================ */
 
-.setup-grid {
+.workout-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
 
 @media (max-width: 800px) {
-  .setup-grid {
+  .workout-grid {
     grid-template-columns: 1fr;
   }
 }

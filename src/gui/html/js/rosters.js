@@ -57,7 +57,7 @@ async function onRosterOptionClick(rosterId) {
   log(r.msg, r.ok ? 'ok' : 'err');
   if (!r.ok) return;
   if (r.state) applyState(r.state);
-  loadAthleteList();
+  loadWorkoutAthletes();
   const lr = await pywebview.api.list_rosters();
   if (lr.rosters) renderRostersList(lr.rosters);
 }
@@ -135,13 +135,11 @@ async function submitNewRoster() {
     log(ar.msg, ar.ok ? 'ok' : 'err');
     if (ar.state)   applyState(ar.state);
     if (ar.rosters) renderRostersList(ar.rosters);
-    if (ar.ok)      loadAthleteList();
+    if (ar.ok)      loadWorkoutAthletes();
   } else {
     if (r.state)   applyState(r.state);
     if (r.rosters) renderRostersList(r.rosters);
     updateRosterUI(r.roster);
-    document.getElementById('athletes-ok').style.display = 'none';
-    document.getElementById('athlete-tbody').innerHTML = '';
   }
 
   closeRosterModal();

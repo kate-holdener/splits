@@ -4,20 +4,17 @@
 
 async function loadInitialState() {
   try {
-    const [state, seasonsResult] = await Promise.all([
+    const [state, rostersResult] = await Promise.all([
       pywebview.api.get_state(),
-      pywebview.api.list_seasons()
+      pywebview.api.list_rosters()
     ]);
     applyState(state);
-    if (seasonsResult.seasons) renderSeasonsList(seasonsResult.seasons);
+    if (rostersResult.rosters) renderRostersList(rostersResult.rosters);
 
-    if (state.athletesLoaded && state.athleteCount > 0) {
-      loadAthleteList();
-      if (state.currentSeason) {
-        log(`Season '${state.currentSeason.name}' loaded with ${state.athleteCount} athletes.`, 'info');
-      }
-    } else if (state.currentSeason) {
-      log(`Season '${state.currentSeason.name}' is active (no athletes yet).`, 'info');
+    if (state.athletesLoaded && state.athleteCount > 0 && state.currentRoster) {
+      log(`Roster '${state.currentRoster.name}' loaded with ${state.athleteCount} athletes.`, 'info');
+    } else if (state.currentRoster) {
+      log(`Roster '${state.currentRoster.name}' is active (no athletes yet).`, 'info');
     }
   } catch (e) {
     console.error('Error loading initial state:', e);
@@ -29,10 +26,10 @@ window.addEventListener('pywebviewready', () => {
   loadInitialState();
 });
 
-// Close season picker when clicking outside it
+// Close roster picker when clicking outside it
 document.addEventListener('click', e => {
-  if (!document.getElementById('season-picker')?.contains(e.target)) {
-    closeSeasonDropdown();
+  if (!document.getElementById('roster-picker')?.contains(e.target)) {
+    closeRosterDropdown();
   }
 });
 
@@ -41,18 +38,18 @@ document.addEventListener('mousemove', e => {
   if (document.getElementById('perf-tooltip').style.display !== 'none') positionTooltip(e);
 });
 
-// Season modal: Escape to close, Enter to submit
+// Roster modal: Escape to close, Enter to submit
 document.addEventListener('keydown', e => {
-  const modal = document.getElementById('season-modal');
+  const modal = document.getElementById('roster-modal');
   if (modal && modal.style.display === 'flex') {
-    if (e.key === 'Escape') closeSeasonModal();
-    if (e.key === 'Enter' && document.getElementById('modal-season-name').value.trim()) {
-      submitNewSeason();
+    if (e.key === 'Escape') closeRosterModal();
+    if (e.key === 'Enter' && document.getElementById('modal-roster-name').value.trim()) {
+      submitNewRoster();
     }
   }
 });
 
 // Close modal when clicking the dark overlay
-document.getElementById('season-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('season-modal')) closeSeasonModal();
+document.getElementById('roster-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('roster-modal')) closeRosterModal();
 });

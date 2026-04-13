@@ -9,8 +9,10 @@
 <script src="js/theme.js"   defer></script>
 <script src="js/log.js"     defer></script>
 <script src="js/state.js"   defer></script>
-<script src="js/seasons.js" defer></script>
+<script src="js/utils.js"   defer></script>
+<script src="js/rosters.js" defer></script>
 <script src="js/athletes.js" defer></script>
+<script src="js/settings.js" defer></script>
 <script src="js/scanners.js" defer></script>
 <script src="js/workout.js"  defer></script>
 <script src="js/reports.js"  defer></script>
@@ -36,6 +38,11 @@
         <div class="tile-label">Workout</div>
         <div class="tile-sub">Configure, connect scanners<br>and run a session</div>
       </div>
+      <div class="home-tile settings-tile" onclick="goTo('settings-screen')">
+        <div class="tile-icon">⚙️</div>
+        <div class="tile-label">Settings</div>
+        <div class="tile-sub">Manage rosters, athletes<br>and system configuration</div>
+      </div>
       <div class="home-tile reports-tile" onclick="goTo('reports-screen')">
         <div class="tile-icon">📊</div>
         <div class="tile-label">Reports</div>
@@ -54,134 +61,56 @@
   <div class="topbar">
     <button class="back-btn" onclick="goTo('home-screen')">← Home</button>
     <div class="screen-title">Interval<span>Track</span></div>
-    <div id="status-bar">
-      <span class="pill idle" id="pill-athletes">Athletes</span>
-      <span class="pill idle" id="pill-workout">Workout</span>
-      <span class="pill idle" id="pill-rfid">RFID</span>
-      <span class="pill idle" id="pill-nfc">NFC</span>
-    </div>
-  </div>
-
-  <!-- Tab bar -->
-  <div id="tab-bar">
-    <button class="tab active partial" id="tab-setup"    onclick="switchTab('setup')">
-      <span class="tab-dot"></span>Setup
-    </button>
-    <button class="tab" id="tab-scanners" onclick="switchTab('scanners')">
-      <span class="tab-dot"></span>Scanners
-    </button>
-    <button class="tab" id="tab-workout"  onclick="switchTab('workout')">
-      <span class="tab-dot"></span>Workout
-    </button>
   </div>
 
   <div id="workout-body">
+    <div class="scroll-area">
+      <div class="workout-grid">
 
-    <!-- ── SETUP TAB ── -->
-    <div class="tab-content active" id="tc-setup">
-      <div class="scroll-area">
-        <div class="setup-grid">
-
-          <!-- Season card — full width -->
-          <div class="card" style="grid-column:1/-1">
-            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Season
-              <button class="btn btn-primary btn-sm" onclick="openSeasonModal()">+ New Season</button>
+        <!-- Configure Workout card — full width -->
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            Configure Workout
+            <button class="btn btn-ghost btn-sm" onclick="openScannersModal()">📡 Scanners</button>
+          </div>
+          <p class="subtitle">Set interval distance, laps, and rest time.</p>
+          <div class="row">
+            <div class="form-group">
+              <label>Distance (m)</label>
+              <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
+                     oninput="digitsOnly(this)"/>
             </div>
-            <div class="season-picker" id="season-picker">
-              <button class="season-picker__trigger" id="season-trigger" onclick="toggleSeasonDropdown(event)">
-                <span class="season-picker__label placeholder" id="season-selected-label">— No season selected —</span>
-                <span class="season-picker__chevron">&#8964;</span>
-              </button>
-              <div class="season-picker__menu" id="season-picker-menu"></div>
+            <div class="form-group">
+              <label>Laps</label>
+              <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
+                     oninput="digitsOnly(this)"/>
+            </div>
+            <div class="form-group">
+              <label>Rest Time (s)</label>
+              <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
+                     oninput="digitsOnly(this)"/>
             </div>
           </div>
-
-          <!-- Athletes card -->
-          <div class="card">
-            <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Athletes
-              <button class="btn btn-ghost btn-sm" id="add-athletes-btn" onclick="pickAndAddAthletes()" disabled>📂 Add from CSV</button>
-            </div>
-            <p class="subtitle" id="athletes-subtitle">Select a season to view and manage its roster.</p>
-            <div id="athletes-ok" style="display:none;margin-top:14px">
-              <div class="card" style="margin-bottom:0;padding:12px 16px">
-                <table>
-                  <thead><tr><th>Name</th><th>Last Name</th><th>RFID Tag</th><th>NFC Tag</th></tr></thead>
-                  <tbody id="athlete-tbody"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Workout config card -->
-          <div class="card">
-            <div class="card-title">Configure Workout</div>
-            <p class="subtitle">Set interval distance, laps, and rest time.</p>
-            <div class="row">
-              <div class="form-group">
-                <label>Distance (m)</label>
-                <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
-                       oninput="digitsOnly(this)"/>
-              </div>
-              <div class="form-group">
-                <label>Laps</label>
-                <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
-                       oninput="digitsOnly(this)"/>
-              </div>
-              <div class="form-group">
-                <label>Rest Time (s)</label>
-                <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
-                       oninput="digitsOnly(this)"/>
-              </div>
-            </div>
-            <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>
-          </div>
-
+          <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>
         </div>
-      </div>
-    </div>
 
-    <!-- ── SCANNERS TAB ── -->
-    <div class="tab-content" id="tc-scanners">
-      <div class="scroll-area">
-        <h2>Scanners</h2>
-        <p class="subtitle">Scanners connect automatically when setup is complete. You can also connect manually.</p>
-
-        <div class="card">
-          <div class="card-title">RFID Reader</div>
-          <div class="connector">
-            <div class="connector-icon">📡</div>
-            <div class="connector-info">
-              <div class="connector-name" id="rfid-name">RFID Scanner</div>
-              <div class="connector-status idle" id="rfid-status-text">Not connected</div>
-              <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none">
-                <label>IP Address</label>
-                <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
-              </div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
+        <!-- Roster card — full width -->
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            Roster
+            <span style="font-size:12px;color:var(--muted);font-weight:normal">Manage rosters in Settings</span>
+          </div>
+          <div class="roster-picker" id="roster-picker">
+            <button class="roster-picker__trigger" id="roster-trigger" onclick="toggleRosterDropdown(event)">
+              <span class="roster-picker__label placeholder" id="roster-selected-label">— No roster selected —</span>
+              <span class="roster-picker__chevron">&#8964;</span>
+            </button>
+            <div class="roster-picker__menu" id="roster-picker-menu"></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">NFC Reader</div>
-          <div class="connector">
-            <div class="connector-icon">🔖</div>
-            <div class="connector-info">
-              <div class="connector-name">ACR122U NFC</div>
-              <div class="connector-status idle" id="nfc-status-text">Not connected</div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="nfc-btn" onclick="connectNfc()">Connect</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── WORKOUT TAB ── -->
-    <div class="tab-content" id="tc-workout">
-      <div class="scroll-area">
-        <div class="card">
+        <!-- Athletes card — full width -->
+        <div class="card" style="grid-column:1/-1">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
             Athletes
             <div style="display:flex;align-items:center;gap:12px">
@@ -204,10 +133,11 @@
             <tbody id="athletes-status-tbody"></tbody>
           </table>
         </div>
+
       </div>
     </div>
 
-    <!-- Log bar (shared across all tabs) -->
+    <!-- Log bar -->
     <div id="log-bar" class="collapsed">
       <div class="log-header" onclick="toggleLog()">
         <span id="log-toggle-arrow" class="log-arrow">▸</span> Activity Log
@@ -243,20 +173,94 @@
 </div>
 
 <!-- ============================================================
-     NEW SEASON MODAL
+     SETTINGS SCREEN
      ============================================================ -->
-<div id="season-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
+<div class="screen" id="settings-screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="goTo('home-screen')">← Home</button>
+    <div class="screen-title">Settings</div>
+  </div>
+  
+  <div class="scroll-area" style="flex:1">
+    <h2>Roster & Athlete Management</h2>
+    <p class="subtitle">Select a roster to manage its athletes and settings.</p>
+
+    <!-- Roster Selection Card -->
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        Roster Selection
+        <button class="btn btn-primary btn-sm" onclick="openRosterModal()">+ New Roster</button>
+      </div>
+      <div class="roster-picker" id="settings-roster-picker">
+        <button class="roster-picker__trigger" id="settings-roster-trigger" onclick="toggleSettingsRosterDropdown(event)">
+          <span class="roster-picker__label placeholder" id="settings-roster-selected-label">— Select a roster —</span>
+          <span class="roster-picker__chevron">&#8964;</span>
+        </button>
+        <div class="roster-picker__menu" id="settings-roster-picker-menu"></div>
+      </div>
+    </div>
+
+    <!-- Athletes Management Card (hidden until roster selected) -->
+    <div class="card" id="athletes-management-card" style="display:none">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          Athletes
+          <span id="athlete-roster-display" style="color:var(--muted);font-weight:normal;margin-left:8px"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="openAddAthleteModal()">+ Add Athlete</button>
+          <button class="btn btn-primary btn-sm" onclick="importAthletesModal()">📂 Import CSV</button>
+        </div>
+      </div>
+      
+          <table id="athletes-settings-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>RFID Tag</th>
+            <th>NFC Tag</th>
+            <th>Active</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="athletes-settings-tbody"></tbody>
+      </table>
+    </div>
+    
+    <!-- Roster Management Card (hidden until roster selected) -->
+    <div class="card" id="roster-management-card" style="display:none">
+      <div class="card-title">Roster Actions</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="archive-roster-btn" onclick="archiveSelectedRoster()" style="display:none">
+          Archive Roster
+        </button>
+        <button class="btn btn-ghost btn-sm" id="restore-roster-btn" onclick="restoreSelectedRoster()" style="display:none">
+          Restore Roster
+        </button>
+        <button class="btn btn-ghost btn-sm" id="activate-roster-btn" onclick="activateSelectedRoster()" style="display:none">
+          Set as Active
+        </button>
+        <span id="roster-status-display" style="color:var(--muted);font-size:14px"></span>
+      </div>
+    </div>
+  </div>
+</div><!-- /settings-screen -->
+
+<!-- ============================================================
+     NEW ROSTER MODAL
+     ============================================================ -->
+<div id="roster-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
   <div class="card" style="width:440px;max-width:92vw;margin:0;padding:32px">
-    <div class="card-title">Create New Season</div>
+    <div class="card-title">Create New Roster</div>
 
     <div class="form-group">
-      <label>Season Name</label>
-      <input type="text" id="modal-season-name" placeholder="e.g., Spring 2026"
+      <label>Roster Name</label>
+      <input type="text" id="modal-roster-name" placeholder="e.g., Spring 2026"
              oninput="updateModalCreateBtn()"/>
     </div>
 
     <div class="form-group" style="margin-bottom:0">
-      <label>Import Roster from CSV
+      <label>Import Athletes from CSV
         <span style="color:var(--muted);font-size:12px;letter-spacing:0;text-transform:none">(optional — can add later)</span>
       </label>
       <div class="file-picker" id="modal-file-picker">
@@ -270,8 +274,47 @@
          style="display:none;margin-top:14px;padding:10px 14px;border-radius:var(--radius);background:rgba(255,51,51,0.1);border:1px solid rgba(255,51,51,0.4);color:var(--danger);font-size:14px"></div>
 
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn btn-ghost"   style="flex:1" onclick="closeSeasonModal()">Cancel</button>
-      <button class="btn btn-primary" style="flex:2" id="modal-create-btn" onclick="submitNewSeason()" disabled>Create Season</button>
+      <button class="btn btn-ghost"   style="flex:1" onclick="closeRosterModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="modal-create-btn" onclick="submitNewRoster()" disabled>Create Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCANNERS MODAL
+     ============================================================ -->
+<div id="scanners-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
+  <div class="card" style="width:480px;max-width:92vw;margin:0;padding:32px">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+      Scanners
+      <button class="btn btn-ghost btn-sm" onclick="closeScannersModal()">✕</button>
+    </div>
+    <p class="subtitle" style="margin-bottom:20px">Scanners connect automatically when setup is complete. You can also connect manually.</p>
+
+    <div class="connector">
+      <div class="connector-icon">📡</div>
+      <div class="connector-info">
+        <div class="connector-name" id="rfid-name">RFID Scanner</div>
+        <div class="connector-status idle" id="rfid-status-text">Not connected</div>
+        <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none">
+          <label>IP Address</label>
+          <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
+    </div>
+
+    <div class="connector" style="margin-top:20px">
+      <div class="connector-icon">🔖</div>
+      <div class="connector-info">
+        <div class="connector-name">ACR122U NFC</div>
+        <div class="connector-status idle" id="nfc-status-text">Not connected</div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="nfc-btn" onclick="connectNfc()">Connect</button>
+    </div>
+
+    <div style="margin-top:24px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeScannersModal()">Close</button>
     </div>
   </div>
 </div>

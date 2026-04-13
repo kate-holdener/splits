@@ -10,29 +10,16 @@ function digitsOnly(el) {
 // SCREEN NAVIGATION
 // ============================================================
 
-function goTo(screenId) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(screenId).classList.add('active');
-}
-
-// ============================================================
-// TAB SWITCHING
-// ============================================================
-
 let _workoutRefreshTimer = null;
 
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  document.getElementById('tc-' + name).classList.add('active');
-
+function goTo(screenId) {
   if (_workoutRefreshTimer) {
     clearInterval(_workoutRefreshTimer);
     _workoutRefreshTimer = null;
   }
-
-  if (name === 'workout') {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  if (screenId === 'workout-screen') {
     loadWorkoutAthletes();
     _workoutRefreshTimer = setInterval(loadWorkoutAthletes, 1000);
   }
@@ -46,49 +33,19 @@ let _autoConnectAttempted = false;
 
 function applyState(s) {
   if (!s) return;
-  setPill('pill-athletes', s.athletesLoaded, s.athleteCount + ' Athletes');
-  setPill('pill-workout',  s.workoutConfigured, 'Workout Set');
-  setPill('pill-rfid',     s.rfidConnected, 'RFID', s.rfidFailed);
-  setPill('pill-nfc',      s.nfcConnected,  'NFC',  s.nfcFailed);
-
-  updateSeasonUI(s.currentSeason || null);
-
-  const setupOk     = s.athletesLoaded && s.workoutConfigured;
-  const scannersOk  = s.rfidConnected && s.nfcConnected;
-  const scannersFail = s.rfidFailed || s.nfcFailed;
-
-  setTabState('tab-setup',
-    setupOk ? 'ready' : (s.athletesLoaded || s.workoutConfigured ? 'partial' : ''));
-  setTabState('tab-scanners',
-    scannersOk ? 'ready' : (scannersFail ? 'error' : ''));
-  setTabState('tab-workout',
-    (setupOk && scannersOk) ? 'ready' : '');
-
-  const gc = document.getElementById('group-count');
-  if (gc) gc.textContent = s.groupCount || 0;
+  updateRosterUI(s.currentRoster || null);
 
   updateRfidConnector(s);
   updateConnector('nfc-status-text', s.nfcConnected, s.nfcFailed);
 
+  const setupOk = s.athletesLoaded && s.workoutConfigured;
   if (setupOk && !_autoConnectAttempted) {
     _autoConnectAttempted = true;
     autoConnectScanners();
   }
 }
 
-function setPill(id, ok, label, failed = false) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = ok ? label : (failed ? 'FAILED' : label.split(' ')[0]);
-  el.className = 'pill ' + (ok ? 'ok' : (failed ? 'fail' : 'idle'));
-}
 
-function setTabState(id, state) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove('ready', 'partial', 'error');
-  if (state) el.classList.add(state);
-}
 
 function updateConnector(id, ok, failed) {
   const el = document.getElementById(id);

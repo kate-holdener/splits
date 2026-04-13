@@ -23,6 +23,8 @@ class Runner:
         self.last_seen_timestamp = 0
         self.observers = []
         self.current_workout = None
+        self.archived = False
+        self.archived_at = None
 
     def add_workout(self, workout: Workout):
         """

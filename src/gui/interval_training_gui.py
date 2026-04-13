@@ -35,23 +35,49 @@ class PyWebViewAPI:
         return self.track_api.load_athletes(csv_path)
 
     # ------------------------------------------------------------------
-    # Season management
+    # Roster management
     # ------------------------------------------------------------------
-    def get_current_season(self):
-        return self.track_api.get_current_season()
+    def get_current_roster(self):
+        return self.track_api.get_current_roster()
 
-    def list_seasons(self):
-        return self.track_api.list_seasons()
+    def list_rosters(self):
+        return self.track_api.list_rosters()
 
-    def create_season(self, name: str):
-        return self.track_api.create_season(name)
+    def list_all_rosters_with_archived(self):
+        return self.track_api.list_all_rosters_with_archived()
 
-    def select_season(self, season_id: str):
-        return self.track_api.select_season(season_id)
+    def create_roster(self, name: str):
+        return self.track_api.create_roster(name)
+
+    def select_roster(self, roster_id: str):
+        return self.track_api.select_roster(roster_id)
 
     def add_athletes_from_csv(self, csv_path: str):
         return self.track_api.add_athletes_from_csv(csv_path)
 
+    def add_athletes_to_roster_from_csv(self, roster_id: str, csv_path: str):
+        return self.track_api.add_athletes_to_roster_from_csv(roster_id, csv_path)
+
+    # ------------------------------------------------------------------
+    # Archive methods
+    # ------------------------------------------------------------------
+    def archive_roster(self, roster_id: str):
+        return self.track_api.archive_roster(roster_id)
+
+    def restore_roster(self, roster_id: str):
+        return self.track_api.restore_roster(roster_id)
+
+    def list_all_athletes(self):
+        return self.track_api.list_all_athletes()
+
+    def list_athletes_for_roster_including_archived(self, roster_id: str):
+        return self.track_api.list_athletes_for_roster_including_archived(roster_id)
+
+    def archive_athlete(self, athlete_id: str):
+        return self.track_api.archive_athlete(athlete_id)
+
+    def restore_athlete(self, athlete_id: str):
+        return self.track_api.restore_athlete(athlete_id)
 
     def configure_workout(self, distance: str, laps: str, rest_time: str):
         dist_int = int(distance)
@@ -64,9 +90,6 @@ class PyWebViewAPI:
 
     def connect_rfid_with_address(self, address: str):
         return self.track_api.connect_rfid_with_address(address)
-
-    def connect_rfid_manually(self, address: str, port: int, protocol: str):
-        pass
 
     def generate_reports(self, output_dir: str):
         return self.track_api.generate_reports(output_dir)

@@ -1,9 +1,8 @@
 from queue import Queue
-from typing import Optional, Set
+from typing import Optional
 from datetime import datetime
 
 from interactors.interval_timer import IntervalTimer
-from interactors.stats_calculator import calculate_performance
 from readers.acr122u_nfc import NFCReader
 from controller.start_controller import ManualStartController
 from api.runnerObserver import RunnerObserver
@@ -11,11 +10,11 @@ from entity.runner import Runner
 from entity.workout import Workout
 from parser.runner_parser import parse_runner_data
 from discovery.auto_connect import auto_connect_to_rfid_scanner, connect_rfid_with_scanner_info
-from persistence.season_persistence import (
-    get_active_season, create_season as _create_season,
-    load_season_roster, merge_athletes_from_csv,
-    list_seasons as _list_seasons, set_active_season,
-    list_all_seasons as _list_all_seasons
+from persistence.roster_persistence import (
+    get_active_roster, create_roster as _create_roster,
+    load_roster, merge_athletes_from_csv,
+    list_rosters as _list_rosters, set_active_roster,
+    list_all_rosters as _list_all_rosters
 )
 
 class IntervalTrackApi:
@@ -23,7 +22,7 @@ class IntervalTrackApi:
     def __init__(self):
         self.athletes: list[Runner] = []
         self.workout: Optional[object] = None
-        self.current_season: Optional[dict] = None  # {id, name, created_at}
+        self.current_roster: Optional[dict] = None  # {id, name, created_at}
 
         self.rfid_connected = False
         self.nfc_connected = False
@@ -32,14 +31,13 @@ class IntervalTrackApi:
         self.athletes_loaded = False
         self.workout_configured = False
         self.workout_active = False
-        self.session_loaded = False  # True when an active season with athletes is loaded
+        self.session_loaded = False  # True when an active roster with athletes is loaded
 
         # Protocol information for scanners
         self.rfid_protocol = None      # 'llrp' or 'rest' when connected
         self.rfid_address = None       # IP address when connected
         self.rfid_port = None          # Port number when connected
 
-        self.group_start_athletes: Set = set()
         self.runner_observer = RunnerObserver()
 
         self.start_event_q = Queue()
@@ -52,8 +50,8 @@ class IntervalTrackApi:
 
         self.resting_window = None
 
-        # Load the active season's roster on startup
-        self._load_active_season()
+        # Load the active roster on startup
+        self._load_active_roster()
 
 
 
@@ -70,9 +68,8 @@ class IntervalTrackApi:
             "nfcFailed": self.nfc_scanner_failed,
             "workoutActive": self.workout_active,
             "athleteCount": len(self.athletes),
-            "groupCount": len(self.group_start_athletes),
             "sessionLoaded": self.session_loaded,
-            "currentSeason": self.current_season,
+            "currentRoster": self.current_roster,
             # Protocol information for scanners
             "rfidProtocol": self.rfid_protocol,
             "rfidAddress": self.rfid_address,
@@ -80,101 +77,100 @@ class IntervalTrackApi:
         }
 
     # ------------------------------------------------------------------
-    # Season management
+    # Roster management
     # ------------------------------------------------------------------
-    def get_current_season(self):
-        return {"ok": True, "season": self.current_season}
+    def get_current_roster(self):
+        return {"ok": True, "roster": self.current_roster}
 
-    def list_seasons(self):
+    def list_rosters(self):
         try:
-            seasons = _list_seasons()
-            return {"ok": True, "seasons": seasons}
+            rosters = _list_rosters()
+            return {"ok": True, "rosters": rosters}
         except Exception as e:
-            return {"ok": False, "msg": str(e), "seasons": []}
+            return {"ok": False, "msg": str(e), "rosters": []}
 
-    def list_all_seasons_with_archived(self):
+    def list_all_rosters_with_archived(self):
         try:
-            seasons = _list_all_seasons()
-            return {"ok": True, "seasons": seasons}
+            rosters = _list_all_rosters()
+            return {"ok": True, "rosters": rosters}
         except Exception as e:
-            return {"ok": False, "msg": str(e), "seasons": []}
+            return {"ok": False, "msg": str(e), "rosters": []}
 
-    def select_season(self, season_id: str):
+    def select_roster(self, roster_id: str):
         try:
-            season = set_active_season(season_id)
-            if not season:
-                return {"ok": False, "msg": f"Season '{season_id}' not found."}
-            self.current_season = season
-            athletes = load_season_roster(season_id)
+            roster = set_active_roster(roster_id)
+            if not roster:
+                return {"ok": False, "msg": f"Roster '{roster_id}' not found."}
+            self.current_roster = roster
+            athletes = load_roster(roster_id)
             self._stop_timer()
             self.init_athletes(athletes or [])
             self.session_loaded = bool(athletes)
-            return {"ok": True, "msg": f"Season '{season['name']}' selected.", "season": season, "state": self.get_state()}
+            return {"ok": True, "msg": f"Roster '{roster['name']}' selected.", "roster": roster, "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
-    def create_season(self, name: str):
+    def create_roster(self, name: str):
         if not name or not name.strip():
-            return {"ok": False, "msg": "Season name is required."}
+            return {"ok": False, "msg": "Roster name is required."}
         try:
-            season = _create_season(name.strip())
-            self.current_season = season
+            roster = _create_roster(name.strip())
+            self.current_roster = roster
             self._stop_timer()
             self.athletes = []
             self.athletes_loaded = False
             self.session_loaded = False
-            seasons = _list_seasons()
-            return {"ok": True, "msg": f"Season '{season['name']}' created.", "season": season, "seasons": seasons, "state": self.get_state()}
+            rosters = _list_rosters()
+            return {"ok": True, "msg": f"Roster '{roster['name']}' created.", "roster": roster, "rosters": rosters, "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
     def add_athletes_from_csv(self, csv_path: str):
         if not csv_path.strip():
             return {"ok": False, "msg": "CSV file path is required."}
-        if not self.current_season:
-            return {"ok": False, "msg": "No active season. Create a season first."}
+        if not self.current_roster:
+            return {"ok": False, "msg": "No active roster. Create a roster first."}
         try:
             new_runners = parse_runner_data(csv_path.strip())
             counts = merge_athletes_from_csv(
-                self.current_season["id"],
-                self.current_season["name"],
+                self.current_roster["id"],
+                self.current_roster["name"],
                 new_runners
             )
-            merged = load_season_roster(self.current_season["id"])
+            merged = load_roster(self.current_roster["id"])
             self._stop_timer()
             self.init_athletes(merged or [])
-            seasons = _list_seasons()
+            rosters = _list_rosters()
             msg = f"Added {counts['added']}, updated {counts['updated']} athletes ({counts['total']} total)."
-            return {"ok": True, "msg": msg, "counts": counts, "seasons": seasons, "state": self.get_state()}
+            return {"ok": True, "msg": msg, "counts": counts, "rosters": rosters, "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
-    def add_athletes_to_season_from_csv(self, season_id: str, csv_path: str):
-        if not season_id or not season_id.strip():
-            return {"ok": False, "msg": "Season ID is required."}
+    def add_athletes_to_roster_from_csv(self, roster_id: str, csv_path: str):
+        if not roster_id or not roster_id.strip():
+            return {"ok": False, "msg": "Roster ID is required."}
         if not csv_path.strip():
             return {"ok": False, "msg": "CSV file path is required."}
         try:
-            # Get season info
-            seasons = _list_all_seasons()
-            season = next((s for s in seasons if s["id"] == season_id), None)
-            if not season:
-                return {"ok": False, "msg": f"Season '{season_id}' not found."}
-            
+            rosters = _list_all_rosters()
+            roster = next((r for r in rosters if r["id"] == roster_id), None)
+            if not roster:
+                return {"ok": False, "msg": f"Roster '{roster_id}' not found."}
+
             new_runners = parse_runner_data(csv_path.strip())
             counts = merge_athletes_from_csv(
-                season_id,
-                season["name"],
+                roster_id,
+                roster["name"],
                 new_runners
             )
-            
-            # If this is the current season, refresh the athletes
-            if self.current_season and self.current_season["id"] == season_id:
-                merged = load_season_roster(season_id)
+
+            # If this is the current roster, refresh the athletes
+            if self.current_roster and self.current_roster["id"] == roster_id:
+                merged = load_roster(roster_id)
                 self._stop_timer()
                 self.init_athletes(merged or [])
-                
-            msg = f"Added {counts['added']}, updated {counts['updated']} athletes to {season['name']} ({counts['total']} total)."
+
+            msg = f"Added {counts['added']}, updated {counts['updated']} athletes to {roster['name']} ({counts['total']} total)."
             return {"ok": True, "msg": msg, "counts": counts}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
@@ -182,94 +178,95 @@ class IntervalTrackApi:
     # ------------------------------------------------------------------
     # Archive functionality
     # ------------------------------------------------------------------
-    def archive_season(self, season_id: str):
+    def archive_roster(self, roster_id: str):
         try:
-            from persistence.season_persistence import archive_season as _archive_season
-            success = _archive_season(season_id)
+            from persistence.roster_persistence import archive_roster as _archive_roster
+            success = _archive_roster(roster_id)
             if success:
-                # Refresh season list and current season
-                seasons = _list_seasons()
-                if self.current_season and self.current_season["id"] == season_id:
-                    self.current_season = None
+                rosters = _list_rosters()
+                if self.current_roster and self.current_roster["id"] == roster_id:
+                    self.current_roster = None
                     self._stop_timer()
                     self.athletes = []
                     self.athletes_loaded = False
                     self.session_loaded = False
-                return {"ok": True, "msg": "Season archived successfully.", "seasons": seasons, "state": self.get_state()}
+                return {"ok": True, "msg": "Roster archived successfully.", "rosters": rosters, "state": self.get_state()}
             else:
-                return {"ok": False, "msg": "Failed to archive season."}
+                return {"ok": False, "msg": "Failed to archive roster."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
-    def restore_season(self, season_id: str):
+    def restore_roster(self, roster_id: str):
         try:
-            from persistence.season_persistence import restore_season as _restore_season
-            success = _restore_season(season_id)
+            from persistence.roster_persistence import restore_roster as _restore_roster
+            success = _restore_roster(roster_id)
             if success:
-                seasons = _list_seasons()
-                return {"ok": True, "msg": "Season restored successfully.", "seasons": seasons}
+                rosters = _list_rosters()
+                return {"ok": True, "msg": "Roster restored successfully.", "rosters": rosters}
             else:
-                return {"ok": False, "msg": "Failed to restore season."}
+                return {"ok": False, "msg": "Failed to restore roster."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
     def list_all_athletes(self):
         try:
-            from persistence.season_persistence import list_all_athletes as _list_all_athletes
+            from persistence.roster_persistence import list_all_athletes as _list_all_athletes
             athletes = _list_all_athletes()
             return {"ok": True, "athletes": athletes}
         except Exception as e:
             return {"ok": False, "msg": str(e), "athletes": []}
 
-    def list_athletes_for_season_including_archived(self, season_id: str):
+    def list_athletes_for_roster_including_archived(self, roster_id: str):
         try:
-            from persistence.season_persistence import load_season_roster
-            athletes = load_season_roster(season_id, include_archived=True)
-            # Convert Runner objects to dictionaries for JSON serialization
-            athletes_data = [a.to_dict() for a in (athletes or [])]
+            from persistence.roster_persistence import load_roster
+            from serializer.json_serializer import runner_to_json
+            athletes = load_roster(roster_id, include_archived=True)
+            athletes_data = [runner_to_json(a) for a in (athletes or [])]
             return {"ok": True, "athletes": athletes_data}
         except Exception as e:
             return {"ok": False, "msg": str(e), "athletes": []}
 
     def archive_athlete(self, athlete_id: str):
         try:
-            from persistence.season_persistence import find_athlete_by_id, archive_athlete as _archive_athlete
+            from persistence.roster_persistence import find_athlete_by_id, archive_athlete as _archive_athlete
             result = find_athlete_by_id(athlete_id)
             if not result:
                 return {"ok": False, "msg": "Athlete not found."}
-            
-            season_id, athlete = result
-            success = _archive_athlete(season_id, athlete_id)
+
+            roster_id, athlete = result
+            success = _archive_athlete(roster_id, athlete_id)
             if success:
-                # Refresh current athletes if this season is active
-                if self.current_season and self.current_season["id"] == season_id:
-                    athletes = load_season_roster(season_id)
-                    self._stop_timer()
-                    self.init_athletes(athletes or [])
-                return {"ok": True, "msg": "Athlete archived successfully.", "state": self.get_state()}
+                # Remove from the live athletes list without restarting the timer
+                if self.current_roster and self.current_roster["id"] == roster_id:
+                    self.athletes[:] = [a for a in self.athletes if a.lap_id != athlete_id]
+                return {"ok": True, "msg": "Athlete deactivated.", "state": self.get_state()}
             else:
-                return {"ok": False, "msg": "Failed to archive athlete."}
+                return {"ok": False, "msg": "Failed to deactivate athlete."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
     def restore_athlete(self, athlete_id: str):
         try:
-            from persistence.season_persistence import find_athlete_by_id, restore_athlete as _restore_athlete
+            from persistence.roster_persistence import find_athlete_by_id, restore_athlete as _restore_athlete
             result = find_athlete_by_id(athlete_id)
             if not result:
                 return {"ok": False, "msg": "Athlete not found."}
-            
-            season_id, athlete = result
-            success = _restore_athlete(season_id, athlete_id)
+
+            roster_id, athlete = result
+            success = _restore_athlete(roster_id, athlete_id)
             if success:
-                # Refresh current athletes if this season is active
-                if self.current_season and self.current_season["id"] == season_id:
-                    athletes = load_season_roster(season_id)
-                    self._stop_timer()
-                    self.init_athletes(athletes or [])
-                return {"ok": True, "msg": "Athlete restored successfully.", "state": self.get_state()}
+                # Add the athlete back to the live list without restarting the timer
+                if self.current_roster and self.current_roster["id"] == roster_id:
+                    already_present = any(a.lap_id == athlete_id for a in self.athletes)
+                    if not already_present:
+                        athlete.archived = False
+                        athlete.add_observer(self.runner_observer)
+                        if self.workout:
+                            athlete.add_workout(self.workout)
+                        self.athletes.append(athlete)
+                return {"ok": True, "msg": "Athlete activated.", "state": self.get_state()}
             else:
-                return {"ok": False, "msg": "Failed to restore athlete."}
+                return {"ok": False, "msg": "Failed to activate athlete."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
@@ -318,7 +315,6 @@ class IntervalTrackApi:
     # Option 3 – Connect RFID
     # ------------------------------------------------------------------
     def connect_rfid(self):
-        print("connecting rfid")
         """Connect to RFID scanner with auto-discovery."""
         if not (self.athletes_loaded and self.workout_configured):
             return {"ok": False, "msg": "Complete steps 1 and 2 first.", "state": self.get_state()}
@@ -360,20 +356,16 @@ class IntervalTrackApi:
     # Option 4 – Connect NFC
     # ------------------------------------------------------------------
     def connect_nfc(self):
-        print("Connecting nfc")
         if not (self.athletes_loaded and self.workout_configured):
-            print("Not ready")
             return {"ok": False, "msg": "Complete steps 1 and 2 first."}
         try:
             self.nfc_scanner = NFCReader()
             self.nfc_scanner.start(self.start_event_q)
             self.nfc_connected = True
             self.nfc_scanner_failed = False
-            print("Connected to NFC")
             return {"ok": True, "msg": "NFC scanner connected.", "state": self.get_state()}
         except Exception as e:
             self.nfc_scanner_failed = True
-            print("Failed to connect")
             return {"ok": False, "msg": f"NFC failed: {e}", "state": self.get_state()}
 
     # ------------------------------------------------------------------
@@ -394,6 +386,8 @@ class IntervalTrackApi:
         now_ms = datetime.now().timestamp() * 1000
         result = []
         for a in self.athletes:
+            if getattr(a, 'archived', False):
+                continue
             d = a.to_dict()
 
             # Performance: completed interval durations and inter-interval rests (all in ms)
@@ -451,54 +445,6 @@ class IntervalTrackApi:
                 "state": self.get_state()}
 
     # ------------------------------------------------------------------
-    # Option 6 – Add athlete to group start
-    # TODO: THIS IS NOT USED
-    # ------------------------------------------------------------------
-    def add_to_group(self, tag_id: str):
-        if not self._full_setup_ok():
-            return {"ok": False, "msg": "Setup not complete."}
-        for athlete in self.athletes:
-            if athlete.start_id == tag_id:
-                self.group_start_athletes.add(athlete)
-                return {"ok": True, "msg": f"Athlete {tag_id} added to group.",
-                        "state": self.get_state()}
-        return {"ok": False, "msg": f"No athlete found with tag ID '{tag_id}'."}
-
-    # ------------------------------------------------------------------
-    # Option 7 – Start group
-    # TODO: THIS IS NOT USED
-    # ------------------------------------------------------------------
-    def start_group(self):
-        if not self._full_setup_ok():
-            return {"ok": False, "msg": "Setup not complete."}
-        if not self.group_start_athletes:
-            return {"ok": False, "msg": "No athletes in the group start."}
-        ids = [r.start_id for r in self.group_start_athletes]
-        self.manual_start_controller.start(ids)
-        self.group_start_athletes.clear()
-        self.workout_active = True
-        return {"ok": True, "msg": f"Started {len(ids)} athletes: {', '.join(ids)}",
-                "state": self.get_state()}
-
-    # ------------------------------------------------------------------
-    # Option 8 – Running athletes
-    # TODO: THIS IS NOT USED
-    # ------------------------------------------------------------------
-    def list_running(self):
-        if not self._full_setup_ok():
-            return {"ok": False, "msg": "Setup not complete."}
-        return {"ok": True, "athletes": [r.to_dict() for r in self.runner_observer.running]}
-
-    # ------------------------------------------------------------------
-    # Option 9 – Resting athletes (main window, requires full setup)
-    # TODO: THIS IS NOT USED
-    # ------------------------------------------------------------------
-    def list_resting(self):
-        if not self._full_setup_ok():
-            return {"ok": False, "msg": "Setup not complete."}
-        return self.get_resting()
-
-    # ------------------------------------------------------------------
     # Resting athletes – ungated, for the second window
     # ------------------------------------------------------------------
     def get_resting(self):
@@ -514,7 +460,6 @@ class IntervalTrackApi:
 
     # ------------------------------------------------------------------
     # Option 10 – Performance
-    # TODO: THIS IS NOT USED
     # ------------------------------------------------------------------
     def generate_reports(self, output_dir: str):
         """Generate PDF reports for all athletes with recorded intervals."""
@@ -544,15 +489,6 @@ class IntervalTrackApi:
             return {"ok": True, "msg": "No athletes with interval data — no reports generated.", "files": []}
         return {"ok": True, "msg": f"Generated {len(generated)} report(s).", "files": generated}
 
-    def view_performance(self):
-        if not self._full_setup_ok():
-            return {"ok": False, "msg": "Setup not complete."}
-        results = []
-        for r in self.athletes:
-            p = calculate_performance(r)
-            results.append({"athlete": r.to_dict(), "performance": str(p) if p else "N/A"})
-        return {"ok": True, "results": results}
-
     # ------------------------------------------------------------------
     # Option 11 – Finish workout
     # ------------------------------------------------------------------
@@ -575,25 +511,23 @@ class IntervalTrackApi:
         )
 
     # ------------------------------------------------------------------
-    # Session / Season Management
+    # Session / Roster Management
     # ------------------------------------------------------------------
-    def _load_active_season(self):
-        """Load the active season's roster on application startup."""
+    def _load_active_roster(self):
+        """Load the active roster on application startup."""
         try:
-            season = get_active_season()
-            if not season:
-                print("No active season found")
+            roster = get_active_roster()
+            if not roster:
                 return
-            self.current_season = season
-            athletes = load_season_roster(season["id"])
+            self.current_roster = roster
+            athletes = load_roster(roster["id"])
             if athletes:
                 self.init_athletes(athletes)
                 self.session_loaded = True
-                print(f"Season '{season['name']}' loaded: {len(self.athletes)} athletes")
             else:
-                print(f"Season '{season['name']}' loaded with empty roster")
+                pass  # roster exists but has no athletes yet
         except Exception as e:
-            print(f"Error loading active season on startup: {e}")
+            print(f"Error loading active roster on startup: {e}")
 
     def _stop_timer(self):
         """Stop the interval timer if it is running."""
@@ -610,13 +544,13 @@ class IntervalTrackApi:
         return {"ok": True, "msg": "Athletes cleared.", "state": self.get_state()}
 
     def get_session_info(self):
-        """Return session/season info for the frontend."""
+        """Return session/roster info for the frontend."""
         return {
             "ok": True,
             "sessionLoaded": self.session_loaded,
             "athleteCount": len(self.athletes),
             "athletesLoaded": self.athletes_loaded,
-            "currentSeason": self.current_season,
+            "currentRoster": self.current_roster,
         }
 
     def shutdown(self):

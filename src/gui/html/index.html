@@ -10,7 +10,7 @@
 <script src="js/log.js"     defer></script>
 <script src="js/state.js"   defer></script>
 <script src="js/utils.js"   defer></script>
-<script src="js/seasons.js" defer></script>
+<script src="js/rosters.js" defer></script>
 <script src="js/athletes.js" defer></script>
 <script src="js/settings.js" defer></script>
 <script src="js/scanners.js" defer></script>
@@ -41,7 +41,7 @@
       <div class="home-tile settings-tile" onclick="goTo('settings-screen')">
         <div class="tile-icon">⚙️</div>
         <div class="tile-label">Settings</div>
-        <div class="tile-sub">Manage seasons, athletes<br>and system configuration</div>
+        <div class="tile-sub">Manage rosters, athletes<br>and system configuration</div>
       </div>
       <div class="home-tile reports-tile" onclick="goTo('reports-screen')">
         <div class="tile-icon">📊</div>
@@ -89,25 +89,25 @@
       <div class="scroll-area">
         <div class="setup-grid">
 
-          <!-- Season card — full width -->
+          <!-- Roster card — full width -->
           <div class="card" style="grid-column:1/-1">
             <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-              Season
-              <span style="font-size:12px;color:var(--muted);font-weight:normal">Manage seasons in Settings</span>
+              Roster
+              <span style="font-size:12px;color:var(--muted);font-weight:normal">Manage rosters in Settings</span>
             </div>
-            <div class="season-picker" id="season-picker">
-              <button class="season-picker__trigger" id="season-trigger" onclick="toggleSeasonDropdown(event)">
-                <span class="season-picker__label placeholder" id="season-selected-label">— No season selected —</span>
-                <span class="season-picker__chevron">&#8964;</span>
+            <div class="roster-picker" id="roster-picker">
+              <button class="roster-picker__trigger" id="roster-trigger" onclick="toggleRosterDropdown(event)">
+                <span class="roster-picker__label placeholder" id="roster-selected-label">— No roster selected —</span>
+                <span class="roster-picker__chevron">&#8964;</span>
               </button>
-              <div class="season-picker__menu" id="season-picker-menu"></div>
+              <div class="roster-picker__menu" id="roster-picker-menu"></div>
             </div>
           </div>
 
           <!-- Athletes card -->
           <div class="card">
             <div class="card-title">Athletes</div>
-            <p class="subtitle" id="athletes-subtitle">Select a season to view and manage its roster.</p>
+            <p class="subtitle" id="athletes-subtitle">Select a roster to view and manage its athletes.</p>
             <div id="athletes-ok" style="display:none;margin-top:14px">
               <div class="card" style="margin-bottom:0;padding:12px 16px">
                 <table>
@@ -256,30 +256,30 @@
   </div>
   
   <div class="scroll-area" style="flex:1">
-    <h2>Season & Athlete Management</h2>
-    <p class="subtitle">Select a season to manage its athletes and settings.</p>
-    
-    <!-- Season Selection Card -->
+    <h2>Roster & Athlete Management</h2>
+    <p class="subtitle">Select a roster to manage its athletes and settings.</p>
+
+    <!-- Roster Selection Card -->
     <div class="card">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-        Season Selection
-        <button class="btn btn-primary btn-sm" onclick="openSeasonModal()">+ New Season</button>
+        Roster Selection
+        <button class="btn btn-primary btn-sm" onclick="openRosterModal()">+ New Roster</button>
       </div>
-      <div class="season-picker" id="settings-season-picker">
-        <button class="season-picker__trigger" id="settings-season-trigger" onclick="toggleSettingsSeasonDropdown(event)">
-          <span class="season-picker__label placeholder" id="settings-season-selected-label">— Select a season —</span>
-          <span class="season-picker__chevron">&#8964;</span>
+      <div class="roster-picker" id="settings-roster-picker">
+        <button class="roster-picker__trigger" id="settings-roster-trigger" onclick="toggleSettingsRosterDropdown(event)">
+          <span class="roster-picker__label placeholder" id="settings-roster-selected-label">— Select a roster —</span>
+          <span class="roster-picker__chevron">&#8964;</span>
         </button>
-        <div class="season-picker__menu" id="settings-season-picker-menu"></div>
+        <div class="roster-picker__menu" id="settings-roster-picker-menu"></div>
       </div>
     </div>
-    
-    <!-- Athletes Management Card (hidden until season selected) -->
+
+    <!-- Athletes Management Card (hidden until roster selected) -->
     <div class="card" id="athletes-management-card" style="display:none">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <div>
           Athletes
-          <span id="athlete-season-display" style="color:var(--muted);font-weight:normal;margin-left:8px"></span>
+          <span id="athlete-roster-display" style="color:var(--muted);font-weight:normal;margin-left:8px"></span>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost btn-sm" onclick="openAddAthleteModal()">+ Add Athlete</button>
@@ -287,19 +287,13 @@
         </div>
       </div>
       
-      <div class="settings-filters" style="margin-bottom:16px">
-        <button class="filter-btn active" onclick="filterAthletes('all')" data-filter="all">All</button>
-        <button class="filter-btn" onclick="filterAthletes('active')" data-filter="active">Active</button>
-        <button class="filter-btn" onclick="filterAthletes('archived')" data-filter="archived">Archived</button>
-      </div>
-      
-      <table id="athletes-settings-table">
+          <table id="athletes-settings-table">
         <thead>
           <tr>
             <th>Name</th>
             <th>RFID Tag</th>
             <th>NFC Tag</th>
-            <th>Status</th>
+            <th>Active</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -307,40 +301,40 @@
       </table>
     </div>
     
-    <!-- Season Management Card (hidden until season selected) -->
-    <div class="card" id="season-management-card" style="display:none">
-      <div class="card-title">Season Actions</div>
+    <!-- Roster Management Card (hidden until roster selected) -->
+    <div class="card" id="roster-management-card" style="display:none">
+      <div class="card-title">Roster Actions</div>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" id="archive-season-btn" onclick="archiveSelectedSeason()" style="display:none">
-          Archive Season
+        <button class="btn btn-ghost btn-sm" id="archive-roster-btn" onclick="archiveSelectedRoster()" style="display:none">
+          Archive Roster
         </button>
-        <button class="btn btn-ghost btn-sm" id="restore-season-btn" onclick="restoreSelectedSeason()" style="display:none">
-          Restore Season
+        <button class="btn btn-ghost btn-sm" id="restore-roster-btn" onclick="restoreSelectedRoster()" style="display:none">
+          Restore Roster
         </button>
-        <button class="btn btn-ghost btn-sm" id="activate-season-btn" onclick="activateSelectedSeason()" style="display:none">
+        <button class="btn btn-ghost btn-sm" id="activate-roster-btn" onclick="activateSelectedRoster()" style="display:none">
           Set as Active
         </button>
-        <span id="season-status-display" style="color:var(--muted);font-size:14px"></span>
+        <span id="roster-status-display" style="color:var(--muted);font-size:14px"></span>
       </div>
     </div>
   </div>
 </div><!-- /settings-screen -->
 
 <!-- ============================================================
-     NEW SEASON MODAL
+     NEW ROSTER MODAL
      ============================================================ -->
-<div id="season-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
+<div id="roster-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
   <div class="card" style="width:440px;max-width:92vw;margin:0;padding:32px">
-    <div class="card-title">Create New Season</div>
+    <div class="card-title">Create New Roster</div>
 
     <div class="form-group">
-      <label>Season Name</label>
-      <input type="text" id="modal-season-name" placeholder="e.g., Spring 2026"
+      <label>Roster Name</label>
+      <input type="text" id="modal-roster-name" placeholder="e.g., Spring 2026"
              oninput="updateModalCreateBtn()"/>
     </div>
 
     <div class="form-group" style="margin-bottom:0">
-      <label>Import Roster from CSV
+      <label>Import Athletes from CSV
         <span style="color:var(--muted);font-size:12px;letter-spacing:0;text-transform:none">(optional — can add later)</span>
       </label>
       <div class="file-picker" id="modal-file-picker">
@@ -354,8 +348,8 @@
          style="display:none;margin-top:14px;padding:10px 14px;border-radius:var(--radius);background:rgba(255,51,51,0.1);border:1px solid rgba(255,51,51,0.4);color:var(--danger);font-size:14px"></div>
 
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn btn-ghost"   style="flex:1" onclick="closeSeasonModal()">Cancel</button>
-      <button class="btn btn-primary" style="flex:2" id="modal-create-btn" onclick="submitNewSeason()" disabled>Create Season</button>
+      <button class="btn btn-ghost"   style="flex:1" onclick="closeRosterModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="modal-create-btn" onclick="submitNewRoster()" disabled>Create Roster</button>
     </div>
   </div>
 </div>

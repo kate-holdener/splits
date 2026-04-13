@@ -1,88 +1,87 @@
 // ============================================================
-// SEASON PICKER — dropdown
+// ROSTER PICKER — dropdown
 // ============================================================
 
-function renderSeasonsList(seasons) {
-  const menu  = document.getElementById('season-picker-menu');
-  const label = document.getElementById('season-selected-label');
+function renderRostersList(rosters) {
+  const menu  = document.getElementById('roster-picker-menu');
+  const label = document.getElementById('roster-selected-label');
   if (!menu || !label) return;
 
-  const activeSeason = (seasons || []).find(s => s.is_active);
+  const activeRoster = (rosters || []).find(s => s.is_active);
 
-  if (activeSeason) {
-    label.textContent = activeSeason.name;
+  if (activeRoster) {
+    label.textContent = activeRoster.name;
     label.classList.remove('placeholder');
   } else {
-    label.textContent = '— No season selected —';
+    label.textContent = '— No roster selected —';
     label.classList.add('placeholder');
   }
 
   menu.replaceChildren();
 
-  // Create wrapper function for season selection
-  const onSeasonSelect = (season) => onSeasonOptionClick(season.id);
-  
-  renderSeasonDropdownOptions(
+  const onRosterSelect = (roster) => onRosterOptionClick(roster.id);
+
+  renderRosterDropdownOptions(
     menu,
-    seasons,
+    rosters,
     null, // No specific selection highlighting for workout screen
-    onSeasonSelect,
+    onRosterSelect,
     {
-      emptyMessage: 'No seasons yet.',
+      emptyMessage: 'No rosters yet.',
       showArchived: false,
       customEmptyStyle: true
     }
   );
 }
 
-function toggleSeasonDropdown(e) {
+function toggleRosterDropdown(e) {
   e.stopPropagation();
-  const trigger = document.getElementById('season-trigger');
-  const menu    = document.getElementById('season-picker-menu');
+  const trigger = document.getElementById('roster-trigger');
+  const menu    = document.getElementById('roster-picker-menu');
   const isOpen  = menu.classList.contains('open');
-  closeSeasonDropdown();
+  closeRosterDropdown();
   if (!isOpen) {
     trigger.classList.add('open');
     menu.classList.add('open');
   }
 }
 
-function closeSeasonDropdown() {
-  document.getElementById('season-trigger')?.classList.remove('open');
-  document.getElementById('season-picker-menu')?.classList.remove('open');
+function closeRosterDropdown() {
+  document.getElementById('roster-trigger')?.classList.remove('open');
+  document.getElementById('roster-picker-menu')?.classList.remove('open');
 }
 
-async function onSeasonOptionClick(seasonId) {
-  closeSeasonDropdown();
-  const r = await pywebview.api.select_season(seasonId);
+async function onRosterOptionClick(rosterId) {
+  closeRosterDropdown();
+  const r = await pywebview.api.select_roster(rosterId);
   log(r.msg, r.ok ? 'ok' : 'err');
   if (!r.ok) return;
   if (r.state) applyState(r.state);
   loadAthleteList();
-  const lr = await pywebview.api.list_seasons();
-  if (lr.seasons) renderSeasonsList(lr.seasons);
+  const lr = await pywebview.api.list_rosters();
+  if (lr.rosters) renderRostersList(lr.rosters);
 }
 
 // ============================================================
-// SEASON UI — athletes card subtitle + Add button state
+// ROSTER UI — athletes card subtitle + Add button state
 // ============================================================
 
-function updateSeasonUI(season) {
+function updateRosterUI(roster) {
   const subtitle = document.getElementById('athletes-subtitle');
-  if (subtitle) subtitle.textContent = season
-    ? `Athletes in ${season.name}.`
-    : 'Select a season to view and manage its roster.';
+  if (subtitle) subtitle.textContent = roster
+    ? `Athletes in ${roster.name}.`
+    : 'Select a roster to view and manage its athletes.';
 }
 
 // ============================================================
-// NEW SEASON MODAL
+// NEW ROSTER MODAL
 // ============================================================
 
 let _modalCsvPath = '';
 
-function openSeasonModal() {
+function openRosterModal() {
   _modalCsvPath = '';
-  document.getElementById('modal-season-name').value = '';
+  document.getElementById('modal-roster-name').value = '';
   const disp = document.getElementById('modal-csv-display');
   disp.textContent = 'No file selected…';
   disp.style.color = 'var(--input-placeholder)';
@@ -90,16 +89,16 @@ function openSeasonModal() {
   const err = document.getElementById('modal-error');
   err.style.display = 'none';
   err.textContent = '';
-  document.getElementById('season-modal').style.display = 'flex';
-  setTimeout(() => document.getElementById('modal-season-name').focus(), 50);
+  document.getElementById('roster-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-roster-name').focus(), 50);
 }
 
-function closeSeasonModal() {
-  document.getElementById('season-modal').style.display = 'none';
+function closeRosterModal() {
+  document.getElementById('roster-modal').style.display = 'none';
 }
 
 function updateModalCreateBtn() {
-  const name = document.getElementById('modal-season-name').value.trim();
+  const name = document.getElementById('modal-roster-name').value.trim();
   document.getElementById('modal-create-btn').disabled = !name;
   const err = document.getElementById('modal-error');
   if (name) { err.style.display = 'none'; err.textContent = ''; }
@@ -115,40 +114,40 @@ async function pickModalCsv() {
   }
 }
 
-async function submitNewSeason() {
-  const name = document.getElementById('modal-season-name').value.trim();
+async function submitNewRoster() {
+  const name = document.getElementById('modal-roster-name').value.trim();
   if (!name) return;
 
   document.getElementById('modal-create-btn').disabled = true;
 
-  const r = await pywebview.api.create_season(name);
+  const r = await pywebview.api.create_roster(name);
   if (!r.ok) {
     const err = document.getElementById('modal-error');
-    err.textContent = r.msg || 'Failed to create season.';
+    err.textContent = r.msg || 'Failed to create roster.';
     err.style.display = 'block';
     document.getElementById('modal-create-btn').disabled = false;
     return;
   }
-  log(`Season "${r.season.name}" created.`, 'ok');
+  log(`Roster "${r.roster.name}" created.`, 'ok');
 
   if (_modalCsvPath) {
     const ar = await pywebview.api.add_athletes_from_csv(_modalCsvPath);
     log(ar.msg, ar.ok ? 'ok' : 'err');
     if (ar.state)   applyState(ar.state);
-    if (ar.seasons) renderSeasonsList(ar.seasons);
+    if (ar.rosters) renderRostersList(ar.rosters);
     if (ar.ok)      loadAthleteList();
   } else {
     if (r.state)   applyState(r.state);
-    if (r.seasons) renderSeasonsList(r.seasons);
-    updateSeasonUI(r.season);
+    if (r.rosters) renderRostersList(r.rosters);
+    updateRosterUI(r.roster);
     document.getElementById('athletes-ok').style.display = 'none';
     document.getElementById('athlete-tbody').innerHTML = '';
   }
 
-  closeSeasonModal();
+  closeRosterModal();
 }
 
-async function loadSeasonsList() {
-  const r = await pywebview.api.list_seasons();
-  if (r.seasons) renderSeasonsList(r.seasons);
+async function loadRostersList() {
+  const r = await pywebview.api.list_rosters();
+  if (r.rosters) renderRostersList(r.rosters);
 }

@@ -51,7 +51,7 @@ function applyState(s) {
   setPill('pill-rfid',     s.rfidConnected, 'RFID', s.rfidFailed);
   setPill('pill-nfc',      s.nfcConnected,  'NFC',  s.nfcFailed);
 
-  updateSeasonUI(s.currentSeason || null);
+  updateRosterUI(s.currentRoster || null);
 
   const setupOk     = s.athletesLoaded && s.workoutConfigured;
   const scannersOk  = s.rfidConnected && s.nfcConnected;
@@ -63,9 +63,6 @@ function applyState(s) {
     scannersOk ? 'ready' : (scannersFail ? 'error' : ''));
   setTabState('tab-workout',
     (setupOk && scannersOk) ? 'ready' : '');
-
-  const gc = document.getElementById('group-count');
-  if (gc) gc.textContent = s.groupCount || 0;
 
   updateRfidConnector(s);
   updateConnector('nfc-status-text', s.nfcConnected, s.nfcFailed);

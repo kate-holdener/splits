@@ -14,6 +14,7 @@
 <script src="js/athletes.js" defer></script>
 <script src="js/settings.js" defer></script>
 <script src="js/scanners.js" defer></script>
+<script src="js/workouts.js" defer></script>
 <script src="js/workout.js"  defer></script>
 <script src="js/reports.js"  defer></script>
 <script src="js/init.js"     defer></script>
@@ -73,7 +74,17 @@
             Configure Workout
             <button class="btn btn-ghost btn-sm" onclick="openScannersModal()">📡 Scanners</button>
           </div>
-          <p class="subtitle">Set interval distance, laps, and rest time.</p>
+          <p class="subtitle">Select a saved workout or define a new one below.</p>
+
+          <!-- Saved workouts picker -->
+          <div class="roster-picker" id="workout-picker" style="margin-bottom:16px">
+            <button class="roster-picker__trigger" id="workout-trigger" onclick="toggleWorkoutDropdown(event)">
+              <span class="roster-picker__label placeholder" id="workout-selected-label">— Select a saved workout —</span>
+              <span class="roster-picker__chevron">&#8964;</span>
+            </button>
+            <div class="roster-picker__menu" id="workout-picker-menu"></div>
+          </div>
+
           <div class="row">
             <div class="form-group">
               <label>Distance (m)</label>
@@ -91,7 +102,7 @@
                      oninput="digitsOnly(this)"/>
             </div>
           </div>
-          <button class="btn btn-primary" onclick="configureWorkout()">Save Workout</button>
+          <button class="btn btn-primary" onclick="saveAndConfigureWorkout()">Save Workout</button>
         </div>
 
         <!-- Roster card — full width -->

@@ -16,6 +16,11 @@ from persistence.roster_persistence import (
     list_rosters as _list_rosters, set_active_roster,
     list_all_rosters as _list_all_rosters
 )
+from persistence.workout_persistence import (
+    list_workouts as _list_workouts,
+    save_workout as _save_workout,
+    get_workout_by_id as _get_workout_by_id,
+)
 
 class IntervalTrackApi:
 
@@ -32,6 +37,7 @@ class IntervalTrackApi:
         self.workout_configured = False
         self.workout_active = False
         self.session_loaded = False  # True when an active roster with athletes is loaded
+        self.current_workout_config: Optional[dict] = None  # {distance, laps, rest}
 
         # Protocol information for scanners
         self.rfid_protocol = None      # 'llrp' or 'rest' when connected
@@ -74,6 +80,7 @@ class IntervalTrackApi:
             "rfidProtocol": self.rfid_protocol,
             "rfidAddress": self.rfid_address,
             "rfidPort": self.rfid_port,
+            "currentWorkoutConfig": self.current_workout_config,
         }
 
     # ------------------------------------------------------------------
@@ -298,6 +305,7 @@ class IntervalTrackApi:
             self.workout = Workout(datetime.now())
             self.workout.configure(distance, laps, rest)
             self.workout_configured = True
+            self.current_workout_config = {"distance": distance, "laps": laps, "rest": rest}
             if self.athletes:
                 for a in self.athletes:
                     a.add_workout(self.workout)
@@ -308,6 +316,33 @@ class IntervalTrackApi:
             }
         except ValueError:
             return {"ok": False, "msg": "Invalid input – please enter numeric values."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # ------------------------------------------------------------------
+    # Workout persistence
+    # ------------------------------------------------------------------
+    def list_workouts(self):
+        """Return all saved workout configurations."""
+        try:
+            return {"ok": True, "workouts": _list_workouts()}
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "workouts": []}
+
+    def save_and_configure_workout(self, distance: int, laps: int, rest: int):
+        """
+        Persist the workout configuration and apply it to the current session.
+
+        If an identical workout (same distance, laps, rest) already exists in the
+        saved list it is returned as-is rather than duplicated.
+        """
+        try:
+            workout_entry = _save_workout(distance, laps, rest)
+            result = self.configure_workout(distance, laps, rest)
+            if result["ok"]:
+                result["workouts"] = _list_workouts()
+                result["workout_config"] = workout_entry
+            return result
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 

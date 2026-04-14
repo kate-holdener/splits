@@ -85,6 +85,15 @@ class PyWebViewAPI:
         rest_int = int(rest_time)
         return self.track_api.configure_workout(dist_int, laps_int, rest_int)
 
+    def list_workouts(self):
+        return self.track_api.list_workouts()
+
+    def save_and_configure_workout(self, distance: str, laps: str, rest_time: str):
+        dist_int = int(distance)
+        laps_int = int(laps)
+        rest_int = int(rest_time)
+        return self.track_api.save_and_configure_workout(dist_int, laps_int, rest_int)
+
     def connect_rfid(self):
         return self.track_api.connect_rfid()
 

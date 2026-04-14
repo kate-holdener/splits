@@ -4,12 +4,33 @@
 
 async function loadInitialState() {
   try {
-    const [state, rostersResult] = await Promise.all([
+    const [state, rostersResult, workoutsResult] = await Promise.all([
       pywebview.api.get_state(),
-      pywebview.api.list_rosters()
+      pywebview.api.list_rosters(),
+      pywebview.api.list_workouts()
     ]);
     applyState(state);
     if (rostersResult.rosters) renderRostersList(rostersResult.rosters);
+    if (workoutsResult.ok) {
+      _savedWorkouts = workoutsResult.workouts || [];
+      const selectedId = state.currentWorkoutConfig
+        ? `${state.currentWorkoutConfig.distance}m_${state.currentWorkoutConfig.laps}laps_${state.currentWorkoutConfig.rest}s`
+        : null;
+      renderWorkoutsList(_savedWorkouts, selectedId);
+
+      if (state.currentWorkoutConfig) {
+        const cfg = state.currentWorkoutConfig;
+        document.getElementById('wk-distance').value = cfg.distance;
+        document.getElementById('wk-laps').value     = cfg.laps;
+        document.getElementById('wk-rest').value     = cfg.rest;
+        const label = document.getElementById('workout-selected-label');
+        const matching = (_savedWorkouts || []).find(w => w.id === selectedId);
+        if (matching) {
+          label.textContent = matching.name;
+          label.classList.remove('placeholder');
+        }
+      }
+    }
 
     if (state.athletesLoaded && state.athleteCount > 0 && state.currentRoster) {
       log(`Roster '${state.currentRoster.name}' loaded with ${state.athleteCount} athletes.`, 'info');
@@ -30,6 +51,9 @@ window.addEventListener('pywebviewready', () => {
 document.addEventListener('click', e => {
   if (!document.getElementById('roster-picker')?.contains(e.target)) {
     closeRosterDropdown();
+  }
+  if (!document.getElementById('workout-picker')?.contains(e.target)) {
+    closeWorkoutDropdown();
   }
 });
 

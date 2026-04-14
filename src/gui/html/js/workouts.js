@@ -78,6 +78,30 @@ function closeWorkoutDropdown() {
   document.getElementById('workout-picker-menu')?.classList.remove('open');
 }
 
+// ============================================================
+// NEW WORKOUT MODAL
+// ============================================================
+
+function openNewWorkoutModal() {
+  const modal = document.getElementById('workout-modal');
+  document.getElementById('wk-distance').value = '';
+  document.getElementById('wk-laps').value     = '';
+  document.getElementById('wk-rest').value     = '';
+  document.getElementById('workout-modal-error').style.display = 'none';
+  document.getElementById('workout-modal-save-btn').disabled   = true;
+  modal.style.display = 'flex';
+}
+
+function closeNewWorkoutModal() {
+  document.getElementById('workout-modal').style.display = 'none';
+}
+
+function updateWorkoutModalSaveBtn() {
+  const distance = document.getElementById('wk-distance').value.trim();
+  const laps     = document.getElementById('wk-laps').value.trim();
+  document.getElementById('workout-modal-save-btn').disabled = !(distance && laps);
+}
+
 /**
  * Called when the user picks a workout from the dropdown.
  * Populates the form fields and configures the workout (without re-saving).
@@ -109,7 +133,7 @@ async function onWorkoutOptionClick(workout) {
 }
 
 /**
- * Called when the coach clicks "Save Workout".
+ * Called when the coach clicks "Save Workout" in the new-workout modal.
  * Saves the entered values to the persistent list and configures the workout.
  */
 async function saveAndConfigureWorkout() {
@@ -117,14 +141,23 @@ async function saveAndConfigureWorkout() {
   const laps     = document.getElementById('wk-laps').value.trim();
   const rest     = document.getElementById('wk-rest').value.trim();
 
+  const errorEl = document.getElementById('workout-modal-error');
   if (!distance || !laps) {
-    log('Distance and laps are required.', 'err');
+    errorEl.textContent = 'Distance and laps are required.';
+    errorEl.style.display = 'block';
     return;
   }
+  errorEl.style.display = 'none';
 
   const r = await pywebview.api.save_and_configure_workout(distance, laps, rest || '0');
   log(r.msg, r.ok ? 'ok' : 'err');
-  if (!r.ok) return;
+  if (!r.ok) {
+    errorEl.textContent = r.msg || 'Failed to save workout.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  closeNewWorkoutModal();
 
   if (r.state) applyState(r.state);
 

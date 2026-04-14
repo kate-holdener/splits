@@ -16,16 +16,10 @@ async function loadInitialState() {
       const selectedId = state.currentWorkoutConfig ? state.currentWorkoutConfig.id : null;
       renderWorkoutsList(_savedWorkouts, selectedId);
 
-      if (state.currentWorkoutConfig) {
-        const cfg = state.currentWorkoutConfig;
-        document.getElementById('wk-distance').value = cfg.distance;
-        document.getElementById('wk-laps').value     = cfg.laps;
-        document.getElementById('wk-rest').value     = cfg.rest;
-        if (cfg.name) {
-          const label = document.getElementById('workout-selected-label');
-          label.textContent = cfg.name;
-          label.classList.remove('placeholder');
-        }
+      if (state.currentWorkoutConfig && state.currentWorkoutConfig.name) {
+        const label = document.getElementById('workout-selected-label');
+        label.textContent = state.currentWorkoutConfig.name;
+        label.classList.remove('placeholder');
       }
     }
 
@@ -61,16 +55,23 @@ document.addEventListener('mousemove', e => {
 
 // Roster modal: Escape to close, Enter to submit
 document.addEventListener('keydown', e => {
-  const modal = document.getElementById('roster-modal');
-  if (modal && modal.style.display === 'flex') {
+  const rosterModal  = document.getElementById('roster-modal');
+  const workoutModal = document.getElementById('workout-modal');
+  if (rosterModal && rosterModal.style.display === 'flex') {
     if (e.key === 'Escape') closeRosterModal();
     if (e.key === 'Enter' && document.getElementById('modal-roster-name').value.trim()) {
       submitNewRoster();
     }
+  }
+  if (workoutModal && workoutModal.style.display === 'flex') {
+    if (e.key === 'Escape') closeNewWorkoutModal();
   }
 });
 
 // Close modal when clicking the dark overlay
 document.getElementById('roster-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('roster-modal')) closeRosterModal();
+});
+document.getElementById('workout-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('workout-modal')) closeNewWorkoutModal();
 });

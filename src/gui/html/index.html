@@ -72,37 +72,21 @@
         <div class="card" style="grid-column:1/-1">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
             Configure Workout
-            <button class="btn btn-ghost btn-sm" onclick="openScannersModal()">📡 Scanners</button>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-primary btn-sm" onclick="openNewWorkoutModal()">+ New Workout</button>
+              <button class="btn btn-ghost btn-sm" onclick="openScannersModal()">📡 Scanners</button>
+            </div>
           </div>
-          <p class="subtitle">Select a saved workout or define a new one below.</p>
+          <p class="subtitle">Select a saved workout or create a new one.</p>
 
           <!-- Saved workouts picker -->
-          <div class="roster-picker" id="workout-picker" style="margin-bottom:16px">
+          <div class="roster-picker" id="workout-picker">
             <button class="roster-picker__trigger" id="workout-trigger" onclick="toggleWorkoutDropdown(event)">
               <span class="roster-picker__label placeholder" id="workout-selected-label">— Select a saved workout —</span>
               <span class="roster-picker__chevron">&#8964;</span>
             </button>
             <div class="roster-picker__menu" id="workout-picker-menu"></div>
           </div>
-
-          <div class="row">
-            <div class="form-group">
-              <label>Distance (m)</label>
-              <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
-                     oninput="digitsOnly(this)"/>
-            </div>
-            <div class="form-group">
-              <label>Laps</label>
-              <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
-                     oninput="digitsOnly(this)"/>
-            </div>
-            <div class="form-group">
-              <label>Rest Time (s)</label>
-              <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
-                     oninput="digitsOnly(this)"/>
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="saveAndConfigureWorkout()">Save Workout</button>
         </div>
 
         <!-- Roster card — full width -->
@@ -326,6 +310,44 @@
 
     <div style="margin-top:24px;text-align:right">
       <button class="btn btn-ghost" onclick="closeScannersModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     NEW WORKOUT MODAL
+     ============================================================ -->
+<div id="workout-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
+  <div class="card" style="width:460px;max-width:92vw;margin:0;padding:32px">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+      New Workout
+      <button class="btn btn-ghost btn-sm" onclick="closeNewWorkoutModal()">✕</button>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <div class="form-group">
+        <label>Distance (m)</label>
+        <input type="number" id="wk-distance" placeholder="400" min="1" step="1"
+               oninput="digitsOnly(this); updateWorkoutModalSaveBtn()"/>
+      </div>
+      <div class="form-group">
+        <label>Laps</label>
+        <input type="number" id="wk-laps" placeholder="4" min="1" step="1"
+               oninput="digitsOnly(this); updateWorkoutModalSaveBtn()"/>
+      </div>
+      <div class="form-group">
+        <label>Rest Time (s)</label>
+        <input type="number" id="wk-rest" placeholder="60" min="0" step="1"
+               oninput="digitsOnly(this)"/>
+      </div>
+    </div>
+
+    <div id="workout-modal-error"
+         style="display:none;margin-top:14px;padding:10px 14px;border-radius:var(--radius);background:rgba(255,51,51,0.1);border:1px solid rgba(255,51,51,0.4);color:var(--danger);font-size:14px"></div>
+
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-ghost"   style="flex:1" onclick="closeNewWorkoutModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="workout-modal-save-btn" onclick="saveAndConfigureWorkout()" disabled>Save Workout</button>
     </div>
   </div>
 </div>

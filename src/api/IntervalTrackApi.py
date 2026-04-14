@@ -340,6 +340,9 @@ class IntervalTrackApi:
             workout_entry = _save_workout(distance, laps, rest)
             result = self.configure_workout(distance, laps, rest)
             if result["ok"]:
+                # Store the full entry (including id) so the frontend can use it directly
+                self.current_workout_config = workout_entry
+                result["state"] = self.get_state()
                 result["workouts"] = _list_workouts()
                 result["workout_config"] = workout_entry
             return result

@@ -13,9 +13,7 @@ async function loadInitialState() {
     if (rostersResult.rosters) renderRostersList(rostersResult.rosters);
     if (workoutsResult.ok) {
       _savedWorkouts = workoutsResult.workouts || [];
-      const selectedId = state.currentWorkoutConfig
-        ? `${state.currentWorkoutConfig.distance}m_${state.currentWorkoutConfig.laps}laps_${state.currentWorkoutConfig.rest}s`
-        : null;
+      const selectedId = state.currentWorkoutConfig ? state.currentWorkoutConfig.id : null;
       renderWorkoutsList(_savedWorkouts, selectedId);
 
       if (state.currentWorkoutConfig) {
@@ -23,10 +21,9 @@ async function loadInitialState() {
         document.getElementById('wk-distance').value = cfg.distance;
         document.getElementById('wk-laps').value     = cfg.laps;
         document.getElementById('wk-rest').value     = cfg.rest;
-        const label = document.getElementById('workout-selected-label');
-        const matching = (_savedWorkouts || []).find(w => w.id === selectedId);
-        if (matching) {
-          label.textContent = matching.name;
+        if (cfg.name) {
+          const label = document.getElementById('workout-selected-label');
+          label.textContent = cfg.name;
           label.classList.remove('placeholder');
         }
       }

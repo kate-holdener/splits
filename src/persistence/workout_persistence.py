@@ -35,7 +35,7 @@ def get_workouts_index_path(data_dir=None) -> str:
 
 def _make_workout_id(distance: int, laps: int, rest: int) -> str:
     """Generate a stable, unique ID from workout parameters."""
-    return f"{distance}m_{laps}laps_{rest}s"
+    return f"{distance}m-rest{rest}s-laps{laps}"
 
 
 def _make_workout_name(distance: int, laps: int, rest: int) -> str:

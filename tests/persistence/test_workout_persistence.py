@@ -33,8 +33,8 @@ class TestWorkoutPersistence:
     # ------------------------------------------------------------------
 
     def test_make_workout_id(self):
-        assert _make_workout_id(400, 4, 60) == "400m_4laps_60s"
-        assert _make_workout_id(200, 1, 0) == "200m_1laps_0s"
+        assert _make_workout_id(400, 4, 60) == "400m-rest60s-laps4"
+        assert _make_workout_id(200, 1, 0) == "200m-rest0s-laps1"
 
     def test_make_workout_name(self):
         name = _make_workout_name(400, 4, 60)

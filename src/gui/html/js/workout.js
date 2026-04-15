@@ -221,6 +221,10 @@ async function finishWorkout() {
   const r = await pywebview.api.finish_workout();
   log(r.msg, r.ok ? 'ok' : 'err');
   if (r.state) applyState(r.state);
+  if (r.ok) {
+    _sessionActive = false;
+    goTo('home-screen');
+  }
 }
 
 async function showRestingRunners() {

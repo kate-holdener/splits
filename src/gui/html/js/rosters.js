@@ -2,64 +2,10 @@
 // ROSTER PICKER — dropdown
 // ============================================================
 
+let _savedRosters = [];
+
 function renderRostersList(rosters) {
-  const menu  = document.getElementById('roster-picker-menu');
-  const label = document.getElementById('roster-selected-label');
-  if (!menu || !label) return;
-
-  const activeRoster = (rosters || []).find(s => s.is_active);
-
-  if (activeRoster) {
-    label.textContent = activeRoster.name;
-    label.classList.remove('placeholder');
-  } else {
-    label.textContent = '— No roster selected —';
-    label.classList.add('placeholder');
-  }
-
-  menu.replaceChildren();
-
-  const onRosterSelect = (roster) => onRosterOptionClick(roster.id);
-
-  renderRosterDropdownOptions(
-    menu,
-    rosters,
-    null, // No specific selection highlighting for workout screen
-    onRosterSelect,
-    {
-      emptyMessage: 'No rosters yet.',
-      showArchived: false,
-      customEmptyStyle: true
-    }
-  );
-}
-
-function toggleRosterDropdown(e) {
-  e.stopPropagation();
-  const trigger = document.getElementById('roster-trigger');
-  const menu    = document.getElementById('roster-picker-menu');
-  const isOpen  = menu.classList.contains('open');
-  closeRosterDropdown();
-  if (!isOpen) {
-    trigger.classList.add('open');
-    menu.classList.add('open');
-  }
-}
-
-function closeRosterDropdown() {
-  document.getElementById('roster-trigger')?.classList.remove('open');
-  document.getElementById('roster-picker-menu')?.classList.remove('open');
-}
-
-async function onRosterOptionClick(rosterId) {
-  closeRosterDropdown();
-  const r = await pywebview.api.select_roster(rosterId);
-  log(r.msg, r.ok ? 'ok' : 'err');
-  if (!r.ok) return;
-  if (r.state) applyState(r.state);
-  loadWorkoutAthletes();
-  const lr = await pywebview.api.list_rosters();
-  if (lr.rosters) renderRostersList(lr.rosters);
+  _savedRosters = rosters || [];
 }
 
 // ============================================================

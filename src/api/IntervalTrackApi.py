@@ -627,8 +627,6 @@ class IntervalTrackApi:
     # Option 11 – Finish workout
     # ------------------------------------------------------------------
     def finish_workout(self):
-        if not self._full_setup_ok():
-            return {"ok": False, "msg": "Setup not complete."}
         self.runner_observer.running.clear()
         self.runner_observer.resting.clear()
         self.workout_active = False

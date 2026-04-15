@@ -12,12 +12,21 @@ function digitsOnly(el) {
 
 let _workoutRefreshTimer = null;
 let _workoutScreenVisited = false;
+let _sessionActive = false;
 
 function goTo(screenId) {
   if (_workoutRefreshTimer) {
     clearInterval(_workoutRefreshTimer);
     _workoutRefreshTimer = null;
   }
+  if (screenId === 'workout-screen' && !_sessionActive) {
+    openSessionSetup();
+    return;
+  }
+  _activateScreen(screenId);
+}
+
+function _activateScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
   if (screenId === 'workout-screen') {
@@ -30,6 +39,7 @@ function goTo(screenId) {
     _workoutRefreshTimer = setInterval(loadWorkoutAthletes, 1000);
   }
 }
+
 
 // ============================================================
 // STATE — pills, tab dots, connector labels

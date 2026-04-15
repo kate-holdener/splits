@@ -69,41 +69,6 @@
     <div class="scroll-area">
       <div class="workout-grid">
 
-        <!-- Configure Workout card — full width -->
-        <div class="card" style="grid-column:1/-1">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-            Configure Workout
-            <div style="display:flex;gap:8px;align-items:center">
-              <button class="btn btn-primary btn-sm" onclick="openNewWorkoutModal()">+ New Workout</button>
-            </div>
-          </div>
-          <p class="subtitle">Select a saved workout or create a new one.</p>
-
-          <!-- Saved workouts picker -->
-          <div class="roster-picker" id="workout-picker">
-            <button class="roster-picker__trigger" id="workout-trigger" onclick="toggleWorkoutDropdown(event)">
-              <span class="roster-picker__label placeholder" id="workout-selected-label">— Select a saved workout —</span>
-              <span class="roster-picker__chevron">&#8964;</span>
-            </button>
-            <div class="roster-picker__menu" id="workout-picker-menu"></div>
-          </div>
-        </div>
-
-        <!-- Roster card — full width -->
-        <div class="card" style="grid-column:1/-1">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-            Roster
-            <span style="font-size:12px;color:var(--muted);font-weight:normal">Manage rosters in Settings</span>
-          </div>
-          <div class="roster-picker" id="roster-picker">
-            <button class="roster-picker__trigger" id="roster-trigger" onclick="toggleRosterDropdown(event)">
-              <span class="roster-picker__label placeholder" id="roster-selected-label">— No roster selected —</span>
-              <span class="roster-picker__chevron">&#8964;</span>
-            </button>
-            <div class="roster-picker__menu" id="roster-picker-menu"></div>
-          </div>
-        </div>
-
         <!-- Athletes card — full width -->
         <div class="card" style="grid-column:1/-1">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -328,6 +293,43 @@
 
     <div style="margin-top:24px;text-align:right">
       <button class="btn btn-ghost" onclick="closeScannersModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SESSION SETUP MODAL
+     ============================================================ -->
+<div id="session-setup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
+  <div class="card" style="width:500px;max-width:92vw;margin:0;padding:32px">
+    <div class="card-title">Set Up Session</div>
+    <p class="subtitle">Choose a workout and roster to begin.</p>
+
+    <div class="form-group">
+      <label>Workout</label>
+      <div class="roster-picker" id="setup-workout-picker">
+        <button class="roster-picker__trigger" id="setup-workout-trigger" onclick="toggleSetupWorkoutDropdown(event)">
+          <span class="roster-picker__label placeholder" id="setup-workout-label">— Select a workout —</span>
+          <span class="roster-picker__chevron">&#8964;</span>
+        </button>
+        <div class="roster-picker__menu" id="setup-workout-menu"></div>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:0">
+      <label>Roster</label>
+      <div class="roster-picker" id="setup-roster-picker">
+        <button class="roster-picker__trigger" id="setup-roster-trigger" onclick="toggleSetupRosterDropdown(event)">
+          <span class="roster-picker__label placeholder" id="setup-roster-label">— Select a roster —</span>
+          <span class="roster-picker__chevron">&#8964;</span>
+        </button>
+        <div class="roster-picker__menu" id="setup-roster-menu"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:24px">
+      <button class="btn btn-ghost"   style="flex:1" onclick="cancelSessionSetup()">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="setup-confirm-btn" onclick="confirmSessionSetup()" disabled>Begin Session</button>
     </div>
   </div>
 </div>

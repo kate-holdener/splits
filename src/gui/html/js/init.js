@@ -14,14 +14,6 @@ async function loadInitialState() {
     if (rostersResult.rosters) renderRostersList(rostersResult.rosters);
     if (workoutsResult.ok) {
       _savedWorkouts = workoutsResult.workouts || [];
-      const selectedId = state.currentWorkoutConfig ? state.currentWorkoutConfig.id : null;
-      renderWorkoutsList(_savedWorkouts, selectedId);
-
-      if (state.currentWorkoutConfig && state.currentWorkoutConfig.name) {
-        const label = document.getElementById('workout-selected-label');
-        label.textContent = state.currentWorkoutConfig.name;
-        label.classList.remove('placeholder');
-      }
     }
 
     // Load saved scanner configuration into the manual config fields
@@ -46,13 +38,13 @@ window.addEventListener('pywebviewready', () => {
   loadInitialState();
 });
 
-// Close roster picker when clicking outside it
+// Close setup modal pickers when clicking outside them
 document.addEventListener('click', e => {
-  if (!document.getElementById('roster-picker')?.contains(e.target)) {
-    closeRosterDropdown();
+  if (!document.getElementById('setup-workout-picker')?.contains(e.target)) {
+    closeSetupWorkoutDropdown();
   }
-  if (!document.getElementById('workout-picker')?.contains(e.target)) {
-    closeWorkoutDropdown();
+  if (!document.getElementById('setup-roster-picker')?.contains(e.target)) {
+    closeSetupRosterDropdown();
   }
 });
 
@@ -74,6 +66,10 @@ document.addEventListener('keydown', e => {
   if (workoutModal && workoutModal.style.display === 'flex') {
     if (e.key === 'Escape') closeNewWorkoutModal();
   }
+  const setupModal = document.getElementById('session-setup-modal');
+  if (setupModal && setupModal.style.display === 'flex') {
+    if (e.key === 'Escape') cancelSessionSetup();
+  }
 });
 
 // Close modal when clicking the dark overlay
@@ -82,4 +78,7 @@ document.getElementById('roster-modal').addEventListener('click', e => {
 });
 document.getElementById('workout-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('workout-modal')) closeNewWorkoutModal();
+});
+document.getElementById('session-setup-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('session-setup-modal')) cancelSessionSetup();
 });

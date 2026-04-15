@@ -41,10 +41,84 @@ class LLRPReader(Reader):
         return self.host + ":" + str(self.port)
     
     def connect(self):
-        # Connect and begin inventory
+        """Connect to the RFID reader and return connection status."""
         print(f"Connecting to reader at {self.host}:{self.port}...")
-        self.reader.connect()
-        print("Connected — inventory started")
+        try:
+            # Start the connection
+            self.reader.connect(start_main_loop=False)
+            
+            # Wait for initial connection
+            time.sleep(0.5)
+            
+            # Check if basic connection is alive
+            if not self.reader.is_alive():
+                print("Connection failed — reader is not alive")
+                return False
+            
+            # Validate this is actually an LLRP connection by checking connection stability
+            # over a period - LLRP connections should remain stable, while non-LLRP 
+            # connections may drop or behave unexpectedly
+            validation_attempts = 8
+            failed_checks = 0
+            
+            for i in range(validation_attempts):
+                time.sleep(0.2)
+                
+                try:
+                    # Check multiple indicators of connection health
+                    alive = self.reader.is_alive()
+                    peer = self.reader.get_peername()
+                    
+                    if not alive or peer is None:
+                        failed_checks += 1
+                        print(f"Validation check {i+1}: failed (alive={alive}, peer={peer})")
+                    else:
+                        print(f"Validation check {i+1}: passed")
+                        
+                except Exception as e:
+                    failed_checks += 1
+                    print(f"Validation check {i+1}: failed with exception: {e}")
+                
+                # If too many checks fail, this is not a valid LLRP connection
+                if failed_checks > validation_attempts // 2:
+                    print(f"Connection failed — failed {failed_checks}/{i+1} validation checks")
+                    try:
+                        self.reader.disconnect()
+                    except:
+                        pass
+                    return False
+            
+            # Additional validation: try to perform an LLRP-specific operation
+            try:
+                # This should work on a real LLRP reader but fail on non-LLRP servers
+                self.reader.add_tag_report_callback(lambda reader, reports: None)
+                print("LLRP callback registration successful")
+            except Exception as e:
+                print(f"LLRP protocol validation failed: {e}")
+                try:
+                    self.reader.disconnect()
+                except:
+                    pass
+                return False
+            
+            print("Connected — inventory started")
+            return True
+                
+        except (socket.timeout, TimeoutError) as e:
+            print(f"Connection timeout: {e}")
+            return False
+        except ConnectionRefusedError as e:
+            print(f"Connection refused: {e}")
+            return False
+        except OSError as e:
+            if "Network is unreachable" in str(e) or "No route to host" in str(e):
+                print(f"Network error: {e}")
+            else:
+                print(f"Connection error: {e}")
+            return False
+        except Exception as e:
+            print(f"Unexpected connection error: {e}")
+            return False
 
     def filter_by_id(self, runner_ids=list[str]):
         self.runner_ids = runner_ids

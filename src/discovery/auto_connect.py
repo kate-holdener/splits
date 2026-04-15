@@ -29,19 +29,21 @@ def connect_rfid_with_scanner_info(scanner_info: dict):
     try:
         # Instantiate the appropriate reader based on discovered protocol
         if protocol == 'llrp':
-            rfid_scanner = LLRPReader(address)
-            protocol_name = f"LLRP (port {port})"
+            rfid_scanner = LLRPReader(address, port)
         elif protocol == 'rest':
-            address_and_port = address+':'+str(port)
-            rfid_scanner = ImpinjRestReader(address_and_port)
-            protocol_name = f"REST API (address:port {address}:{port})"
-            print(protocol_name)
+            rfid_scanner = ImpinjRestReader(address, port)
         else:
             return ({"ok": False,
                     "msg": f"Unknown protocol '{protocol}' for scanner at {address}"}, None)
-        rfid_scanner.connect()  
-        return ({"ok": True,
-                 "msg": f"Connected to {rfid_scanner.get_protocol()}"}, rfid_scanner) 
+        
+        # Try to connect - both readers now return boolean
+        if rfid_scanner.connect():
+            return ({"ok": True,
+                     "msg": f"Connected to {rfid_scanner.get_protocol()}"}, rfid_scanner) 
+        else:
+            return ({"ok": False, 
+                     "msg": f"Failed to connect to {protocol.upper()} scanner at {address}:{port}"}, None)
+            
     except ConnectionTimeoutError as e:
         return ({"ok": False, "msg": f"Connection timeout: {e}"}, None)
     except ProtocolError as e:

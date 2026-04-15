@@ -40,8 +40,8 @@ function applyState(s) {
 
   const setupOk = s.athletesLoaded && s.workoutConfigured;
   if (setupOk && !_autoConnectAttempted) {
-    _autoConnectAttempted = true;
-    autoConnectScanners();
+    //_autoConnectAttempted = true;
+    //autoConnectScanners();
   }
 }
 
@@ -63,8 +63,6 @@ function updateRfidConnector(state) {
   if (!statusEl || !nameEl || !addressGroup || !connectBtn) return;
 
   if (state.rfidConnected) {
-    statusEl.textContent = 'Connected';
-    statusEl.className   = 'connector-status ok';
     if (state.rfidProtocol && state.rfidAddress) {
       const port = state.rfidPort ? `:${state.rfidPort}` : '';
       nameEl.textContent = `${state.rfidProtocol.toUpperCase()} RFID (${state.rfidAddress}${port})`;
@@ -75,16 +73,12 @@ function updateRfidConnector(state) {
     connectBtn.textContent = 'Disconnect';
     connectBtn.onclick = disconnectRfid;
   } else if (state.rfidFailed) {
-    statusEl.textContent = 'Connection failed';
-    statusEl.className   = 'connector-status fail';
-    nameEl.textContent   = 'RFID Scanner';
+    nameEl.textContent = 'RFID Scanner';
     addressGroup.style.display = 'block';
     connectBtn.textContent = 'Connect';
     connectBtn.onclick = connectRfid;
   } else {
-    statusEl.textContent = 'Not connected';
-    statusEl.className   = 'connector-status idle';
-    nameEl.textContent   = 'RFID Scanner';
+    nameEl.textContent = 'RFID Scanner';
     addressGroup.style.display = 'block';
     connectBtn.textContent = 'Connect';
     connectBtn.onclick = connectRfid;

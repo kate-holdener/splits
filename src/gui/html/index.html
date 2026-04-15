@@ -291,12 +291,30 @@
       <div class="connector-info">
         <div class="connector-name" id="rfid-name">RFID Scanner</div>
         <div class="connector-status idle" id="rfid-status-text">Not connected</div>
-        <div class="form-group" id="rfid-address-group" style="margin-top:10px;margin-bottom:0;display:none">
-          <label>IP Address</label>
-          <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
+        <div id="rfid-config-group" style="margin-top:10px;display:none">
+          <div class="form-group" style="margin-bottom:8px">
+            <label>IP Address</label>
+            <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
+          </div>
+          <div class="row" style="margin-bottom:0">
+            <div class="form-group" style="margin-bottom:0">
+              <label>Port</label>
+              <input type="number" id="rfid-port" placeholder="5084" value="5084" min="1" max="65535" style="max-width:100px"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Protocol</label>
+              <select id="rfid-protocol" style="max-width:120px">
+                <option value="llrp">LLRP</option>
+                <option value="rest">REST</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
+        <button class="btn btn-ghost btn-sm" id="rfid-manual-btn" onclick="toggleRfidManualConfig()" style="font-size:11px">Manual Config</button>
+      </div>
     </div>
 
     <div class="connector" style="margin-top:20px">

@@ -100,6 +100,9 @@ class PyWebViewAPI:
     def connect_rfid_with_address(self, address: str):
         return self.track_api.connect_rfid_with_address(address)
 
+    def connect_rfid_manual(self, address: str, port: int, protocol: str):
+        return self.track_api.connect_rfid_manual(address, port, protocol)
+
     def generate_reports(self, output_dir: str):
         return self.track_api.generate_reports(output_dir)
 

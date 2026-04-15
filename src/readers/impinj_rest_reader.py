@@ -9,29 +9,31 @@ from utils.normalized_timestamp import get_timestamp_now
 from discovery.exceptions import ConnectionTimeoutError, ProtocolError, AuthenticationError
 
 class ImpinjRestReader(Reader):
-    def __init__(self, scanner_address_and_port):
+    def __init__(self, address, port=80):
         super().__init__()
-        self.scanner = scanner_address_and_port
-        self.hostname = 'http://{0}'.format(scanner_address_and_port)
+        self.address = address
+        self.port = port
+        self.scanner_address_and_port = f"{address}:{port}"
+        self.hostname = f'http://{address}:{port}'
         self.runner_ids = None
         
         # Test connectivity during initialization
         try:
             self._test_connection()
         except requests.exceptions.ConnectTimeout:
-            raise ConnectionTimeoutError(scanner_address_and_port, 3.0)
+            raise ConnectionTimeoutError(self.scanner_address_and_port, 3.0)
         except requests.exceptions.ConnectionError as e:
             if "Connection refused" in str(e):
-                raise ConnectionTimeoutError(scanner_address_and_port, 3.0)
+                raise ConnectionTimeoutError(self.scanner_address_and_port, 3.0)
             else:
-                raise ProtocolError(scanner_address_and_port, "HTTP/REST", str(e))
+                raise ProtocolError(self.scanner_address_and_port, "HTTP/REST", str(e))
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 401:
-                raise AuthenticationError(scanner_address_and_port, "HTTP 401 Unauthorized")
+                raise AuthenticationError(self.scanner_address_and_port, "HTTP 401 Unauthorized")
             elif e.response.status_code == 403:
-                raise AuthenticationError(scanner_address_and_port, "HTTP 403 Forbidden")
+                raise AuthenticationError(self.scanner_address_and_port, "HTTP 403 Forbidden")
             else:
-                raise ProtocolError(scanner_address_and_port, "HTTP/REST", f"HTTP {e.response.status_code}")
+                raise ProtocolError(self.scanner_address_and_port, "HTTP/REST", f"HTTP {e.response.status_code}")
         except Exception as e:
             raise ProtocolError(scanner_address_and_port, "HTTP/REST", str(e))
             
@@ -49,20 +51,37 @@ class ImpinjRestReader(Reader):
             raise
 
     def connect(self):
-        # Stop any active preset
-        stop_response = requests.post(
-            urljoin(self.hostname, 'api/v1/profiles/stop'), 
-            verify=False, 
-            timeout=5.0
-        )
-        
-        # Start the default preset
-        start_response = requests.post(
-            urljoin(self.hostname, 'api/v1/profiles/inventory/presets/default/start'), 
-            verify=False,
-            timeout=5.0
-        )
-        start_response.raise_for_status()
+        """Connect to the Impinj REST API and return connection status."""
+        try:
+            # Stop any active preset
+            stop_response = requests.post(
+                urljoin(self.hostname, 'api/v1/profiles/stop'), 
+                verify=False, 
+                timeout=5.0
+            )
+            
+            # Start the default preset
+            start_response = requests.post(
+                urljoin(self.hostname, 'api/v1/profiles/inventory/presets/default/start'), 
+                verify=False,
+                timeout=5.0
+            )
+            start_response.raise_for_status()
+            print(f"Connected to REST API at {self.hostname}")
+            return True
+            
+        except requests.exceptions.Timeout:
+            print(f"Connection timeout to REST API at {self.hostname}")
+            return False
+        except requests.exceptions.ConnectionError:
+            print(f"Connection error to REST API at {self.hostname}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP error connecting to REST API at {self.hostname}: {e}")
+            return False
+        except Exception as e:
+            print(f"Unexpected error connecting to REST API at {self.hostname}: {e}")
+            return False
     
     def get_protocol(self):
         return "REST"

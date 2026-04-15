@@ -364,14 +364,25 @@ class IntervalTrackApi:
             self.rfid_protocol = self.rfid_scanner.get_protocol()
             self.rfid_address = self.rfid_scanner.get_address()
 
-            return {"ok": True, "msg": f"Connected to {self.rfid_protocol} on {self.rfid_address}", "state": self.get_state()}
+            # Parse address for connection details
+            address_parts = self.rfid_address.split(':')
+            connection_details = {
+                "address": address_parts[0] if len(address_parts) > 0 else "unknown",
+                "port": int(address_parts[1]) if len(address_parts) > 1 and address_parts[1].isdigit() else "unknown",
+                "protocol": self.rfid_protocol.lower()
+            }
+
+            return {
+                "ok": True, 
+                "msg": f"Connected to {self.rfid_protocol} on {self.rfid_address}", 
+                "state": self.get_state(),
+                "connection_details": connection_details
+            }
         except Exception as e:
             return {"ok": False, "msg": f"Auto-connection failed: {e}", "state": self.get_state()}
 
     def connect_rfid_with_address(self, address: str):
         """Connect to RFID scanner at a specific IP address, trying LLRP then REST."""
-        if not (self.athletes_loaded and self.workout_configured):
-            return {"ok": False, "msg": "Complete setup first.", "state": self.get_state()}
         if not address or not address.strip():
             return {"ok": False, "msg": "IP address is required.", "state": self.get_state()}
         address = address.strip()
@@ -389,6 +400,31 @@ class IntervalTrackApi:
                 return {"ok": True, "msg": f"Connected via {self.rfid_protocol} to {self.rfid_address}", "state": self.get_state()}
         self.rfid_scanner_failed = True
         return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}.", "state": self.get_state()}
+
+    def connect_rfid_manual(self, address: str, port: int, protocol: str):
+        """Connect to RFID scanner with manual configuration (IP, port, protocol)."""
+        if not address or not address.strip():
+            return {"ok": False, "msg": "IP address is required.", "state": self.get_state()}
+        if protocol not in ('llrp', 'rest'):
+            return {"ok": False, "msg": "Protocol must be 'llrp' or 'rest'.", "state": self.get_state()}
+        if not isinstance(port, int) or port < 1 or port > 65535:
+            return {"ok": False, "msg": "Port must be between 1 and 65535.", "state": self.get_state()}
+            
+        address = address.strip()
+        scanner_info = {"address": address, "protocol": protocol, "port": port}
+        result, reader = connect_rfid_with_scanner_info(scanner_info)
+        
+        if result["ok"] and reader:
+            reader.start(self.lap_event_q)
+            self.rfid_scanner = reader
+            self.rfid_connected = True
+            self.rfid_scanner_failed = False
+            self.rfid_protocol = reader.get_protocol()
+            self.rfid_address = reader.get_address()
+            return {"ok": True, "msg": f"Connected via {self.rfid_protocol} to {self.rfid_address}:{port}", "state": self.get_state()}
+        else:
+            self.rfid_scanner_failed = True
+            return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}:{port} using {protocol.upper()}.", "state": self.get_state()}
 
     # ------------------------------------------------------------------
     # Option 4 – Connect NFC
@@ -469,8 +505,8 @@ class IntervalTrackApi:
     # Start a specific set of athletes by start_tag (new UI)
     # ------------------------------------------------------------------
     def start_selected(self, tag_ids: list[str]):
-        if not self._full_setup_ok():
-            return {"ok": False, "msg": "Setup not complete."}
+        #if not self._full_setup_ok():
+        #    return {"ok": False, "msg": "Setup not complete."}
         if not tag_ids:
             return {"ok": False, "msg": "No athletes selected."}
         valid_ids = {a.start_id for a in self.athletes}

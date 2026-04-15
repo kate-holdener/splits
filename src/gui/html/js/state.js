@@ -11,6 +11,7 @@ function digitsOnly(el) {
 // ============================================================
 
 let _workoutRefreshTimer = null;
+let _workoutScreenVisited = false;
 
 function goTo(screenId) {
   if (_workoutRefreshTimer) {
@@ -20,6 +21,11 @@ function goTo(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
   if (screenId === 'workout-screen') {
+    if (!_workoutScreenVisited) {
+      _workoutScreenVisited = true;
+      reconnectRfid();
+      connectNfc();
+    }
     loadWorkoutAthletes();
     _workoutRefreshTimer = setInterval(loadWorkoutAthletes, 1000);
   }

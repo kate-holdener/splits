@@ -2,8 +2,51 @@
 // SCANNERS MODAL
 // ============================================================
 
-function openScannersModal() {
+async function openScannersModal() {
   document.getElementById('scanners-modal').style.display = 'flex';
+
+  const [info, state] = await Promise.all([
+    pywebview.api.get_rfid_connection_info(),
+    pywebview.api.get_state()
+  ]);
+
+  // RFID
+  const rfidStatusEl = document.getElementById('rfid-status-text');
+  const nameEl = document.getElementById('rfid-name');
+  const configGroup = document.getElementById('rfid-config-group');
+  const connectBtn = document.getElementById('rfid-btn');
+
+  if (info.connected) {
+    nameEl.textContent = `${info.protocol.toUpperCase()} RFID`;
+    rfidStatusEl.innerHTML = `Connected <span style="font-weight:normal">(${info.address}:${info.port})</span>`;
+    rfidStatusEl.className = 'connector-status ok';
+    configGroup.style.display = 'none';
+    connectBtn.textContent = 'Disconnect';
+    connectBtn.onclick = disconnectRfid;
+  } else {
+    nameEl.textContent = 'RFID Scanner';
+    rfidStatusEl.textContent = 'Not connected';
+    rfidStatusEl.className = 'connector-status idle';
+    configGroup.style.display = 'none';
+    connectBtn.textContent = 'Connect';
+    connectBtn.onclick = connectRfid;
+  }
+
+  // NFC
+  updateConnector('nfc-status-text', state.nfcConnected, state.nfcFailed);
+
+  // Topbar button color
+  updateScannersBtnColor(info.connected, state.nfcConnected);
+}
+
+function updateScannersBtnColor(rfidConnected, nfcConnected) {
+  const btn = document.getElementById('scanners-btn');
+  if (!btn) return;
+  if (rfidConnected && nfcConnected) {
+    btn.className = 'btn btn-sm btn-success';
+  } else {
+    btn.className = 'btn btn-sm btn-danger';
+  }
 }
 
 function closeScannersModal() {
@@ -54,6 +97,23 @@ function toggleRfidManualConfig() {
   }
 }
 
+async function reconnectRfid() {
+    // Reconnect to previously saved rfid scanner: try saved config
+    log('Attempting reconnect to RFID scanner…', 'info');
+    const r = await pywebview.api.try_auto_connect_rfid();
+
+    if (r.ok) {
+      log(r.msg, 'ok');
+    } else {
+      log('Reconnection failed, try auto-discovery or manual config', 'error');
+    }
+
+    if (r.state) {
+      applyState(r.state);
+      const info = await pywebview.api.get_rfid_connection_info();
+      updateScannersBtnColor(info.connected, r.state.nfcConnected);
+    }
+}
 async function connectRfid() {
   document.getElementById('rfid-btn').disabled = true;
   
@@ -79,11 +139,27 @@ async function connectRfid() {
     r = await pywebview.api.connect_rfid_manual(address, port, protocol);
     log(r.msg, r.ok ? 'ok' : 'err');
   } else {
-    // Auto-connect mode
-    log('Auto-discovering RFID scanner…', 'info');
-    r = await pywebview.api.connect_rfid();
-    log(r.msg, r.ok ? 'ok' : 'err');
-    if (r.ok && r.connection_details) connectionDetails = r.connection_details;
+    // Auto-connect mode: try saved config first, then discovery
+    log('Attempting auto-connect to RFID scanner…', 'info');
+    r = await pywebview.api.try_auto_connect_rfid();
+    
+    if (r.ok) {
+      log(r.msg, 'ok');
+      // Extract connection details from the state if available
+      if (r.state && r.state.rfidAddress && r.state.rfidPort && r.state.rfidProtocol) {
+        connectionDetails = {
+          address: r.state.rfidAddress,
+          port: r.state.rfidPort,
+          protocol: r.state.rfidProtocol
+        };
+      }
+    } else {
+      // Fallback to discovery if saved config failed
+      log('Saved config failed, trying auto-discovery…', 'info');
+      r = await pywebview.api.connect_rfid();
+      log(r.msg, r.ok ? 'ok' : 'err');
+      if (r.ok && r.connection_details) connectionDetails = r.connection_details;
+    }
   }
 
   updateRfidStatus(r, connectionDetails);

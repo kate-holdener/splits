@@ -16,6 +16,7 @@ class LLRPReader(Reader):
         self.port = port
         self.runner_ids = None
         self.reader = None
+        self.connected = False
         try: 
             self.reader = LLRPReader._init_reader(self.host, self.port)
             # Register the callback handler
@@ -40,9 +41,18 @@ class LLRPReader(Reader):
     def get_address(self):
         return self.host + ":" + str(self.port)
     
+    def get_port(self):
+        return self.port
+    
     def connect(self):
+        self.connected = self._connect()
+        return self.connected
+
+    def is_connected(self):
+        return self.connected
+
+    def _connect(self):
         """Connect to the RFID reader and return connection status."""
-        print(f"Connecting to reader at {self.host}:{self.port}...")
         try:
             # Start the connection
             self.reader.connect(start_main_loop=False)
@@ -52,7 +62,6 @@ class LLRPReader(Reader):
             
             # Check if basic connection is alive
             if not self.reader.is_alive():
-                print("Connection failed — reader is not alive")
                 return False
             
             # Validate this is actually an LLRP connection by checking connection stability
@@ -71,17 +80,12 @@ class LLRPReader(Reader):
                     
                     if not alive or peer is None:
                         failed_checks += 1
-                        print(f"Validation check {i+1}: failed (alive={alive}, peer={peer})")
-                    else:
-                        print(f"Validation check {i+1}: passed")
                         
                 except Exception as e:
                     failed_checks += 1
-                    print(f"Validation check {i+1}: failed with exception: {e}")
                 
                 # If too many checks fail, this is not a valid LLRP connection
                 if failed_checks > validation_attempts // 2:
-                    print(f"Connection failed — failed {failed_checks}/{i+1} validation checks")
                     try:
                         self.reader.disconnect()
                     except:
@@ -101,7 +105,6 @@ class LLRPReader(Reader):
                     pass
                 return False
             
-            print("Connected — inventory started")
             return True
                 
         except (socket.timeout, TimeoutError) as e:

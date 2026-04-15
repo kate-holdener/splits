@@ -62,6 +62,7 @@
   <div class="topbar">
     <button class="back-btn" onclick="goTo('home-screen')">← Home</button>
     <div class="screen-title">Interval<span>Track</span></div>
+    <button class="btn btn-sm" id="scanners-btn" onclick="openScannersModal()">📡 Scanners</button>
   </div>
 
   <div id="workout-body">
@@ -74,7 +75,6 @@
             Configure Workout
             <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-primary btn-sm" onclick="openNewWorkoutModal()">+ New Workout</button>
-              <button class="btn btn-ghost btn-sm" onclick="openScannersModal()">📡 Scanners</button>
             </div>
           </div>
           <p class="subtitle">Select a saved workout or create a new one.</p>

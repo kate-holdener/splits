@@ -35,3 +35,6 @@ class Reader(Protocol):
 
     def get_address(self)->str:
         pass
+
+    def get_port(self)->int:
+        pass

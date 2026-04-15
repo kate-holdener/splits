@@ -4,6 +4,7 @@ from datetime import datetime
 
 from interactors.interval_timer import IntervalTimer
 from readers.acr122u_nfc import NFCReader
+from reader import Reader
 from controller.start_controller import ManualStartController
 from api.runnerObserver import RunnerObserver
 from entity.runner import Runner
@@ -16,6 +17,7 @@ from persistence.roster_persistence import (
     list_rosters as _list_rosters, set_active_roster,
     list_all_rosters as _list_all_rosters
 )
+from persistence.scanner_persistence import save_scanner_config, load_scanner_config
 from persistence.workout_persistence import (
     list_workouts as _list_workouts,
     save_workout as _save_workout,
@@ -43,6 +45,9 @@ class IntervalTrackApi:
         self.rfid_protocol = None      # 'llrp' or 'rest' when connected
         self.rfid_address = None       # IP address when connected
         self.rfid_port = None          # Port number when connected
+        
+        # Load saved scanner configuration for potential auto-connect
+        self.saved_scanner_config = load_scanner_config()
 
         self.runner_observer = RunnerObserver()
 
@@ -361,20 +366,36 @@ class IntervalTrackApi:
             self.rfid_scanner = auto_connect_to_rfid_scanner()
             self.rfid_scanner.start(self.lap_event_q)
             self.rfid_connected = True
-            self.rfid_protocol = self.rfid_scanner.get_protocol()
-            self.rfid_address = self.rfid_scanner.get_address()
+            
+            # Get the connection information directly from the reader
+            reader_protocol = self.rfid_scanner.get_protocol().lower()
+            reader_address = self.rfid_scanner.get_address()
+            reader_port = self.rfid_scanner.get_port()
+            
+            # Store normalized values
+            self.rfid_protocol = reader_protocol
+            if reader_protocol == 'llrp':
+                # LLRP get_address() returns "host:port"
+                hostname = reader_address.split(':')[0]
+            else:
+                # REST get_address() returns "http://host:port"
+                hostname = reader_address.replace('http://', '').split(':')[0]
+            
+            self.rfid_address = hostname
+            self.rfid_port = reader_port
 
-            # Parse address for connection details
-            address_parts = self.rfid_address.split(':')
             connection_details = {
-                "address": address_parts[0] if len(address_parts) > 0 else "unknown",
-                "port": int(address_parts[1]) if len(address_parts) > 1 and address_parts[1].isdigit() else "unknown",
-                "protocol": self.rfid_protocol.lower()
+                "address": hostname,
+                "port": reader_port,
+                "protocol": reader_protocol
             }
+            
+            # Persist successful auto-connection
+            save_scanner_config(hostname, reader_port, reader_protocol)
 
             return {
                 "ok": True, 
-                "msg": f"Connected to {self.rfid_protocol} on {self.rfid_address}", 
+                "msg": f"Connected to {reader_protocol.upper()} on {hostname}:{reader_port}", 
                 "state": self.get_state(),
                 "connection_details": connection_details
             }
@@ -395,9 +416,14 @@ class IntervalTrackApi:
                 self.rfid_scanner = reader
                 self.rfid_connected = True
                 self.rfid_scanner_failed = False
-                self.rfid_protocol = reader.get_protocol()
-                self.rfid_address = reader.get_address()
-                return {"ok": True, "msg": f"Connected via {self.rfid_protocol} to {self.rfid_address}", "state": self.get_state()}
+                self.rfid_protocol = protocol  # Use the input protocol, already validated
+                self.rfid_address = address.strip()
+                self.rfid_port = 5084
+                
+                # Persist successful connection
+                save_scanner_config(address.strip(), 5084, protocol)
+                
+                return {"ok": True, "msg": f"Connected via {protocol.upper()} to {address}:5084", "state": self.get_state()}
         self.rfid_scanner_failed = True
         return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}.", "state": self.get_state()}
 
@@ -419,19 +445,53 @@ class IntervalTrackApi:
             self.rfid_scanner = reader
             self.rfid_connected = True
             self.rfid_scanner_failed = False
-            self.rfid_protocol = reader.get_protocol()
-            self.rfid_address = reader.get_address()
-            return {"ok": True, "msg": f"Connected via {self.rfid_protocol} to {self.rfid_address}:{port}", "state": self.get_state()}
+            self.rfid_protocol = reader.get_protocol().lower()  # Normalize to lowercase
+            self.rfid_address = address.strip()  # Store the original address, not display format
+            self.rfid_port = port
+            
+            # Persist successful connection parameters
+            save_scanner_config(address.strip(), port, protocol)
+            
+            return {"ok": True, "msg": f"Connected via {protocol.upper()} to {address}:{port}", "state": self.get_state()}
         else:
             self.rfid_scanner_failed = True
             return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}:{port} using {protocol.upper()}.", "state": self.get_state()}
+
+    def get_rfid_connection_info(self):
+        return self._get_connection_info(self.rfid_scanner)
+
+
+    def get_nfc_connection_info(self):
+        return self.get_connection_info(self.nfc_scanner)
+ 
+    def _get_connection_info(self, reader: Reader):
+        if reader and reader.is_connected():
+            return {"connected": True, 
+                    "address": self.rfid_scanner.get_address(), 
+                    "port": self.rfid_scanner.get_port(),
+                    "protocol": self.rfid_scanner.get_protocol()}
+        else:
+            return {"connected": False}
+      
+    def get_saved_scanner_config(self):
+        """Return the saved scanner configuration if available."""
+        return self.saved_scanner_config
+
+    def try_auto_connect_rfid(self):
+        """Attempt to auto-connect using saved scanner configuration."""
+        if not self.saved_scanner_config:
+            return {"ok": False, "msg": "No saved scanner configuration.", "state": self.get_state()}
+            
+        if self.rfid_connected:
+            return {"ok": False, "msg": "RFID scanner already connected.", "state": self.get_state()}
+            
+        config = self.saved_scanner_config
+        return self.connect_rfid_manual(config['hostname'], config['port'], config['protocol'])
 
     # ------------------------------------------------------------------
     # Option 4 – Connect NFC
     # ------------------------------------------------------------------
     def connect_nfc(self):
-        if not (self.athletes_loaded and self.workout_configured):
-            return {"ok": False, "msg": "Complete steps 1 and 2 first."}
         try:
             self.nfc_scanner = NFCReader()
             self.nfc_scanner.start(self.start_event_q)

@@ -16,7 +16,8 @@ class ImpinjRestReader(Reader):
         self.scanner_address_and_port = f"{address}:{port}"
         self.hostname = f'http://{address}:{port}'
         self.runner_ids = None
-        
+        self.connected = False
+ 
         # Test connectivity during initialization
         try:
             self._test_connection()
@@ -51,6 +52,13 @@ class ImpinjRestReader(Reader):
             raise
 
     def connect(self):
+        self.connected = self._connect();
+        return self.connected
+
+    def is_connected(self):
+        return self.is_connected;
+
+    def _connect(self):
         """Connect to the Impinj REST API and return connection status."""
         try:
             # Stop any active preset
@@ -88,6 +96,9 @@ class ImpinjRestReader(Reader):
     
     def get_address(self):
         return self.hostname
+    
+    def get_port(self):
+        return self.port
     
     def filter_by_id(self, runner_ids):
         self.runner_ids = runner_ids

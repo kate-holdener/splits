@@ -215,9 +215,11 @@ class NFCReader(Reader):
         self._observer = _TagObserver(self.tag_detected, None)
         self._monitor = CardMonitor()
         available = readers()
-        print(available)
+        self.connected = False
         if not available:
             raise ConnectionError("Connection to NFC Scanner failed")
+        else:
+            self.connected = True
 
     def tag_detected(self, tag: NFCTag):
         timestamp =  get_timestamp_now()
@@ -244,6 +246,15 @@ class NFCReader(Reader):
             self._monitor.deleteObserver(self._observer)
             self._monitor = None
         print("[acr122u_nfc] Monitoring stopped.")
+
+    def get_protocol(self):
+        return "NFC"
+
+    def get_address(self):
+        return "USB"
+
+    def get_port(self):
+        return 0  # USB connection, no port number
 
 
 

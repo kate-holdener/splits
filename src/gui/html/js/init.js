@@ -4,10 +4,11 @@
 
 async function loadInitialState() {
   try {
-    const [state, rostersResult, workoutsResult] = await Promise.all([
+    const [state, rostersResult, workoutsResult, savedConfig] = await Promise.all([
       pywebview.api.get_state(),
       pywebview.api.list_rosters(),
-      pywebview.api.list_workouts()
+      pywebview.api.list_workouts(),
+      pywebview.api.get_saved_scanner_config()
     ]);
     applyState(state);
     if (rostersResult.rosters) renderRostersList(rostersResult.rosters);
@@ -21,6 +22,13 @@ async function loadInitialState() {
         label.textContent = state.currentWorkoutConfig.name;
         label.classList.remove('placeholder');
       }
+    }
+
+    // Load saved scanner configuration into the manual config fields
+    if (savedConfig) {
+      document.getElementById('rfid-address').value = savedConfig.hostname;
+      document.getElementById('rfid-port').value = savedConfig.port;
+      document.getElementById('rfid-protocol').value = savedConfig.protocol;
     }
 
     if (state.athletesLoaded && state.athleteCount > 0 && state.currentRoster) {

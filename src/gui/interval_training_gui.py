@@ -94,6 +94,9 @@ class PyWebViewAPI:
         rest_int = int(rest_time)
         return self.track_api.save_and_configure_workout(dist_int, laps_int, rest_int)
 
+    #-----------------------------------------
+    # RFID scanner connection methods
+    #-----------------------------------------
     def connect_rfid(self):
         return self.track_api.connect_rfid()
 
@@ -103,6 +106,19 @@ class PyWebViewAPI:
     def connect_rfid_manual(self, address: str, port: int, protocol: str):
         return self.track_api.connect_rfid_manual(address, port, protocol)
 
+    def get_saved_scanner_config(self):
+        return self.track_api.get_saved_scanner_config()
+
+    def try_auto_connect_rfid(self):
+        return self.track_api.try_auto_connect_rfid()
+
+    def get_rfid_connection_info(self):
+        return self.track_api.get_rfid_connection_info()
+
+
+    #-------------------------------------------
+    # Performance reports
+    #-------------------------------------------
     def generate_reports(self, output_dir: str):
         return self.track_api.generate_reports(output_dir)
 

@@ -13,7 +13,6 @@ class ImpinjRestReader(Reader):
         super().__init__()
         self.address = address
         self.port = port
-        self.scanner_address_and_port = f"{address}:{port}"
         self.hostname = f'http://{address}:{port}'
         self.runner_ids = None
         self.connected = False
@@ -22,21 +21,21 @@ class ImpinjRestReader(Reader):
         try:
             self._test_connection()
         except requests.exceptions.ConnectTimeout:
-            raise ConnectionTimeoutError(self.scanner_address_and_port, 3.0)
+            raise ConnectionTimeoutError(self.hostname, 3.0)
         except requests.exceptions.ConnectionError as e:
             if "Connection refused" in str(e):
-                raise ConnectionTimeoutError(self.scanner_address_and_port, 3.0)
+                raise ConnectionTimeoutError(self.hostname, 3.0)
             else:
-                raise ProtocolError(self.scanner_address_and_port, "HTTP/REST", str(e))
+                raise ProtocolError(self.hostname, "HTTP/REST", str(e))
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 401:
-                raise AuthenticationError(self.scanner_address_and_port, "HTTP 401 Unauthorized")
+                raise AuthenticationError(self.hostname, "HTTP 401 Unauthorized")
             elif e.response.status_code == 403:
-                raise AuthenticationError(self.scanner_address_and_port, "HTTP 403 Forbidden")
+                raise AuthenticationError(self.hostname, "HTTP 403 Forbidden")
             else:
-                raise ProtocolError(self.scanner_address_and_port, "HTTP/REST", f"HTTP {e.response.status_code}")
+                raise ProtocolError(self.hostname, "HTTP/REST", f"HTTP {e.response.status_code}")
         except Exception as e:
-            raise ProtocolError(scanner_address_and_port, "HTTP/REST", str(e))
+            raise ProtocolError(hostname, "HTTP/REST", str(e))
             
     def _test_connection(self):
         """Test basic connectivity to the scanner."""
@@ -95,7 +94,7 @@ class ImpinjRestReader(Reader):
         return "REST"
     
     def get_address(self):
-        return self.hostname
+        return self.address
     
     def get_port(self):
         return self.port

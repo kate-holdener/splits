@@ -65,6 +65,14 @@ async function confirmSessionSetup() {
   }
 
   _sessionActive = true;
+
+  // Wait for scanner connections before showing workout screen
+  const confirmBtn = document.getElementById('setup-confirm-btn');
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Connecting to scanners…'; }
+
+  _workoutScreenVisited = true;
+  await Promise.all([reconnectRfid(), connectNfc()]);
+
   cancelSessionSetup();
   _activateScreen('workout-screen');
 }

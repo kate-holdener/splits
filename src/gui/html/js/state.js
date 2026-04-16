@@ -72,31 +72,33 @@ function updateConnector(id, ok, failed) {
 }
 
 function updateRfidConnector(state) {
-  const statusEl     = document.getElementById('rfid-status-text');
-  const nameEl       = document.getElementById('rfid-name');
-  const addressGroup = document.getElementById('rfid-address-group');
-  const connectBtn   = document.getElementById('rfid-btn');
-  if (!statusEl || !nameEl || !addressGroup || !connectBtn) return;
+  const statusEl = document.getElementById('rfid-status-text');
+  const nameEl   = document.getElementById('rfid-name');
+  if (!statusEl || !nameEl) return;
 
   if (state.rfidConnected) {
     if (state.rfidProtocol && state.rfidAddress) {
       const port = state.rfidPort ? `:${state.rfidPort}` : '';
-      nameEl.textContent = `${state.rfidProtocol.toUpperCase()} RFID (${state.rfidAddress}${port})`;
+      nameEl.textContent  = `${state.rfidProtocol.toUpperCase()} RFID`;
+      statusEl.innerHTML  = `Connected <span style="font-weight:normal">(${state.rfidAddress}${port})</span>`;
     } else {
-      nameEl.textContent = 'RFID Scanner';
+      nameEl.textContent  = 'RFID Scanner';
+      statusEl.textContent = 'Connected';
     }
-    addressGroup.style.display = 'none';
-    connectBtn.textContent = 'Disconnect';
-    connectBtn.onclick = disconnectRfid;
-  } else if (state.rfidFailed) {
-    nameEl.textContent = 'RFID Scanner';
-    addressGroup.style.display = 'block';
-    connectBtn.textContent = 'Connect';
-    connectBtn.onclick = connectRfid;
+    statusEl.className = 'connector-status ok';
+    if (typeof setRfidModalView === 'function') setRfidModalView('connected');
   } else {
     nameEl.textContent = 'RFID Scanner';
-    addressGroup.style.display = 'block';
-    connectBtn.textContent = 'Connect';
-    connectBtn.onclick = connectRfid;
+    if (state.rfidFailed) {
+      statusEl.textContent = 'Connection failed';
+      statusEl.className   = 'connector-status fail';
+    } else {
+      statusEl.textContent = 'Not connected';
+      statusEl.className   = 'connector-status idle';
+    }
+    // Don't reset to options view if the user is currently in manual config mode
+    const manualForm = document.getElementById('rfid-manual-form');
+    const isManual   = manualForm && manualForm.style.display !== 'none';
+    if (!isManual && typeof setRfidModalView === 'function') setRfidModalView('options');
   }
 }

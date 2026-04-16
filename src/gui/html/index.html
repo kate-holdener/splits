@@ -251,33 +251,46 @@
     </div>
     <p class="subtitle" style="margin-bottom:20px">Scanners connect automatically when setup is complete. You can also connect manually.</p>
 
-    <div class="connector">
-      <div class="connector-info">
+    <div class="connector" id="rfid-connector">
+      <div class="connector-info" style="flex:1">
         <div class="connector-name" id="rfid-name">RFID Scanner</div>
         <div class="connector-status idle" id="rfid-status-text">Not connected</div>
-        <div id="rfid-config-group" style="margin-top:10px;display:none">
+
+        <!-- Two-option view: shown when not connected -->
+        <div id="rfid-options" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" id="rfid-autodetect-btn" onclick="connectRfidAutoDetect()">Auto-detect</button>
+          <button class="btn btn-ghost btn-sm" onclick="showRfidManualConfig()">Manual setup</button>
+        </div>
+
+        <!-- Manual config form: shown when user chooses manual setup -->
+        <div id="rfid-manual-form" style="margin-top:12px;display:none">
           <div class="form-group" style="margin-bottom:8px">
             <label>IP Address</label>
-            <input type="text" id="rfid-address" placeholder="Enter IP address" style="max-width:220px"/>
+            <input type="text" id="rfid-address" placeholder="e.g. 192.168.1.100" style="max-width:220px"/>
           </div>
-          <div class="row" style="margin-bottom:0">
+          <div class="row" style="margin-bottom:8px">
             <div class="form-group" style="margin-bottom:0">
               <label>Port</label>
               <input type="number" id="rfid-port" placeholder="5084" value="5084" min="1" max="65535" style="max-width:100px"/>
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label>Protocol</label>
-              <select id="rfid-protocol" style="max-width:120px">
+              <select id="rfid-protocol">
                 <option value="llrp">LLRP</option>
                 <option value="rest">REST</option>
               </select>
             </div>
           </div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" onclick="cancelRfidManualConfig()">Cancel</button>
+            <button class="btn btn-primary btn-sm" id="rfid-manual-connect-btn" onclick="connectRfidManualSubmit()">Connect</button>
+          </div>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-primary btn-sm" id="rfid-btn" onclick="connectRfid()">Connect</button>
-        <button class="btn btn-ghost btn-sm" id="rfid-manual-btn" onclick="toggleRfidManualConfig()" style="font-size:11px">Manual Config</button>
+
+      <!-- Disconnect button: shown only when connected -->
+      <div id="rfid-connected-actions" style="display:none">
+        <button class="btn btn-ghost btn-sm" onclick="disconnectRfid()">Disconnect</button>
       </div>
     </div>
 

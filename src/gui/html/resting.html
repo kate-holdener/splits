@@ -32,7 +32,6 @@
 
 <script>
 const OVERDUE_THRESHOLD_S = 5;
-const DEFAULT_REST_DURATION_S = 90;
 
 function cardClass(secsLeft, duration){
   if(secsLeft <= 0)              return 'done';
@@ -56,7 +55,7 @@ async function refresh(){
     // Partition: still-resting / borderline (secsLeft >= -threshold) vs. clearly overdue (secsLeft < -threshold)
     const active = [], overdue = [];
     for(const athlete of athletes){
-      const secsLeft = (athlete.rest_duration || DEFAULT_REST_DURATION_S) - (athlete.rest_elapsed || 0);
+      const secsLeft = (athlete.rest_duration) - (athlete.rest_elapsed || 0);
       if(secsLeft > 0 - OVERDUE_THRESHOLD_S){
         active.push(athlete);
       } else {
@@ -77,11 +76,10 @@ async function refresh(){
     }
 
     let html = active.map(athlete => {
-      const elapsed  = athlete.rest_elapsed  || 0;
-      const duration = athlete.rest_duration || DEFAULT_REST_DURATION_S;
-      const secsLeft = duration - elapsed;
+      const secsLeft = athlete.rest_remaining_seconds;
+      const duration = athlete.rest_duration;
       const cls      = cardClass(secsLeft, duration);
-      const label    = secsLeft <= 0 ? 'GO' : Math.ceil(Math.max(0, secsLeft));
+      const label    = secsLeft <= 0 ? 'GO' : secsLeft;
       return `
         <div class="runner-card ${cls}">
           <div class="runner-info">
@@ -119,7 +117,7 @@ function tryStart(){
   if(window.pywebview && window.pywebview.api && window.pywebview.api.get_resting){
     _started = true;
     refresh();
-    setInterval(refresh, 1000);
+    setInterval(refresh, 250);
   } else {
     setTimeout(tryStart, 250);
   }

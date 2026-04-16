@@ -546,11 +546,7 @@ class IntervalTrackApi:
                 d['status'] = 'RUNNING'
                 d['elapsed_seconds'] = max(0, elapsed)
             elif id(a) in resting_ids:
-                rest_duration = (
-                    self.workout.rest_duration_seconds
-                    if self.workout and hasattr(self.workout, 'rest_duration_seconds')
-                    else 90
-                )
+                rest_duration = self.workout.get_rest_time()
                 rest_elapsed = self.runner_observer.rest_elapsed(a)
                 d['status'] = 'RESTING'
                 d['elapsed_seconds'] = round(rest_elapsed)
@@ -587,8 +583,10 @@ class IntervalTrackApi:
         for r in self.runner_observer.resting:
             rest_duration = r.get_workout().get_rest_time()
             d = r.to_dict()
-            d['rest_elapsed'] = round(self.runner_observer.rest_elapsed(r), 1)
+            rest_elapsed = self.runner_observer.rest_elapsed(r)
+            d['rest_elapsed'] = round(rest_elapsed, 1)
             d['rest_duration'] = rest_duration
+            d['rest_remaining_seconds'] = max(0, round(rest_duration - rest_elapsed))
             athletes.append(d)
         return {"ok": True, "athletes": athletes}
 

@@ -21,7 +21,7 @@ pyinstaller \
     --windowed \
     --name "Splits" \
     --icon "icon/icon.icns" \
-    --osx-bundle-identifier "com.intervaltraining.app" \
+    --osx-bundle-identifier "com.splits.app" \
     --add-data "src/gui/html:src/gui/html" \
     --add-data "src:src" \
     --hidden-import=smartcard \

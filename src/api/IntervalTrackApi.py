@@ -28,6 +28,8 @@ from persistence.workout_persistence import (
 from persistence.session_persistence import (
     WorkoutSessionPersistence,
     load_active_session,
+    load_completed_session,
+    list_completed_sessions as _list_completed_sessions,
     restore_session_from_dict,
     discard_active_session,
 )
@@ -70,6 +72,7 @@ class IntervalTrackApi:
         self.timer = None
 
         self.resting_window = None
+        self._last_session_id: Optional[str] = None  # set when a workout is finished
 
         # Load the active roster on startup
         self._load_active_roster()
@@ -609,8 +612,66 @@ class IntervalTrackApi:
     # ------------------------------------------------------------------
     # Option 10 – Performance
     # ------------------------------------------------------------------
-    def generate_reports(self, output_dir: str):
-        """Generate PDF reports for all athletes with recorded intervals."""
+    def list_completed_sessions(self):
+        """Return metadata list of all archived workout sessions."""
+        try:
+            sessions = _list_completed_sessions()
+            return {"ok": True, "sessions": sessions}
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "sessions": []}
+
+    def get_session_details(self, session_id: str):
+        """Return full session details with per-athlete performance data (raw ms values)."""
+        session_data = load_completed_session(session_id)
+        if not session_data:
+            return {"ok": False, "msg": "Session not found."}
+
+        runners = session_data.get("runners", [])
+        workout = next((r.get("workout") for r in runners if r.get("workout")), None)
+
+        athletes = []
+        max_intervals = 0
+
+        for r in runners:
+            completed = [
+                iv for iv in r.get("session_intervals", [])
+                if not iv.get("incomplete", True)
+            ]
+            if not completed:
+                continue
+
+            intervals_ms = [iv["end_time"] - iv["start_time"] for iv in completed]
+            rests_ms = [
+                completed[i + 1]["start_time"] - completed[i]["end_time"]
+                for i in range(len(completed) - 1)
+            ]
+            total_ms = sum(intervals_ms)
+            total_distance = sum(iv.get("distance", 0) for iv in completed)
+            avg_pace_ms = int(total_ms / total_distance * 1600) if total_distance > 0 else 0
+
+            max_intervals = max(max_intervals, len(intervals_ms))
+            athletes.append({
+                "name":            r.get("name", ""),
+                "lname":           r.get("lname", ""),
+                "lap_id":          r.get("lap_id", ""),
+                "intervals_ms":    intervals_ms,
+                "rests_ms":        rests_ms,
+                "avg_pace_ms":     avg_pace_ms,
+                "completed_count": len(completed),
+            })
+
+        return {
+            "ok":           True,
+            "session_id":   session_id,
+            "started_at":   session_data.get("started_at"),
+            "workout":      workout,
+            "athletes":     athletes,
+            "max_intervals": max_intervals,
+        }
+
+    def generate_reports(self, output_dir: str, session_id: str = None,
+                         athlete_ids: list = None):
+        """Generate PDF reports for selected athletes in the specified session."""
         if not output_dir or not output_dir.strip():
             return {"ok": False, "msg": "Output directory is required."}
         import os
@@ -619,20 +680,45 @@ class IntervalTrackApi:
             os.makedirs(output_dir, exist_ok=True)
         except Exception as e:
             return {"ok": False, "msg": f"Cannot create directory: {e}"}
-        if not self.athletes:
-            return {"ok": False, "msg": "No athletes loaded."}
+
         from report.pdf_report_runner import generate_runner_report
+
+        # Resolve session: explicit > last finished > in-memory
+        resolved_id = session_id or self._last_session_id
+        runner_dicts = None
+        if resolved_id:
+            session_data = load_completed_session(resolved_id)
+            if session_data:
+                runner_dicts = session_data.get("runners", [])
+
+        if runner_dicts is None:
+            if not self.athletes:
+                return {"ok": False, "msg": "No session selected and no athletes loaded."}
+            from serializer.json_serializer import runner_to_session_json
+            runner_dicts = [runner_to_session_json(a) for a in self.athletes]
+
+        # Filter to selected athletes when specified
+        if athlete_ids:
+            runner_dicts = [r for r in runner_dicts if r.get("lap_id") in athlete_ids]
+
         generated = []
-        for athlete in self.athletes:
-            if not athlete.get_intervals():
+        for runner_data in runner_dicts:
+            has_completed = any(
+                not iv.get("incomplete", True)
+                for iv in runner_data.get("session_intervals", [])
+            )
+            if not has_completed:
                 continue
-            safe_name = f"{athlete.name}_{athlete.lname}".replace(" ", "_")
+            name = runner_data.get("name", "")
+            lname = runner_data.get("lname", "")
+            safe_name = f"{name}_{lname}".replace(" ", "_")
             filename = os.path.join(output_dir, f"{safe_name}_report.pdf")
             try:
-                generate_runner_report(athlete, filename)
+                generate_runner_report(runner_data, filename)
                 generated.append(filename)
             except Exception as e:
-                print(f"Failed to generate report for {athlete.name}: {e}")
+                print(f"Failed to generate report for {name}: {e}")
+
         if not generated:
             return {"ok": True, "msg": "No athletes with interval data — no reports generated.", "files": []}
         return {"ok": True, "msg": f"Generated {len(generated)} report(s).", "files": generated}
@@ -724,6 +810,7 @@ class IntervalTrackApi:
         self.runner_observer.resting.clear()
         self.workout_active = False
         if self.session_persistence:
+            self._last_session_id = self.session_persistence._session_id
             self.session_persistence.finish_session()
             self.session_persistence = None
         return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}

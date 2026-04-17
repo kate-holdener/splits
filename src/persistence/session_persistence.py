@@ -105,6 +105,52 @@ def restore_session_from_dict(session_dict: dict) -> list:
     return runners
 
 
+def list_completed_sessions(data_dir=None) -> list:
+    """Return metadata for all archived sessions, newest first."""
+    sessions_dir = get_sessions_dir(data_dir)
+    result = []
+    for path in sessions_dir.glob("*.json"):
+        if path.name in ("active_session.json",) or path.name.endswith(".tmp"):
+            continue
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            runners = data.get("runners", [])
+            workout = next(
+                (r.get("workout") for r in runners if r.get("workout")), None
+            )
+            athletes_with_data = sum(
+                1 for r in runners
+                if any(not iv.get("incomplete", True)
+                       for iv in r.get("session_intervals", []))
+            )
+            result.append({
+                "session_id":        data.get("session_id", path.stem),
+                "started_at":        data.get("started_at"),
+                "saved_at":          data.get("saved_at"),
+                "athlete_count":     len(runners),
+                "athletes_with_data": athletes_with_data,
+                "workout":           workout,
+            })
+        except Exception as e:
+            print(f"[session_persistence] Skipping corrupt session {path.name}: {e}")
+    result.sort(key=lambda s: s.get("started_at") or "", reverse=True)
+    return result
+
+
+def load_completed_session(session_id: str, data_dir=None) -> Optional[dict]:
+    """Load an archived (completed) session by session_id."""
+    path = str(get_sessions_dir(data_dir) / f"{session_id}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[session_persistence] Failed to load completed session {session_id}: {e}")
+        return None
+
+
 def discard_active_session(data_dir=None) -> None:
     """Delete active_session.json without archiving (user declined recovery)."""
     path = get_active_session_path(data_dir)

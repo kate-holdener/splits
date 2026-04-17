@@ -119,8 +119,29 @@ class PyWebViewAPI:
     #-------------------------------------------
     # Performance reports
     #-------------------------------------------
-    def generate_reports(self, output_dir: str):
-        return self.track_api.generate_reports(output_dir)
+    def list_completed_sessions(self):
+        return self.track_api.list_completed_sessions()
+
+    def get_session_details(self, session_id: str):
+        return self.track_api.get_session_details(session_id)
+
+    def generate_reports(self, session_id: str, output_dir: str,
+                         athlete_ids_json: str = '[]'):
+        try:
+            athlete_ids = _json.loads(athlete_ids_json) if athlete_ids_json else None
+        except Exception:
+            athlete_ids = None
+        return self.track_api.generate_reports(output_dir, session_id, athlete_ids)
+
+    def pick_directory(self):
+        import webview as _wv
+        result = _wv.windows[0].create_file_dialog(
+            dialog_type=_wv.FileDialog.FOLDER,
+            allow_multiple=False,
+        )
+        if result and len(result) > 0:
+            return {"path": result[0]}
+        return {"path": None}
 
     def list_athletes(self):
         return self.track_api.list_athletes()

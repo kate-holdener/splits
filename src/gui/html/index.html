@@ -115,20 +115,90 @@
      ============================================================ -->
 <div class="screen" id="reports-screen">
   <div class="topbar">
-    <button class="back-btn" onclick="goTo('home-screen')">← Home</button>
+    <button class="back-btn" id="reports-back-btn" onclick="reportsBack()">← <span id="reports-back-label">Home</span></button>
     <div class="screen-title">Reports</div>
+    <button class="btn btn-ghost btn-sm" id="reports-refresh-btn" style="margin-left:auto" onclick="loadSessions()">↻</button>
   </div>
+
   <div class="scroll-area" style="flex:1">
-    <h2>Generate Reports</h2>
-    <p class="subtitle">Export workout data to a directory.</p>
-    <div class="card" style="max-width:520px">
-      <div class="form-group">
-        <label>Output Directory</label>
-        <input type="text" id="report-dir" placeholder="/path/to/output/"/>
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW 1 — session list
+         ═══════════════════════════════════════════════════════ -->
+    <div id="reports-list-view">
+      <h2>Reports</h2>
+      <p class="subtitle">Select a completed workout session to view athlete performance.</p>
+      <div class="card" style="max-width:680px">
+        <div class="card-title">Workout Sessions</div>
+        <div id="sessions-list">
+          <div style="color:var(--muted);font-size:15px;padding:6px 0">Loading sessions…</div>
+        </div>
       </div>
-      <button class="btn btn-warn" onclick="generateReports()">📊 Generate Reports</button>
     </div>
-    <div id="report-files"></div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         VIEW 2 — session detail
+         ═══════════════════════════════════════════════════════ -->
+    <div id="reports-detail-view" style="display:none">
+
+      <h2 id="detail-session-date" style="margin-bottom:6px">—</h2>
+      <p class="subtitle" id="detail-session-subtitle" style="margin-bottom:24px"></p>
+
+      <!-- Workout config stat boxes -->
+      <div class="card" style="max-width:900px">
+        <div class="card-title">Workout Configuration</div>
+        <div id="detail-workout-info" class="stat-grid" style="margin-bottom:0"></div>
+      </div>
+
+      <!-- Athletes performance table -->
+      <div class="card" style="max-width:900px">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+          Athlete Performance
+          <label style="display:flex;align-items:center;gap:9px;cursor:pointer;
+                        text-transform:none;letter-spacing:0;font-size:15px;
+                        font-family:var(--font-mono);font-weight:normal;color:var(--text)">
+            <input type="checkbox" id="report-select-all" onchange="toggleSelectAllAthletes(this)"/>
+            Select all
+          </label>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="detail-athletes-table">
+            <thead id="detail-athletes-thead"></thead>
+            <tbody id="detail-athletes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="card" style="max-width:900px">
+        <div class="card-title">Export</div>
+        <div class="form-group">
+          <label>Output Directory</label>
+          <div class="file-picker">
+            <span id="report-dir-display"
+                  style="flex:1;font-family:var(--font-mono);font-size:14px;
+                         color:var(--input-placeholder);white-space:nowrap;
+                         overflow:hidden;text-overflow:ellipsis">
+              No directory selected…
+            </span>
+            <button class="btn btn-ghost btn-sm" onclick="pickReportDir()">📂 Browse</button>
+          </div>
+          <input type="hidden" id="report-dir"/>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <button class="btn btn-warn" id="generate-reports-btn"
+                  onclick="generateReports()" disabled>
+            📊 Generate PDF Reports
+          </button>
+          <span id="generate-reports-hint" style="font-size:14px;color:var(--muted)">
+            Select athletes and an output directory
+          </span>
+        </div>
+      </div>
+
+      <div id="report-files"></div>
+    </div>
+
   </div>
 </div>
 

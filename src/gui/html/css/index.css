@@ -711,6 +711,75 @@ tr:hover td       { background: var(--td-hover); }
   padding: 36px 40px;
 }
 
+/* ── Session list rows ─────────────────────────────────────── */
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--td-sep);
+  cursor: pointer;
+  transition: background .1s;
+}
+
+.session-item:last-child { border-bottom: none; }
+.session-item:hover      { background: var(--td-hover); }
+
+.session-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.session-info { flex: 1; }
+
+.session-date {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: .5px;
+}
+
+.session-meta {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.session-arrow {
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.session-item:hover .session-arrow { color: var(--accent); }
+.session-item:hover .session-date  { color: var(--accent); }
+.session-item:hover .session-dot   { background: var(--accent); border-color: var(--accent); }
+
+/* ── Performance table cells ───────────────────────────────── */
+
+.perf-int-hdr  { color: var(--text) !important; }
+.perf-rest-hdr { color: var(--muted) !important; font-size: 13px !important; }
+.perf-pace-hdr { color: var(--accent) !important; }
+
+.perf-val  { font-family: var(--font-mono); font-size: 15px; }
+.perf-rest { font-family: var(--font-mono); font-size: 15px; color: var(--muted); }
+.perf-pace { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--accent); }
+.perf-dash { color: var(--muted); text-align: center; }
+
+.athlete-report-name { font-weight: 700; }
+
+.report-file-row {
+  padding: 5px 0;
+  font-size: 14px;
+  font-family: var(--font-mono);
+}
+
 /* ============================================================
    PERFORMANCE TOOLTIP
    ============================================================ */

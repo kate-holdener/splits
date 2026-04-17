@@ -22,6 +22,35 @@ def runner_to_json(runner):
     }
 
 
+def runner_to_session_json(runner) -> dict:
+    """Serialize a Runner to a session snapshot dict (includes live workout state).
+
+    Unlike runner_to_json, this includes current_status, lap_count, the runner's
+    assigned workout, and the full interval history with incomplete flags.
+    Used exclusively by WorkoutSessionPersistence — not for roster files.
+    """
+    d = runner_to_json(runner)
+    d["current_status"] = runner.current_status.value  # int value of RunnerState enum
+    d["lap_count"] = runner.lap_count
+    w = runner.current_workout
+    d["workout"] = {
+        "interval_distance": w.interval_distance,
+        "laps_per_interval": w.laps_per_interval,
+        "rest_time":         w.rest_time,
+        "date_and_time":     w.date_and_time.isoformat(),
+    } if w else None
+    d["session_intervals"] = [
+        {
+            "start_time": iv.start_time,
+            "end_time":   iv.end_time,
+            "distance":   iv.distance,
+            "incomplete": iv.incomplete,
+        }
+        for iv in runner.intervals
+    ]
+    return d
+
+
 def runners_from_json(json_data):
     """
     Deserialize a list of JSON dictionaries into Runner objects.

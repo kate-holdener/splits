@@ -38,6 +38,9 @@ function _activateScreen(screenId) {
     loadWorkoutAthletes();
     _workoutRefreshTimer = setInterval(loadWorkoutAthletes, 1000);
   }
+  if (screenId === 'reports-screen') {
+    loadSessions();
+  }
 }
 
 

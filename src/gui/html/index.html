@@ -145,13 +145,13 @@
       <p class="subtitle" id="detail-session-subtitle" style="margin-bottom:24px"></p>
 
       <!-- Workout config stat boxes -->
-      <div class="card" style="max-width:900px">
+      <div class="card">
         <div class="card-title">Workout Configuration</div>
         <div id="detail-workout-info" class="stat-grid" style="margin-bottom:0"></div>
       </div>
 
       <!-- Athletes accordion -->
-      <div class="card" style="max-width:900px">
+      <div class="card">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
           Athletes
           <label style="display:flex;align-items:center;gap:9px;cursor:pointer;
@@ -165,7 +165,7 @@
       </div>
 
       <!-- Export -->
-      <div class="card" style="max-width:900px">
+      <div class="card">
         <div class="card-title">Export</div>
         <div class="form-group">
           <label>Output Directory</label>
@@ -182,8 +182,8 @@
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <button class="btn btn-warn" id="generate-reports-btn"
-                  onclick="generateReports()" disabled>
-            📊 Generate PDF Reports
+                  onclick="exportHtmlReports()" disabled>
+            Export HTML Reports
           </button>
           <span id="generate-reports-hint" style="font-size:14px;color:var(--muted)">
             Select athletes and an output directory

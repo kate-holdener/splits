@@ -21,6 +21,7 @@
   --tag-inactive-bg: #222222;
   --td-sep: rgba(255,255,255,0.094);
   --td-hover: rgba(255,255,255,0.071);
+  --bar-fill: rgba(255,255,0,0.18);
 }
 
 /* ============================================================
@@ -40,6 +41,7 @@ body.light-mode {
   --tag-inactive-bg: #e0e0e0;
   --td-sep: rgba(0,0,0,0.094);
   --td-hover: rgba(0,0,0,0.04);
+  --bar-fill: rgba(0,68,187,0.15);
 }
 
 body {
@@ -787,48 +789,67 @@ tr:hover td       { background: var(--td-hover); }
 .acc-item {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   overflow: hidden;
 }
-
 .acc-item:last-child { margin-bottom: 0; }
+
+/* ── Header (always visible) ─────────────────────────────── */
 
 .acc-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
+  gap: 14px;
+  padding: 14px 20px;
   cursor: pointer;
   background: var(--panel);
   transition: background .1s;
   user-select: none;
 }
-
 .acc-header:hover { background: var(--td-hover); }
 
 .acc-arrow {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
-  width: 14px;
+  width: 12px;
   flex-shrink: 0;
   transition: color .1s;
 }
-
 .acc-header:hover .acc-arrow { color: var(--accent); }
 
 .acc-name {
   font-family: var(--font-head);
   font-size: 17px;
   font-weight: 700;
-  letter-spacing: .5px;
   color: var(--text);
+  flex-shrink: 0;
+  min-width: 0;
 }
 
-.acc-meta {
+.acc-header-pills {
   flex: 1;
-  font-size: 13px;
-  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.acc-pill {
   font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.acc-pill-accent {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .acc-cb-label {
@@ -839,133 +860,196 @@ tr:hover td       { background: var(--td-hover); }
   flex-shrink: 0;
 }
 
-.acc-body {
-  display: none;
-  padding: 0 20px 20px;
-  background: var(--bg);
-  border-top: 1px solid var(--border);
+.acc-cb-text {
+  font-size: 14px;
+  color: var(--muted);
+  font-family: var(--font-mono);
 }
 
+/* ── Body (expanded) ─────────────────────────────────────── */
+
+.acc-body {
+  display: none;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
 .acc-body.open { display: block; }
 
-.acc-section { margin-top: 20px; }
+/* Params strip — horizontal row of stats under the header */
+.acc-params-strip {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
 
-.acc-section-title {
+.acc-param-cell {
+  flex: 1;
+  padding: 12px 20px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+.acc-param-cell:last-child { border-right: none; }
+
+.acc-param-val {
   font-family: var(--font-head);
-  font-size: 11px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.acc-param-label {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* Middle row: interval table (left) + KPI stats (right) */
+.acc-middle-row {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.acc-table-col {
+  flex: 0 0 auto;
+  padding: 18px 20px;
+  border-right: 1px solid var(--border);
+}
+
+.acc-stats-col {
+  flex: 1;
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-width: 200px;
+}
+
+/* Sub-section label */
+.acc-col-label {
+  font-family: var(--font-head);
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 12px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
 }
 
-/* Workout params row */
-.acc-params-row {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.acc-param {
-  min-width: 80px;
-}
-
-.acc-param-val {
-  font-family: var(--font-head);
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-.acc-param-label {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-top: 3px;
-}
-
-/* Interval data table (compact) */
+/* Interval data table */
 .acc-table {
-  max-width: 360px;
-  margin: 0;
+  border-collapse: collapse;
+  width: auto;
 }
 
 .acc-table th {
-  font-size: 12px;
-  padding: 8px 12px;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
 }
+
+.acc-th-num { width: 36px; text-align: center; }
 
 .acc-table td {
+  padding: 10px 18px;
+  font-size: 16px;
+  border-bottom: 1px solid var(--td-sep);
+}
+.acc-table tr:last-child td   { border-bottom: none; }
+.acc-table tr:nth-child(even) td { background: var(--td-hover); }
+
+.acc-td-num {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  width: 36px;
+}
+
+.acc-td-dur {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.acc-td-rest {
+  font-family: var(--font-mono);
   font-size: 15px;
-  padding: 10px 12px;
+  color: var(--muted);
 }
 
-/* Analytics layout */
-.acc-analytics-wrap {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  flex-wrap: wrap;
+/* "best" badge inside the fastest interval row */
+.acc-best-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--success);
+  border: 1px solid var(--success);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 8px;
+  vertical-align: middle;
+  opacity: 0.85;
 }
 
-.acc-chart-wrap {
-  flex: 1;
-  min-width: 260px;
+/* KPI / stat cards */
+.acc-stat-card {
+  padding: 11px 18px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.acc-stat-val {
+  font-family: var(--font-head);
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.acc-stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+/* Chart section — full width below the table/KPI row */
+.acc-chart-section {
+  padding: 18px 20px 14px;
 }
 
 .acc-chart-xlabel {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   text-align: center;
-  margin-top: 2px;
+  margin-top: 6px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  padding-left: 64px;   /* align under the plot area (matches ml in the SVG) */
+  padding-left: 72px;  /* aligns under plot area (ml=72 in SVG viewBox) */
 }
 
-.acc-kpi-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 160px;
-  padding-top: 8px;
-}
-
-.acc-kpi {
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--panel);
-  text-align: center;
-}
-
-.acc-kpi-val {
-  font-family: var(--font-head);
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--accent);
-  line-height: 1.1;
-}
-
-.acc-kpi-label {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-top: 5px;
-}
-
-/* ── Fatigue Curve SVG ───────────────────────────────────── */
+/* ── Fatigue Curve SVG ────────────────────────────────────── */
 
 .fatigue-chart {
-  overflow: visible;
-  max-width: 100%;
+  width: 100%;
+  height: auto;
   display: block;
+  overflow: visible;
 }
 
 .chart-grid {
@@ -981,7 +1065,7 @@ tr:hover td       { background: var(--td-hover); }
 
 .chart-label {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   fill: var(--muted);
 }
 
@@ -990,7 +1074,7 @@ tr:hover td       { background: var(--td-hover); }
 
 .chart-area {
   fill: var(--accent);
-  fill-opacity: 0.12;
+  fill-opacity: 0.1;
 }
 
 .chart-line {
@@ -998,10 +1082,21 @@ tr:hover td       { background: var(--td-hover); }
   stroke: var(--accent);
   stroke-width: 2.5;
   stroke-linejoin: round;
-  stroke-linecap: round;
 }
 
-.chart-dot { fill: var(--accent); }
+/* Regular interval dot: open circle */
+.chart-dot {
+  fill: var(--bg);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+/* Best (fastest) interval dot: filled */
+.chart-dot-best {
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
 
 /* ============================================================
    PERFORMANCE TOOLTIP

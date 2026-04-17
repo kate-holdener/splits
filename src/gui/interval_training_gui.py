@@ -133,6 +133,25 @@ class PyWebViewAPI:
             athlete_ids = None
         return self.track_api.generate_reports(output_dir, session_id, athlete_ids)
 
+    def write_files(self, files: list):
+        """Write a list of {path, content} dicts to disk. Used for HTML report export."""
+        import os
+        written = []
+        for entry in files:
+            path    = entry['path']
+            content = entry['content']
+            try:
+                parent = os.path.dirname(os.path.abspath(path))
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
+                with open(path, 'w', encoding='utf-8') as fh:
+                    fh.write(content)
+                written.append(path)
+            except Exception as e:
+                return {"ok": False, "msg": f"Failed to write {os.path.basename(path)}: {e}"}
+        n = len(written)
+        return {"ok": True, "msg": f"Exported {n} report{'s' if n != 1 else ''}.", "files": written}
+
     def pick_directory(self):
         import webview as _wv
         result = _wv.windows[0].create_file_dialog(

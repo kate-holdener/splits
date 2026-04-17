@@ -371,7 +371,8 @@ label {
 }
 
 input[type=text],
-input[type=number] {
+input[type=number],
+input[type=email] {
   width: 100%;
   background: var(--input-bg);
   border: 1px solid var(--border);

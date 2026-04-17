@@ -774,6 +774,49 @@ class IntervalTrackApi:
     # ------------------------------------------------------------------
     # Email
     # ------------------------------------------------------------------
+    def add_athlete_to_roster(self, roster_id: str, data: dict):
+        from persistence.roster_persistence import load_roster, save_roster, load_rosters_index
+        index = load_rosters_index()
+        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
+        if not roster_meta:
+            return {"ok": False, "msg": "Roster not found."}
+        rfid_tag = data.get("rfid_tag", "").strip()
+        if not rfid_tag:
+            return {"ok": False, "msg": "RFID tag is required."}
+        athletes = load_roster(roster_id, include_archived=True) or []
+        if any(a.lap_id == rfid_tag for a in athletes):
+            return {"ok": False, "msg": f"An athlete with RFID tag '{rfid_tag}' already exists in this roster."}
+        runner = Runner()
+        runner.name     = data.get("first_name", "").strip()
+        runner.lname    = data.get("last_name",  "").strip()
+        runner.lap_id   = rfid_tag
+        runner.start_id = data.get("nfc_tag", "").strip()
+        runner.email    = data.get("email", "").strip() or None
+        athletes.append(runner)
+        save_roster(roster_id, roster_meta["name"], athletes)
+        return {"ok": True, "msg": f"{runner.name} added to roster."}
+
+    def update_athlete(self, athlete_id: str, data: dict):
+        from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
+        result = find_athlete_by_id(athlete_id)
+        if not result:
+            return {"ok": False, "msg": "Athlete not found."}
+        roster_id, _ = result
+        index = load_rosters_index()
+        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
+        if not roster_meta:
+            return {"ok": False, "msg": "Roster not found."}
+        athletes = load_roster(roster_id, include_archived=True) or []
+        for a in athletes:
+            if a.lap_id == athlete_id:
+                a.name     = data.get("first_name", "").strip()
+                a.lname    = data.get("last_name",  "").strip()
+                a.start_id = data.get("nfc_tag", "").strip()
+                a.email    = data.get("email", "").strip() or None
+                break
+        save_roster(roster_id, roster_meta["name"], athletes)
+        return {"ok": True, "msg": "Athlete updated."}
+
     def update_athlete_email(self, lap_id: str, email: str):
         """Persist an email address for an athlete identified by lap_id."""
         from persistence.roster_persistence import (

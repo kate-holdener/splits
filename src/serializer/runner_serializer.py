@@ -8,5 +8,5 @@ def runner_from_dict(runner_dict, fname: str, lname: str, start_id: str, lap_id:
     runner.lname = runner_dict[lname]
     runner.start_id = runner_dict[start_id]
     runner.lap_id = runner_dict[lap_id]
-    runner.email = runner_dict[email]
+    runner.email = runner_dict.get(email) or None
     return runner

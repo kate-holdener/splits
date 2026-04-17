@@ -225,6 +225,8 @@ def merge_athletes_from_csv(roster_id: str, roster_name: str, new_runners: list,
             existing_runner.name = runner.name
             existing_runner.lname = runner.lname
             existing_runner.start_id = runner.start_id
+            if runner.email is not None:
+                existing_runner.email = runner.email
             updated += 1
         else:
             existing.append(runner)

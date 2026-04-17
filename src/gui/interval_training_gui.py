@@ -125,6 +125,12 @@ class PyWebViewAPI:
     def get_session_details(self, session_id: str):
         return self.track_api.get_session_details(session_id)
 
+    def add_athlete_to_roster(self, roster_id: str, data: dict):
+        return self.track_api.add_athlete_to_roster(roster_id, data)
+
+    def update_athlete(self, athlete_id: str, data: dict):
+        return self.track_api.update_athlete(athlete_id, data)
+
     def update_athlete_email(self, lap_id: str, email: str):
         return self.track_api.update_athlete_email(lap_id, email)
 
@@ -208,6 +214,27 @@ class PyWebViewAPI:
         if result and len(result) > 0:
             return {"path": result[0]}
         return {"path": None}
+
+    def download_csv_template(self):
+        import webview as _wv
+        result = _wv.windows[0].create_file_dialog(
+            dialog_type=_wv.FileDialog.SAVE,
+            save_filename='athletes_template.csv',
+            file_types=('CSV files (*.csv)', 'All files (*.*)')
+        )
+        if not result:
+            return {"ok": False}
+        path = result if isinstance(result, str) else result[0]
+        content = (
+            'First Name,Last Name,NFC TAG,RFID TAG,Email\n'
+            'Jane,Smith,AAA111,BBB222,jane@example.com\n'
+        )
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            return {"ok": True, "msg": "Template saved."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
     
     def add_resting_window(self, resting_window):
         self.resting_window = resting_window

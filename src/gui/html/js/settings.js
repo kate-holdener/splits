@@ -223,7 +223,7 @@ function renderSettingsAthletes() {
 
   if (!settingsAthletes.length) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No athletes found</td>';
+    emptyRow.innerHTML = '<td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No athletes found</td>';
     tbody.appendChild(emptyRow);
     return;
   }
@@ -236,6 +236,9 @@ function renderSettingsAthletes() {
 
     row.innerHTML = `
       <td><strong>${escapeHtml(fullName)}</strong></td>
+      <td style="color:${athlete.email ? 'var(--text)' : 'var(--muted)'};font-size:13px">
+        ${escapeHtml(athlete.email || '—')}
+      </td>
       <td><code>${escapeHtml(athlete.finish_tag || '-')}</code></td>
       <td><code>${escapeHtml(athlete.start_tag || '-')}</code></td>
       <td>
@@ -307,13 +310,110 @@ async function importAthletesModal() {
   }
 }
 
+// ============================================================
+// ADD / EDIT ATHLETE MODAL
+// ============================================================
+
+let _athleteModalMode = 'add'; // 'add' | 'edit'
+let _editingAthleteId = null;
+
 function openAddAthleteModal() {
-  alert('Add individual athlete functionality coming soon!');
+  if (!selectedSettingsRosterId) {
+    log('Select a roster before adding athletes.', 'err');
+    return;
+  }
+  _athleteModalMode = 'add';
+  _editingAthleteId = null;
+  document.getElementById('athlete-modal-title').textContent        = 'Add Athlete';
+  document.getElementById('athlete-modal-submit-btn').textContent   = 'Add Athlete';
+  document.getElementById('athlete-modal-fname').value  = '';
+  document.getElementById('athlete-modal-lname').value  = '';
+  document.getElementById('athlete-modal-rfid').value   = '';
+  document.getElementById('athlete-modal-rfid').disabled = false;
+  document.getElementById('athlete-modal-nfc').value    = '';
+  document.getElementById('athlete-modal-email').value  = '';
+  _clearAthleteModalError();
+  updateAthleteModalBtn();
+  document.getElementById('athlete-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('athlete-modal-fname').focus(), 50);
 }
 
 function editAthlete(athleteId) {
-  alert('Edit athlete functionality coming soon!');
+  const athlete = settingsAthletes.find(a => a.id === athleteId);
+  if (!athlete) return;
+  _athleteModalMode = 'edit';
+  _editingAthleteId = athleteId;
+  document.getElementById('athlete-modal-title').textContent        = 'Edit Athlete';
+  document.getElementById('athlete-modal-submit-btn').textContent   = 'Save Changes';
+  document.getElementById('athlete-modal-fname').value  = athlete.first_name || athlete.name  || '';
+  document.getElementById('athlete-modal-lname').value  = athlete.last_name  || athlete.lname || '';
+  document.getElementById('athlete-modal-rfid').value   = athlete.finish_tag || athlete.lap_id || '';
+  document.getElementById('athlete-modal-rfid').disabled = true; // RFID is the unique key — can't change
+  document.getElementById('athlete-modal-nfc').value    = athlete.start_tag  || athlete.start_id || '';
+  document.getElementById('athlete-modal-email').value  = athlete.email || '';
+  _clearAthleteModalError();
+  updateAthleteModalBtn();
+  document.getElementById('athlete-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('athlete-modal-fname').focus(), 50);
 }
+
+function closeAthleteModal() {
+  document.getElementById('athlete-modal').style.display = 'none';
+}
+
+function updateAthleteModalBtn() {
+  const fname = document.getElementById('athlete-modal-fname').value.trim();
+  const rfid  = document.getElementById('athlete-modal-rfid').value.trim();
+  const ok = !!fname && (_athleteModalMode === 'edit' || !!rfid);
+  document.getElementById('athlete-modal-submit-btn').disabled = !ok;
+}
+
+function _showAthleteModalError(msg) {
+  const el = document.getElementById('athlete-modal-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function _clearAthleteModalError() {
+  const el = document.getElementById('athlete-modal-error');
+  el.textContent = '';
+  el.style.display = 'none';
+}
+
+async function submitAthleteModal() {
+  const data = {
+    first_name: document.getElementById('athlete-modal-fname').value.trim(),
+    last_name:  document.getElementById('athlete-modal-lname').value.trim(),
+    rfid_tag:   document.getElementById('athlete-modal-rfid').value.trim(),
+    nfc_tag:    document.getElementById('athlete-modal-nfc').value.trim(),
+    email:      document.getElementById('athlete-modal-email').value.trim(),
+  };
+
+  const submitBtn = document.getElementById('athlete-modal-submit-btn');
+  submitBtn.disabled = true;
+  _clearAthleteModalError();
+
+  const result = _athleteModalMode === 'add'
+    ? await pywebview.api.add_athlete_to_roster(selectedSettingsRosterId, data)
+    : await pywebview.api.update_athlete(_editingAthleteId, data);
+
+  if (!result.ok) {
+    _showAthleteModalError(result.msg || 'Operation failed.');
+    submitBtn.disabled = false;
+    return;
+  }
+
+  log(result.msg, 'ok');
+  closeAthleteModal();
+  loadSettingsAthletesForRoster(selectedSettingsRosterId);
+}
+
+async function downloadCsvTemplate() {
+  const result = await pywebview.api.download_csv_template();
+  if (result.ok) log(result.msg, 'ok');
+  else if (result.msg) log(result.msg, 'err');
+}
+
 
 // ============================================================
 // INITIALIZATION

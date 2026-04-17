@@ -10,6 +10,7 @@ def parse_runner_data(filename):
         dict_reader = csv.DictReader(f, skipinitialspace=True)
         # Convert the DictReader object to a list
         for row in dict_reader:
-            runner = runner_from_dict(row, 'First Name', 'Last Name', 'NFC TAG', 'RFID TAG', 'email')
+            normalized = {k.strip().lower(): v for k, v in row.items()}
+            runner = runner_from_dict(normalized, 'first name', 'last name', 'nfc tag', 'rfid tag', 'email')
             runners.append(runner)
     return runners

@@ -33,10 +33,44 @@ async function loadInitialState() {
   }
 }
 
-window.addEventListener('pywebviewready', () => {
+window.addEventListener('pywebviewready', async () => {
   log('IntervalTrack ready.', 'info');
-  loadInitialState();
+  await loadInitialState();
+  checkForRecovery();
 });
+
+async function checkForRecovery() {
+  try {
+    const r = await pywebview.api.get_pending_recovery();
+    if (!r.hasPendingRecovery) return;
+    const started = r.started_at
+      ? new Date(r.started_at).toLocaleTimeString() : '(unknown time)';
+    const w = r.workout;
+    const desc = w ? `${w.interval_distance}m \u00d7 ${w.laps_per_interval} laps, ${w.rest_time}s rest` : 'Unknown workout';
+    document.getElementById('recovery-detail').innerHTML =
+      `A workout from <strong>${started}</strong> was interrupted.<br>` +
+      `Workout: ${desc}&nbsp;&nbsp;|&nbsp;&nbsp;${r.athlete_count} athletes`;
+    document.getElementById('recovery-modal').style.display = 'flex';
+  } catch (e) {
+    console.error('Recovery check failed:', e);
+  }
+}
+
+async function resumeSession() {
+  document.getElementById('recovery-modal').style.display = 'none';
+  const r = await pywebview.api.resume_session();
+  log(r.msg, r.ok ? 'ok' : 'err');
+  if (r.ok) {
+    if (r.state) applyState(r.state);
+    _activateScreen('workout-screen');
+  }
+}
+
+async function discardRecovery() {
+  document.getElementById('recovery-modal').style.display = 'none';
+  await pywebview.api.discard_recovery();
+  log('Previous session discarded.', 'info');
+}
 
 // Close setup modal pickers when clicking outside them
 document.addEventListener('click', e => {
@@ -81,4 +115,7 @@ document.getElementById('workout-modal').addEventListener('click', e => {
 });
 document.getElementById('session-setup-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('session-setup-modal')) cancelSessionSetup();
+});
+document.getElementById('recovery-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('recovery-modal')) discardRecovery();
 });

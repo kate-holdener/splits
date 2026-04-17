@@ -25,6 +25,7 @@ class Runner:
         self.current_workout = None
         self.archived = False
         self.archived_at = None
+        self.email = None
 
     def add_workout(self, workout: Workout):
         """

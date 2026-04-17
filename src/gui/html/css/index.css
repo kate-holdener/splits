@@ -1065,7 +1065,7 @@ tr:hover td       { background: var(--td-hover); }
 
 .chart-label {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 15px;
   fill: var(--muted);
 }
 

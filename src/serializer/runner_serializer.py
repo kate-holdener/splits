@@ -1,6 +1,6 @@
 from entity.runner import Runner
 
-def runner_from_dict(runner_dict, fname: str, lname: str, start_id: str, lap_id: str)->Runner:
+def runner_from_dict(runner_dict, fname: str, lname: str, start_id: str, lap_id: str, email: str)->Runner:
     """Deserialize a dictionary into a Runner object."""
     runner = Runner()
     print(runner_dict)
@@ -8,4 +8,5 @@ def runner_from_dict(runner_dict, fname: str, lname: str, start_id: str, lap_id:
     runner.lname = runner_dict[lname]
     runner.start_id = runner_dict[start_id]
     runner.lap_id = runner_dict[lap_id]
+    runner.email = runner_dict[email]
     return runner

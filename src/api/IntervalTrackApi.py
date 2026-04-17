@@ -660,6 +660,16 @@ class IntervalTrackApi:
                 "completed_count": len(completed),
             })
 
+        # Augment with email from current roster data
+        from persistence.roster_persistence import find_athlete_by_id
+        for athlete in athletes:
+            result = find_athlete_by_id(athlete["lap_id"])
+            if result:
+                _, runner = result
+                athlete["email"] = getattr(runner, "email", None) or ""
+            else:
+                athlete["email"] = ""
+
         return {
             "ok":           True,
             "session_id":   session_id,
@@ -760,6 +770,74 @@ class IntervalTrackApi:
             self.session_persistence.finish_session()
             self.session_persistence = None
         return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
+
+    # ------------------------------------------------------------------
+    # Email
+    # ------------------------------------------------------------------
+    def update_athlete_email(self, lap_id: str, email: str):
+        """Persist an email address for an athlete identified by lap_id."""
+        from persistence.roster_persistence import (
+            find_athlete_by_id, load_roster, save_roster, load_rosters_index
+        )
+        result = find_athlete_by_id(lap_id)
+        if not result:
+            return {"ok": False, "msg": "Athlete not found."}
+        roster_id, _ = result
+        index = load_rosters_index()
+        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
+        if not roster_meta:
+            return {"ok": False, "msg": "Roster not found."}
+        athletes = load_roster(roster_id, include_archived=True) or []
+        for a in athletes:
+            if a.lap_id == lap_id:
+                a.email = email.strip() if email else ""
+                break
+        save_roster(roster_id, roster_meta["name"], athletes)
+        return {"ok": True}
+
+    def send_reports(self, reports: list):
+        """Send HTML performance reports via email. reports is [{name, email, html, lap_id}]."""
+        import importlib.util, os
+        email_path = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "..", "email", "email_sender.py")
+        )
+        spec = importlib.util.spec_from_file_location("_email_sender", email_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        EmailSender    = mod.EmailSender
+        SMTPConfigError = mod.SMTPConfigError
+
+        try:
+            sender = EmailSender()
+        except SMTPConfigError as e:
+            return {"ok": False, "msg": str(e)}
+        except Exception as e:
+            return {"ok": False, "msg": f"Email configuration error: {e}"}
+
+        # Verify Playwright is available before attempting any sends
+        try:
+            import playwright  # noqa: F401
+        except ImportError:
+            return {"ok": False, "msg": "Playwright is not installed. Run: pip install playwright && playwright install chromium"}
+
+        sent, failed = [], []
+        for report in reports:
+            try:
+                ok = sender.send_report(
+                    to_email=report["email"],
+                    runner_name=report["name"],
+                    report_html_string=report["html"],
+                )
+                (sent if ok else failed).append(report["name"])
+            except Exception as e:
+                failed.append(f"{report['name']} ({e})")
+
+        if failed:
+            msg = f"Failed: {'; '.join(failed)}."
+            if sent:
+                msg += f" Sent: {', '.join(sent)}."
+            return {"ok": False, "msg": msg}
+        return {"ok": True, "msg": f"Sent {len(sent)} email{'s' if len(sent) != 1 else ''}."}
 
     # ------------------------------------------------------------------
     # Helpers

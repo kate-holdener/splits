@@ -125,6 +125,12 @@ class PyWebViewAPI:
     def get_session_details(self, session_id: str):
         return self.track_api.get_session_details(session_id)
 
+    def update_athlete_email(self, lap_id: str, email: str):
+        return self.track_api.update_athlete_email(lap_id, email)
+
+    def send_reports(self, reports: list):
+        return self.track_api.send_reports(reports)
+
     def write_files(self, files: list):
         """Write a list of {path, content} dicts to disk. Used for HTML report export."""
         import os

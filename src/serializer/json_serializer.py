@@ -12,6 +12,7 @@ def runner_to_json(runner):
         "lap_id": runner.lap_id,      # Keep for backward compatibility
         "archived": getattr(runner, 'archived', False),
         "archived_at": getattr(runner, 'archived_at', None),
+        "email": getattr(runner, 'email', None),
         "intervals": [
             {
                 "start_time": interval.start_time,
@@ -93,7 +94,8 @@ def runners_from_json(json_data):
             runner.lap_id = str(runner_dict["lap_id"])
             runner.archived = runner_dict.get("archived", False)
             runner.archived_at = runner_dict.get("archived_at", None)
-            
+            runner.email = runner_dict.get("email", None)
+
             # Initialize empty intervals list (we don't persist workout state)
             runner.intervals = []
             

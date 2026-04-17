@@ -143,6 +143,19 @@ class PyWebViewAPI:
     
     def finish_workout(self):
         return self.track_api.finish_workout()
+
+    # ------------------------------------------------------------------
+    # Session recovery
+    # ------------------------------------------------------------------
+    def get_pending_recovery(self):
+        return self.track_api.get_pending_recovery()
+
+    def resume_session(self):
+        return self.track_api.resume_session()
+
+    def discard_recovery(self):
+        return self.track_api.discard_recovery()
+
     # ------------------------------------------------------------------
     # File dialog – called from JS to open a native CSV picker
     # ------------------------------------------------------------------

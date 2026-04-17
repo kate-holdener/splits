@@ -1,3 +1,4 @@
+import uuid
 from queue import Queue
 from typing import Optional
 from datetime import datetime
@@ -9,6 +10,7 @@ from controller.start_controller import ManualStartController
 from api.runnerObserver import RunnerObserver
 from entity.runner import Runner
 from entity.workout import Workout
+from entity.RunnerState import RunnerState
 from parser.runner_parser import parse_runner_data
 from discovery.auto_connect import auto_connect_to_rfid_scanner, connect_rfid_with_scanner_info
 from persistence.roster_persistence import (
@@ -22,6 +24,12 @@ from persistence.workout_persistence import (
     list_workouts as _list_workouts,
     save_workout as _save_workout,
     get_workout_by_id as _get_workout_by_id,
+)
+from persistence.session_persistence import (
+    WorkoutSessionPersistence,
+    load_active_session,
+    restore_session_from_dict,
+    discard_active_session,
 )
 
 class IntervalTrackApi:
@@ -50,6 +58,8 @@ class IntervalTrackApi:
         self.saved_scanner_config = load_scanner_config()
 
         self.runner_observer = RunnerObserver()
+        self.session_persistence: Optional[WorkoutSessionPersistence] = None
+        self.pending_recovery: Optional[dict] = None
 
         self.start_event_q = Queue()
         self.lap_event_q = Queue()
@@ -63,6 +73,7 @@ class IntervalTrackApi:
 
         # Load the active roster on startup
         self._load_active_roster()
+        self._check_for_recovery()
 
 
 
@@ -569,6 +580,11 @@ class IntervalTrackApi:
         ids_to_start = [t for t in tag_ids if t in valid_ids]
         if not ids_to_start:
             return {"ok": False, "msg": "None of the selected tag IDs match known athletes."}
+        if self.session_persistence is None and self.workout and self.current_roster:
+            self._wire_session_persistence(
+                session_id=str(uuid.uuid4()),
+                roster_id=self.current_roster["id"],
+            )
         self.manual_start_controller.start(ids_to_start)
         self.workout_active = True
         return {"ok": True, "msg": f"Started {len(ids_to_start)} athletes.",
@@ -622,12 +638,94 @@ class IntervalTrackApi:
         return {"ok": True, "msg": f"Generated {len(generated)} report(s).", "files": generated}
 
     # ------------------------------------------------------------------
+    # Session recovery
+    # ------------------------------------------------------------------
+    def _check_for_recovery(self):
+        """Check for an unfinished session from a previous run."""
+        session_dict = load_active_session()
+        if session_dict:
+            self.pending_recovery = session_dict
+
+    def get_pending_recovery(self) -> dict:
+        """Return recovery info for the GUI to display a resume dialog."""
+        if not self.pending_recovery:
+            return {"hasPendingRecovery": False}
+        s = self.pending_recovery
+        runners = s.get("runners", [])
+        first_workout = runners[0].get("workout") if runners else None
+        return {
+            "hasPendingRecovery": True,
+            "started_at":    s.get("started_at"),
+            "saved_at":      s.get("saved_at"),
+            "athlete_count": len(runners),
+            "workout":       first_workout,
+        }
+
+    def resume_session(self) -> dict:
+        """Restore a previously interrupted workout session."""
+        if not self.pending_recovery:
+            return {"ok": False, "msg": "No pending session."}
+        try:
+            athletes = restore_session_from_dict(self.pending_recovery)
+            first_workout = athletes[0].current_workout if athletes else None
+            self.workout = first_workout
+            self.workout_configured = bool(first_workout)
+            self.current_workout_config = {
+                "distance": first_workout.interval_distance,
+                "laps":     first_workout.laps_per_interval,
+                "rest":     first_workout.rest_time,
+            } if first_workout else None
+            roster_id = self.pending_recovery.get("roster_id")
+            self._stop_timer()
+            self.init_athletes(athletes)
+            # Sync RunnerObserver with restored runner states. init_athletes()
+            # registers the observer but never calls update(), so running/resting
+            # lists stay empty and all runners appear INACTIVE in the GUI.
+            for a in self.athletes:
+                self.runner_observer.update(a)
+                # For resting runners, restore the rest start time from the
+                # end_time of their last completed interval rather than using
+                # "now", so the rest countdown reflects actual elapsed time.
+                if a.current_status == RunnerState.RESTING:
+                    completed = [iv for iv in a.intervals if not iv.incomplete]
+                    if completed:
+                        self.runner_observer._rest_start[id(a)] = completed[-1].end_time / 1000
+            self._wire_session_persistence(
+                session_id=self.pending_recovery["session_id"],
+                roster_id=roster_id,
+            )
+            self.workout_active = True
+            self.pending_recovery = None
+            return {"ok": True, "msg": "Session resumed.", "state": self.get_state()}
+        except Exception as e:
+            return {"ok": False, "msg": f"Failed to resume: {e}"}
+
+    def discard_recovery(self) -> dict:
+        """Delete the active session file without restoring it."""
+        discard_active_session()
+        self.pending_recovery = None
+        return {"ok": True}
+
+    def _wire_session_persistence(self, session_id: str, roster_id: str) -> None:
+        """Create a WorkoutSessionPersistence observer and register it with all runners."""
+        self.session_persistence = WorkoutSessionPersistence(
+            session_id=session_id,
+            roster_id=roster_id,
+            athletes=self.athletes,
+        )
+        for a in self.athletes:
+            a.add_observer(self.session_persistence)
+
+    # ------------------------------------------------------------------
     # Option 11 – Finish workout
     # ------------------------------------------------------------------
     def finish_workout(self):
         self.runner_observer.running.clear()
         self.runner_observer.resting.clear()
         self.workout_active = False
+        if self.session_persistence:
+            self.session_persistence.finish_session()
+            self.session_persistence = None
         return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
 
     # ------------------------------------------------------------------
@@ -686,4 +784,9 @@ class IntervalTrackApi:
     def shutdown(self):
         if self.timer:
             self.timer.stop()
+        if self.session_persistence and self.workout_active:
+            try:
+                self.session_persistence._persist()
+            except Exception:
+                pass
         return {"ok": True}

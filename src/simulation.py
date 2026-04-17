@@ -6,7 +6,7 @@ from entity.event import Event
 from queue import Queue
 
 from datetime import datetime
-from interactors.interval_timer import IntervalTimer
+from interactors.interval_timer import SplitsTimer
 
 def read_command_line_arguments():
     """
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     
     start_q = Queue()
     lap_q = Queue()
-    intervalTimer = IntervalTimer(start_q, lap_q, athletes)
+    intervalTimer = SplitsTimer(start_q, lap_q, athletes)
     intervalTimer.start()
 
     with open(commands_csv, 'r') as f:

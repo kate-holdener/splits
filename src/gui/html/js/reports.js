@@ -476,7 +476,7 @@ function _buildStandaloneHtml(a, wk, sessionDate, css) {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>${fullName} — IntervalTrack Report</title>
+<title>${fullName} — Splits Report</title>
 <style>
 ${css}
 /* ── Standalone report overrides ── */
@@ -494,7 +494,7 @@ body { height: auto !important; overflow: auto !important; }
 <body class="light-mode">
 <div class="rpt-wrap">
 
-  <div class="rpt-brand">IntervalTrack</div>
+  <div class="rpt-brand">Splits</div>
   <div class="rpt-name">${fullName}</div>
   <div class="rpt-date">${sessionDate}</div>
 
@@ -792,7 +792,7 @@ function _buildEmailHtml(a, wk, sessionDate, css, chartPngDataUrl) {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>${fullName} — IntervalTrack Report</title>
+<title>${fullName} — Splits Report</title>
 <style>
 ${css}
 /* ── Email report overrides ── */
@@ -829,7 +829,7 @@ body { height: auto !important; overflow: auto !important; font-size: 13px; }
 <body class="light-mode">
 <div class="rpt-wrap">
 
-  <div class="rpt-brand">IntervalTrack</div>
+  <div class="rpt-brand">Splits</div>
   <div class="rpt-name">${fullName}</div>
   <div class="rpt-date">${sessionDate}</div>
 

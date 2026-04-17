@@ -19,7 +19,7 @@ rm -rf dist/ build/ *.spec
 echo "Building executable..."
 pyinstaller \
     --windowed \
-    --name "IntervalTimer" \
+    --name "Splits" \
     --icon "icon/icon.icns" \
     --osx-bundle-identifier "com.intervaltraining.app" \
     --add-data "src/gui/html:src/gui/html" \
@@ -35,14 +35,14 @@ pyinstaller \
     --hidden-import=webview \
     --collect-submodules=webview \
     --collect-submodules=smartcard \
-    --collect-submodules=pyscard \
+    --collect-binaries=smartcard \
     --collect-submodules=sllurp \
     --noconfirm \
     main.py
 echo "Build completed successfully!"
-echo "Executable location: dist/IntervalTimer"
+echo "Executable location: dist/Splits"
 
-if [ -d "dist/IntervalTimer.app" ]; then
+if [ -d "dist/Splits.app" ]; then
     echo "✓ App bundle created successfully"
     ls -lh dist/
 else
@@ -52,4 +52,4 @@ fi
 echo ""
 echo "To test the executable:"
 echo "  cd dist"
-echo "  ./IntervalTimer"
+echo "  ./Splits"

@@ -16,9 +16,9 @@ def get_user_data_dir() -> Path:
 
     | Platform | Location |
     |----------|----------|
-    | Windows  | %APPDATA%\\IntervalTimer\\ |
-    | macOS    | ~/Library/Application Support/IntervalTimer/ |
-    | Linux    | $XDG_DATA_HOME/IntervalTimer/ or ~/.local/share/IntervalTimer/ |
+    | Windows  | %APPDATA%\\Splits\\ |
+    | macOS    | ~/Library/Application Support/Splits/ |
+    | Linux    | $XDG_DATA_HOME/Splits/ or ~/.local/share/Splits/ |
 
     Returns:
         Path: User data directory, created automatically if it does not exist.
@@ -30,6 +30,6 @@ def get_user_data_dir() -> Path:
     else:  # Linux / other Unix
         base = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share'))
 
-    data_dir = base / 'IntervalTimer'
+    data_dir = base / 'Splits'
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir

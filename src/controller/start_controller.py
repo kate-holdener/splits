@@ -1,4 +1,4 @@
-from interactors.interval_timer import IntervalTimer
+from interactors.interval_timer import SplitsTimer
 from entity.event import Event
 from queue import Queue
 from datetime import datetime

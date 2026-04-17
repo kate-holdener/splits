@@ -1,4 +1,4 @@
-from interactors.interval_timer import IntervalTimer
+from interactors.interval_timer import SplitsTimer
 from entity.runner import Runner
 from entity.event import Event
 from view.timer_view import TimerView
@@ -37,7 +37,7 @@ def main(runner_file):
     for runner in runners:
         runner.add_observer(timer_view)
 
-    interval_timer = IntervalTimer(start_time_queue, lap_time_queue, runners)
+    interval_timer = SplitsTimer(start_time_queue, lap_time_queue, runners)
     interval_timer.start()
 
     lap_times = []

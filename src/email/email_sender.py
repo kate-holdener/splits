@@ -109,7 +109,7 @@ class EmailSender:
         msg.attach(MIMEText(
             f"Hi {runner_name},\n\n"
             f"Your interval training performance report is attached.\n\n"
-            f"— IntervalTrack",
+            f"— Splits",
             'plain'
         ))
 

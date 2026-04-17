@@ -2,7 +2,7 @@ import threading
 from queue import Queue
 from queue import Empty
 
-class IntervalTimer:
+class SplitsTimer:
     def __init__(self, start_time_queue, lap_time_queue, runners):
         self.start_queue = start_time_queue
         self.lap_queue = lap_time_queue

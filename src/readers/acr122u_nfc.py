@@ -222,10 +222,8 @@ class NFCReader(Reader):
             self.connected = True
 
     def tag_detected(self, tag: NFCTag):
-        timestamp =  get_timestamp_now()
+        timestamp = get_timestamp_now()
         event = Event(tag.uid, timestamp)
-        with open("nfc.txt", "a") as f:
-            f.write(f"NFC, {tag.uid}, {timestamp}\n")
         print(event)
         self.queue.put(event)
 

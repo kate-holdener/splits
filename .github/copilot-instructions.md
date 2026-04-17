@@ -38,7 +38,7 @@ The codebase follows a clean/layered architecture. All source lives in `src/`, t
 ```
 src/
   entity/        # Domain models: Runner, Workout, Interval, Performance, Event, RunnerState
-  interactors/   # Business logic: IntervalTimer, stats_calculator
+  interactors/   # Business logic: SplitsTimer, stats_calculator
   controller/    # ManualStartController, CLI controller
   readers/       # Hardware drivers: ACR122U (NFC), Impinj REST, LLRP, SLLURP
   reader.py      # Base Reader Protocol (threading + queue interface)
@@ -55,8 +55,8 @@ src/
 
 **Event flow:**
 1. Hardware readers (`readers/`) detect tag scans and put `Event(id, timestamp)` objects into a `Queue`.
-2. `IntervalTimer` (runs in a daemon thread) consumes from the start-event queue and lap-event queue.
-3. `IntervalTimer` routes each event to the matching `Runner` via `runners_by_start_id` / `runners_by_lap_id` dicts.
+2. `SplitsTimer` (runs in a daemon thread) consumes from the start-event queue and lap-event queue.
+3. `SplitsTimer` routes each event to the matching `Runner` via `runners_by_start_id` / `runners_by_lap_id` dicts.
 4. `Runner` updates its state (`INACTIVE → RUNNING → RESTING`) and calls `notify_observers()`.
 5. Observers (e.g., `TimerView`) react to state changes for display.
 

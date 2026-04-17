@@ -18,7 +18,7 @@ from entity.workout import Workout
 from entity.runner import Runner
 from entity.RunnerState import RunnerState
 from controller.start_controller import ManualStartController
-from interactors.interval_timer import IntervalTimer
+from interactors.interval_timer import SplitsTimer
 from interactors.stats_calculator import calculate_performance
 from readers.acr122u_nfc import NFCReader
 from readers.sllurp_reader import LLRPReader
@@ -177,7 +177,7 @@ class IntervalTrainingCLI:
             # get notifications about runner state changes via RunnerObserver
             for a in self.athletes:
                 a.add_observer(self.runner_state_obersver)
-            self.timer = IntervalTimer(self.start_event_q, self.lap_event_q, self.athletes)
+            self.timer = SplitsTimer(self.start_event_q, self.lap_event_q, self.athletes)
             self.timer.start()
 
             if self.workout:

@@ -1,5 +1,5 @@
 /**
- * IntervalTrack — shared theme logic.
+ * Splits — shared theme logic.
  * Loaded by both index.html and resting.html.
  * The toggle button lives in index.html only; resting.html receives live
  * updates when the Python backend calls evaluate_js('applyTheme(...)').

@@ -33,7 +33,7 @@ class ConfigManager:
             'max_hosts': 254
         },
         'cache': {
-            'directory': '~/.cache/interval_timer',
+            'directory': '~/.cache/splits',
             'expiry_hours': 24
         },
         'logging': {
@@ -80,9 +80,9 @@ class ConfigManager:
         search_paths = [
             'config.yaml',
             'config.yml',
-            os.path.expanduser('~/.interval_timer/config.yaml'),
-            os.path.expanduser('~/.config/interval_timer/config.yaml'),
-            '/etc/interval_timer/config.yaml'
+            os.path.expanduser('~/.splits/config.yaml'),
+            os.path.expanduser('~/.config/splits/config.yaml'),
+            '/etc/splits/config.yaml'
         ]
         
         for path in search_paths:

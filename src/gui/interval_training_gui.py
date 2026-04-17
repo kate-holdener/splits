@@ -14,7 +14,7 @@ only the presentation layer changes.
 
 import webview
 import os
-from api.IntervalTrackApi import IntervalTrackApi
+from api.IntervalTrackApi import SplitsApi
 import json as _json
 
 # Default (light-mode) background color — must match --bg in shared.css
@@ -23,7 +23,7 @@ LIGHT_MODE_BG = "#f0f0f0"
 
 class PyWebViewAPI:
     def __init__(self):
-        self.track_api = IntervalTrackApi()
+        self.track_api = SplitsApi()
         self._theme = 'light'
     def log(self, data):
         print(data)
@@ -266,7 +266,7 @@ def main():
     
     # Primary window
     main_window = webview.create_window(
-        title="IntervalTrack",
+        title="Splits",
         url=ui_path,
         js_api=api,
         width=1100,

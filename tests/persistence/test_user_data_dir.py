@@ -19,10 +19,10 @@ class TestUserDataDir:
         result = get_user_data_dir()
         assert isinstance(result, Path)
 
-    def test_get_user_data_dir_ends_with_interval_timer(self):
-        """User data directory name should be IntervalTimer."""
+    def test_get_user_data_dir_ends_with_splits(self):
+        """User data directory name should be Splits."""
         result = get_user_data_dir()
-        assert result.name == 'IntervalTimer'
+        assert result.name == 'Splits'
 
     def test_get_user_data_dir_creates_directory(self):
         """get_user_data_dir() should create the directory if it doesn't exist."""
@@ -42,4 +42,4 @@ class TestUserDataDir:
 
             assert result.exists()
             assert result.is_dir()
-            assert result.name == 'IntervalTimer'
+            assert result.name == 'Splits'

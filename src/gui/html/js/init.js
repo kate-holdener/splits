@@ -34,7 +34,7 @@ async function loadInitialState() {
 }
 
 window.addEventListener('pywebviewready', async () => {
-  log('IntervalTrack ready.', 'info');
+  log('Splits ready.', 'info');
   await loadInitialState();
   checkForRecovery();
 });
@@ -62,6 +62,7 @@ async function resumeSession() {
   log(r.msg, r.ok ? 'ok' : 'err');
   if (r.ok) {
     if (r.state) applyState(r.state);
+    _sessionActive = true;
     _activateScreen('workout-screen');
   }
 }

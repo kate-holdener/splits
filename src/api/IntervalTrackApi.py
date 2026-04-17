@@ -3,7 +3,7 @@ from queue import Queue
 from typing import Optional
 from datetime import datetime
 
-from interactors.interval_timer import IntervalTimer
+from interactors.interval_timer import SplitsTimer
 from readers.acr122u_nfc import NFCReader
 from reader import Reader
 from controller.start_controller import ManualStartController
@@ -34,7 +34,7 @@ from persistence.session_persistence import (
     discard_active_session,
 )
 
-class IntervalTrackApi:
+class SplitsApi:
 
     def __init__(self):
         self.athletes: list[Runner] = []
@@ -307,13 +307,15 @@ class IntervalTrackApi:
         self.athletes_loaded = True
         for a in self.athletes:
             a.add_observer(self.runner_observer)
+            if self.session_persistence is not None:
+                a.add_observer(self.session_persistence)
         if self.workout:
             for a in self.athletes:
-                a.add_workout(self.workout) 
-        self.timer = IntervalTimer(self.start_event_q, self.lap_event_q, self.athletes)
+                a.add_workout(self.workout)
+        self.timer = SplitsTimer(self.start_event_q, self.lap_event_q, self.athletes)
         self.timer.start()
         self.athletes_loaded = True
-        
+
         return {"ok": True, "msg": f"Loaded {len(self.athletes)} athletes.", "state": self.get_state()}
 
     # ------------------------------------------------------------------
@@ -328,6 +330,11 @@ class IntervalTrackApi:
             if self.athletes:
                 for a in self.athletes:
                     a.add_workout(self.workout)
+            if self.session_persistence is None and self.current_roster:
+                self._wire_session_persistence(
+                    session_id=str(uuid.uuid4()),
+                    roster_id=self.current_roster["id"],
+                )
             return {
                 "ok": True,
                 "msg": f"Workout configured: {distance}m × {laps} laps with {rest} second rest.",
@@ -583,11 +590,6 @@ class IntervalTrackApi:
         ids_to_start = [t for t in tag_ids if t in valid_ids]
         if not ids_to_start:
             return {"ok": False, "msg": "None of the selected tag IDs match known athletes."}
-        if self.session_persistence is None and self.workout and self.current_roster:
-            self._wire_session_persistence(
-                session_id=str(uuid.uuid4()),
-                roster_id=self.current_roster["id"],
-            )
         self.manual_start_controller.start(ids_to_start)
         self.workout_active = True
         return {"ok": True, "msg": f"Started {len(ids_to_start)} athletes.",

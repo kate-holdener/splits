@@ -125,14 +125,6 @@ class PyWebViewAPI:
     def get_session_details(self, session_id: str):
         return self.track_api.get_session_details(session_id)
 
-    def generate_reports(self, session_id: str, output_dir: str,
-                         athlete_ids_json: str = '[]'):
-        try:
-            athlete_ids = _json.loads(athlete_ids_json) if athlete_ids_json else None
-        except Exception:
-            athlete_ids = None
-        return self.track_api.generate_reports(output_dir, session_id, athlete_ids)
-
     def write_files(self, files: list):
         """Write a list of {path, content} dicts to disk. Used for HTML report export."""
         import os

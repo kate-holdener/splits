@@ -1,9 +1,3 @@
-name, start_id, lap_id
-Maria Holdener, 1, 74
-Kelton Hines, 2, 75
-Jonny Sternau, 3, 76
-John Durako, 4, 77
-Addison Holdener, 5, 78
-Henry Wachtel, 6, 79
-Nicholas Holdener, 7, 80
-Poppy Haywood, 8, 81
+First Name, Last Name, RFID TAG, NFC TAG, email
+Avery, Smith, 74, DA DA 76 41, avery.smith@example.com
+Jordan, Reed, 81, 90 D1 76 41, jordan.reed@example.com

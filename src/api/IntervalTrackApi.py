@@ -669,60 +669,6 @@ class IntervalTrackApi:
             "max_intervals": max_intervals,
         }
 
-    def generate_reports(self, output_dir: str, session_id: str = None,
-                         athlete_ids: list = None):
-        """Generate PDF reports for selected athletes in the specified session."""
-        if not output_dir or not output_dir.strip():
-            return {"ok": False, "msg": "Output directory is required."}
-        import os
-        output_dir = output_dir.strip()
-        try:
-            os.makedirs(output_dir, exist_ok=True)
-        except Exception as e:
-            return {"ok": False, "msg": f"Cannot create directory: {e}"}
-
-        from report.pdf_report_runner import generate_runner_report
-
-        # Resolve session: explicit > last finished > in-memory
-        resolved_id = session_id or self._last_session_id
-        runner_dicts = None
-        if resolved_id:
-            session_data = load_completed_session(resolved_id)
-            if session_data:
-                runner_dicts = session_data.get("runners", [])
-
-        if runner_dicts is None:
-            if not self.athletes:
-                return {"ok": False, "msg": "No session selected and no athletes loaded."}
-            from serializer.json_serializer import runner_to_session_json
-            runner_dicts = [runner_to_session_json(a) for a in self.athletes]
-
-        # Filter to selected athletes when specified
-        if athlete_ids:
-            runner_dicts = [r for r in runner_dicts if r.get("lap_id") in athlete_ids]
-
-        generated = []
-        for runner_data in runner_dicts:
-            has_completed = any(
-                not iv.get("incomplete", True)
-                for iv in runner_data.get("session_intervals", [])
-            )
-            if not has_completed:
-                continue
-            name = runner_data.get("name", "")
-            lname = runner_data.get("lname", "")
-            safe_name = f"{name}_{lname}".replace(" ", "_")
-            filename = os.path.join(output_dir, f"{safe_name}_report.pdf")
-            try:
-                generate_runner_report(runner_data, filename)
-                generated.append(filename)
-            except Exception as e:
-                print(f"Failed to generate report for {name}: {e}")
-
-        if not generated:
-            return {"ok": True, "msg": "No athletes with interval data — no reports generated.", "files": []}
-        return {"ok": True, "msg": f"Generated {len(generated)} report(s).", "files": generated}
-
     # ------------------------------------------------------------------
     # Session recovery
     # ------------------------------------------------------------------

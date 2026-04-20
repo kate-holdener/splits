@@ -62,10 +62,12 @@ if [ ! -f "dist/Splits.exe" ]; then
 fi
 echo "✓ Executable created: dist/Splits.exe"
 
-# Install NSIS if not available
+# Install NSIS if not available, then ensure it's on PATH
 if ! command -v makensis &> /dev/null; then
     echo "NSIS not found. Installing via Chocolatey..."
     choco install nsis -y --no-progress
+    # Chocolatey doesn't refresh PATH in the current shell, add it manually
+    export PATH="$PATH:/c/Program Files (x86)/NSIS"
 fi
 
 # Write NSIS installer script

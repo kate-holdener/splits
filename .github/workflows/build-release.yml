@@ -29,8 +29,8 @@ jobs:
             executable_name: IntervalTraining-macos
             build_script: scripts/build-macos.sh
           - os: windows-latest
-            executable_name: IntervalTraining-windows.exe
-            build_script: scripts/build-windows.bat
+            executable_name: Splits-installer.exe
+            build_script: scripts/build-windows.sh
     
     steps:
       - name: Checkout code
@@ -53,16 +53,11 @@ jobs:
           # Install pcsc-lite if available via Homebrew
           brew install pcsc-lite || echo "pcsc-lite install failed, continuing..."
       
-      - name: Build executable (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Build executable
+        shell: bash
         run: |
           chmod +x ${{ matrix.build_script }}
           ${{ matrix.build_script }}
-      
-      - name: Build executable (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: cmd
-        run: ${{ matrix.build_script }}
       
       - name: Verify executable
         shell: bash
@@ -113,30 +108,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create ${{ steps.version.outputs.version }} \
-            --title "Interval Training ${{ steps.version.outputs.version }}" \
-            --notes "## Interval Training Application ${{ steps.version.outputs.version }}
-            
-            Cross-platform executable releases for the Interval Training application.
-            
+            --title "Splits ${{ steps.version.outputs.version }}" \
+            --notes "## Splits ${{ steps.version.outputs.version }}
+
             ### Downloads
             - **macOS**: IntervalTraining-macos
-            - **Windows**: IntervalTraining-windows.exe
-            
+            - **Windows**: Splits-installer.exe (includes desktop shortcut and uninstaller)
+
             ### Features
             - Pywebview-based GUI with HTML/CSS interface
             - RFID and NFC reader support
             - Real-time interval timing and performance tracking
             - PDF report generation
-            
+
             ### System Requirements
             - **macOS**: macOS 10.14+ (may require installing pcsc-lite: \`brew install pcsc-lite\`)
-            - **Windows**: Windows 10+ (no additional requirements)
-            
+            - **Windows**: Windows 10+
+
             ### Installation
-            1. Download the appropriate executable for your platform
-            2. Make executable (macOS): \`chmod +x IntervalTraining-macos\`
-            3. Run the application
-            
-            **Note**: On first run, your system may show security warnings. On macOS, you may need to right-click and select \"Open\" to bypass Gatekeeper." \
+            - **macOS**: Download, run \`chmod +x IntervalTraining-macos\`, then open the app
+            - **Windows**: Download and run \`Splits-installer.exe\`
+
+            **Note**: On first run, your system may show security warnings. On macOS, right-click and select \"Open\" to bypass Gatekeeper. On Windows, click \"More info\" then \"Run anyway\" if SmartScreen appears." \
             ./artifacts/IntervalTraining-macos/IntervalTraining-macos#IntervalTraining-macos \
-            ./artifacts/IntervalTraining-windows.exe/IntervalTraining-windows.exe#IntervalTraining-windows.exe
+            ./artifacts/Splits-installer.exe/Splits-installer.exe#Splits-installer.exe

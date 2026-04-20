@@ -270,6 +270,7 @@ class PyWebViewAPI:
                 self.resting_window.hide()
                 return False
             self.resting_window.events.closing += on_closing_resting
+        return {"ok": True, "msg": ""}
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -292,13 +293,24 @@ def main():
     )
 
     def on_closed():
-        if hasattr(api, 'resting_window') and api.resting_window:
-            api.resting_window.destroy()
-            api.resting_window = None
         api.shutdown()
 
     main_window.events.closed += on_closed
+
+    # Suppress the pywebview Windows accessibility RecursionError.
+    # On Windows, pywebview's WinForms backend triggers infinite recursion
+    # through Rectangle.Empty when accessibility tools inspect a new window.
+    # Catching it here prevents it from crashing the window-management thread.
     import sys
+    import threading
+    if sys.platform == 'win32':
+        _orig_hook = threading.excepthook
+        def _threading_excepthook(args):
+            if args.exc_type is RecursionError:
+                return
+            _orig_hook(args)
+        threading.excepthook = _threading_excepthook
+
     gui = 'edgechromium' if sys.platform == 'win32' else None
     webview.start(debug=False, gui=gui)
 

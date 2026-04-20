@@ -239,9 +239,6 @@ class PyWebViewAPI:
         except Exception as e:
             return {"ok": False, "msg": str(e)}
     
-    def add_resting_window(self, resting_window):
-        self.resting_window = resting_window
-
     def get_theme(self):
         return self._theme
 
@@ -251,23 +248,39 @@ class PyWebViewAPI:
         self._theme = mode
         if hasattr(self, 'resting_window') and self.resting_window:
             self.resting_window.evaluate_js(f'applyTheme("{mode}")')
-    
+
     def show_resting_runners(self):
-        print('show resting runners')
-        print(self.resting_window)
-        if self.resting_window:
+        import webview as _wv
+        if hasattr(self, 'resting_window') and self.resting_window:
             self.resting_window.show()
+        else:
+            resting_path = os.path.join(self._html_path, "resting.html")
+            self.resting_window = _wv.create_window(
+                title="Resting Runners",
+                url=resting_path,
+                js_api=self,
+                width=600,
+                height=800,
+                min_size=(400, 500),
+                background_color=LIGHT_MODE_BG,
+                x=1120,
+                y=0,
+            )
+            def on_closing_resting():
+                self.resting_window.hide()
+                return False
+            self.resting_window.events.closing += on_closing_resting
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 def main():
     api = PyWebViewAPI()
-    
+
     # Get HTML path - check environment variable first (for bundled app)
     html_path = os.environ.get('GUI_HTML_PATH', os.path.join(os.path.dirname(__file__), "html"))
     ui_path = os.path.join(html_path, "index.html")
-    
-    # Primary window
+    api._html_path = html_path  # used by show_resting_runners for lazy window creation
+
     main_window = webview.create_window(
         title="Splits",
         url=ui_path,
@@ -278,32 +291,10 @@ def main():
         background_color=LIGHT_MODE_BG,
     )
 
-    # Secondary window – resting runners (shares the same Api instance)
-    resting_path=os.path.join(os.path.dirname(__file__), "html", "resting.html")
-    resting_window = webview.create_window(
-        title="Resting Runners",
-        url=resting_path,
-        js_api=api,
-        width=600,
-        height=800,
-        min_size=(400, 500),
-        background_color=LIGHT_MODE_BG,
-        x=1120,
-        y=0,
-        hidden=True
-    )
-    api.add_resting_window(resting_window)
-
-    def on_closing_resting():
-        print('hiding resting runners')
-        resting_window.hide()
-        return False
-
-    resting_window.events.closing += on_closing_resting
-
     def on_closed():
-        resting_window.events.closing -= on_closing_resting
-        resting_window.destroy()
+        if hasattr(api, 'resting_window') and api.resting_window:
+            api.resting_window.destroy()
+            api.resting_window = None
         api.shutdown()
 
     main_window.events.closed += on_closed

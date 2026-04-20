@@ -47,6 +47,8 @@ pyinstaller \
     --hidden-import=sllurp.llrp \
     --hidden-import=reportlab \
     --hidden-import=requests \
+    --hidden-import=zeroconf \
+    --collect-submodules=zeroconf \
     --hidden-import=webview \
     --collect-submodules=webview \
     --collect-submodules=smartcard \

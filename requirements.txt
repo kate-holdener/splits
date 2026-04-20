@@ -5,4 +5,5 @@ reportlab
 requests
 sllurp
 zeroconf
+PyYAML
 playwright

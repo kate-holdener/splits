@@ -48,6 +48,7 @@ pyinstaller \
     --hidden-import=reportlab \
     --hidden-import=requests \
     --hidden-import=zeroconf \
+    --hidden-import=yaml \
     --collect-submodules=zeroconf \
     --hidden-import=webview \
     --collect-submodules=webview \

@@ -298,7 +298,9 @@ def main():
         api.shutdown()
 
     main_window.events.closed += on_closed
-    webview.start(debug=False)
+    import sys
+    gui = 'edgechromium' if sys.platform == 'win32' else None
+    webview.start(debug=False, gui=gui)
 
 
 if __name__ == "__main__":

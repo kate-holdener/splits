@@ -60,15 +60,62 @@ async function loadSessions() {
       : 'Unknown workout';
     const n = s.athletes_with_data;
     return `
-      <div class="session-item" onclick="openSession('${_esc(s.session_id)}')">
-        <div class="session-dot"></div>
-        <div class="session-info">
-          <div class="session-date">${date}</div>
-          <div class="session-meta">${wkStr}&nbsp;&nbsp;·&nbsp;&nbsp;${n} athlete${n !== 1 ? 's' : ''}</div>
+      <div class="session-item">
+        <div class="session-item-main">
+          <div class="session-dot"></div>
+          <div class="session-info">
+            <div class="session-date">${date}</div>
+            <div class="session-meta">${wkStr}&nbsp;&nbsp;·&nbsp;&nbsp;${n} athlete${n !== 1 ? 's' : ''}</div>
+          </div>
         </div>
-        <div class="session-arrow">›</div>
+        <div class="session-actions">
+          <button class="session-open-btn"
+                  type="button"
+                  onclick="openSession('${_esc(s.session_id)}')">
+            View Details <span class="session-open-btn-arrow">›</span>
+          </button>
+          <button class="session-delete-btn"
+                type="button"
+                title="Delete session"
+                aria-label="Delete session"
+                data-session-id="${_esc(s.session_id)}"
+                data-session-date="${_esc(date)}"
+                data-workout-label="${_esc(wkStr.replace(/&nbsp;/g, ' '))}"
+                onclick="deleteSessionFromButton(event, this)">
+            <span class="session-delete-icon" aria-hidden="true">✖</span>
+          </button>
+        </div>
       </div>`;
   }).join('');
+}
+
+async function deleteSessionFromButton(event, btn) {
+  const { sessionId, sessionDate, workoutLabel } = btn.dataset;
+  await deleteSession(event, sessionId, sessionDate, workoutLabel);
+}
+
+async function deleteSession(event, sessionId, sessionDate, workoutLabel) {
+  if (event) event.stopPropagation();
+
+  const confirmMsg =
+    `Delete the workout session from ${sessionDate}?`
+    + `\n\n${workoutLabel}`
+    + '\n\nThis cannot be undone.';
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const result = await pywebview.api.delete_completed_session(sessionId);
+    log(result.msg || (result.ok ? 'Workout session deleted.' : 'Failed to delete session.'), result.ok ? 'ok' : 'err');
+    if (result.ok) {
+      if (_activeSessionId === sessionId) {
+        _activeSessionId = null;
+        _activeSessionData = null;
+      }
+      await loadSessions();
+    }
+  } catch (e) {
+    log(`Error deleting session: ${e.message}`, 'err');
+  }
 }
 
 // ── Session detail ────────────────────────────────────────────

@@ -125,6 +125,9 @@ class PyWebViewAPI:
     def get_session_details(self, session_id: str):
         return self.track_api.get_session_details(session_id)
 
+    def delete_completed_session(self, session_id: str):
+        return self.track_api.delete_completed_session(session_id)
+
     def add_athlete_to_roster(self, roster_id: str, data: dict):
         return self.track_api.add_athlete_to_roster(roster_id, data)
 

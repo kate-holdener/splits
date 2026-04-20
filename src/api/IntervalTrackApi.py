@@ -27,6 +27,7 @@ from persistence.workout_persistence import (
 )
 from persistence.session_persistence import (
     WorkoutSessionPersistence,
+    delete_completed_session as _delete_completed_session,
     load_active_session,
     load_completed_session,
     list_completed_sessions as _list_completed_sessions,
@@ -680,6 +681,17 @@ class SplitsApi:
             "athletes":     athletes,
             "max_intervals": max_intervals,
         }
+
+    def delete_completed_session(self, session_id: str):
+        """Delete an archived workout session."""
+        if not session_id or not session_id.strip():
+            return {"ok": False, "msg": "Session ID is required."}
+        success = _delete_completed_session(session_id.strip())
+        if success:
+            if self._last_session_id == session_id:
+                self._last_session_id = None
+            return {"ok": True, "msg": "Workout session deleted."}
+        return {"ok": False, "msg": "Session not found or could not be deleted."}
 
     # ------------------------------------------------------------------
     # Session recovery

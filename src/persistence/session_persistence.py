@@ -151,6 +151,19 @@ def load_completed_session(session_id: str, data_dir=None) -> Optional[dict]:
         return None
 
 
+def delete_completed_session(session_id: str, data_dir=None) -> bool:
+    """Delete an archived (completed) session by session_id."""
+    path = get_sessions_dir(data_dir) / f"{session_id}.json"
+    if not path.exists() or not path.is_file():
+        return False
+    try:
+        path.unlink()
+        return True
+    except Exception as e:
+        print(f"[session_persistence] Failed to delete completed session {session_id}: {e}")
+        return False
+
+
 def discard_active_session(data_dir=None) -> None:
     """Delete active_session.json without archiving (user declined recovery)."""
     path = get_active_session_path(data_dir)

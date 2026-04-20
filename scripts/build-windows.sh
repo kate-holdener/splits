@@ -34,7 +34,6 @@ rm -rf dist/ build/ *.spec
 echo "Building executable..."
 pyinstaller \
     --onefile \
-    --windowed \
     --name "Splits" \
     --icon "icon/splits.ico" \
     --add-data "src/gui/html;src/gui/html" \

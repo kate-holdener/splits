@@ -50,6 +50,7 @@ pyinstaller \
     --hidden-import=zeroconf \
     --hidden-import=yaml \
     --collect-submodules=zeroconf \
+    --collect-submodules=yaml \
     --hidden-import=webview \
     --collect-submodules=webview \
     --collect-submodules=smartcard \

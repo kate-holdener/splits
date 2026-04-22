@@ -14,7 +14,7 @@ only the presentation layer changes.
 
 import webview
 import os
-from api.IntervalTrackApi import SplitsApi
+from api.IntervalTrackApi import AppApi
 import json as _json
 
 # Default (light-mode) background color — must match --bg in shared.css
@@ -23,126 +23,175 @@ LIGHT_MODE_BG = "#f0f0f0"
 
 class PyWebViewAPI:
     def __init__(self):
-        self.track_api = SplitsApi()
+        self.api = AppApi()
         self._theme = 'light'
+
     def log(self, data):
         print(data)
 
     def get_state(self):
-        return self.track_api.get_state()
-    
+        return self.api.get_state()
+
     def load_athletes(self, csv_path: str):
-        return self.track_api.load_athletes(csv_path)
+        return self.api.load_athletes(csv_path)
 
     # ------------------------------------------------------------------
     # Roster management
     # ------------------------------------------------------------------
     def get_current_roster(self):
-        return self.track_api.get_current_roster()
+        return self.api.roster.get_current_roster()
 
     def list_rosters(self):
-        return self.track_api.list_rosters()
+        return self.api.roster.list_rosters()
 
     def list_all_rosters_with_archived(self):
-        return self.track_api.list_all_rosters_with_archived()
+        return self.api.roster.list_all_rosters_with_archived()
 
     def create_roster(self, name: str):
-        return self.track_api.create_roster(name)
+        return self.api.create_roster(name)
 
     def select_roster(self, roster_id: str):
-        return self.track_api.select_roster(roster_id)
+        return self.api.select_roster(roster_id)
 
     def add_athletes_from_csv(self, csv_path: str):
-        return self.track_api.add_athletes_from_csv(csv_path)
+        return self.api.add_athletes_from_csv(csv_path)
 
     def add_athletes_to_roster_from_csv(self, roster_id: str, csv_path: str):
-        return self.track_api.add_athletes_to_roster_from_csv(roster_id, csv_path)
+        return self.api.add_athletes_to_roster_from_csv(roster_id, csv_path)
 
     # ------------------------------------------------------------------
     # Archive methods
     # ------------------------------------------------------------------
     def archive_roster(self, roster_id: str):
-        return self.track_api.archive_roster(roster_id)
+        return self.api.archive_roster(roster_id)
 
     def restore_roster(self, roster_id: str):
-        return self.track_api.restore_roster(roster_id)
+        return self.api.roster.restore_roster(roster_id)
 
     def list_all_athletes(self):
-        return self.track_api.list_all_athletes()
+        return self.api.roster.list_all_athletes()
 
     def list_athletes_for_roster_including_archived(self, roster_id: str):
-        return self.track_api.list_athletes_for_roster_including_archived(roster_id)
+        return self.api.roster.list_athletes_for_roster_including_archived(roster_id)
 
     def archive_athlete(self, athlete_id: str):
-        return self.track_api.archive_athlete(athlete_id)
+        return self.api.archive_athlete(athlete_id)
 
     def restore_athlete(self, athlete_id: str):
-        return self.track_api.restore_athlete(athlete_id)
+        return self.api.restore_athlete(athlete_id)
 
+    # ------------------------------------------------------------------
+    # Workout configuration
+    # ------------------------------------------------------------------
     def configure_workout(self, distance: str, laps: str, rest_time: str):
-        dist_int = int(distance)
-        laps_int = int(laps)
-        rest_int = int(rest_time)
-        return self.track_api.configure_workout(dist_int, laps_int, rest_int)
+        return self.api.configure_workout(int(distance), int(laps), int(rest_time))
 
     def list_workouts(self):
-        return self.track_api.list_workouts()
+        return self.api.workout.list_workouts()
 
     def save_and_configure_workout(self, distance: str, laps: str, rest_time: str):
-        dist_int = int(distance)
-        laps_int = int(laps)
-        rest_int = int(rest_time)
-        return self.track_api.save_and_configure_workout(dist_int, laps_int, rest_int)
+        return self.api.save_and_configure_workout(int(distance), int(laps), int(rest_time))
 
-    #-----------------------------------------
+    # ------------------------------------------------------------------
     # RFID scanner connection methods
-    #-----------------------------------------
+    # ------------------------------------------------------------------
     def connect_rfid(self):
-        return self.track_api.connect_rfid()
+        result = self.api.scanner.connect_rfid()
+        result["state"] = self.api.get_state()
+        return result
 
     def connect_rfid_with_address(self, address: str):
-        return self.track_api.connect_rfid_with_address(address)
+        result = self.api.scanner.connect_rfid_with_address(address)
+        result["state"] = self.api.get_state()
+        return result
 
     def connect_rfid_manual(self, address: str, port: int, protocol: str):
-        return self.track_api.connect_rfid_manual(address, port, protocol)
+        result = self.api.scanner.connect_rfid_manual(address, port, protocol)
+        result["state"] = self.api.get_state()
+        return result
 
     def get_saved_scanner_config(self):
-        return self.track_api.get_saved_scanner_config()
+        return self.api.scanner.get_saved_scanner_config()
 
     def try_auto_connect_rfid(self):
-        return self.track_api.try_auto_connect_rfid()
+        result = self.api.scanner.try_auto_connect_rfid()
+        result["state"] = self.api.get_state()
+        return result
 
     def get_rfid_connection_info(self):
-        return self.track_api.get_rfid_connection_info()
+        return self.api.scanner.get_rfid_connection_info()
 
+    def connect_nfc(self):
+        result = self.api.scanner.connect_nfc()
+        result["state"] = self.api.get_state()
+        return result
 
-    #-------------------------------------------
-    # Performance reports
-    #-------------------------------------------
+    # ------------------------------------------------------------------
+    # Live workout controls
+    # ------------------------------------------------------------------
+    def list_athletes(self):
+        return self.api.roster.list_athletes()
+
+    def list_athletes_with_status(self):
+        return self.api.list_athletes_with_status()
+
+    def start_selected(self, tag_ids_json: str):
+        try:
+            tag_ids = _json.loads(tag_ids_json)
+            return self.api.start_selected(tag_ids)
+        except Exception:
+            return {"ok": False, "msg": "Invalid tag IDs format."}
+
+    def get_resting(self):
+        return self.api.session.get_resting()
+
+    def finish_workout(self):
+        return self.api.finish_workout()
+
+    # ------------------------------------------------------------------
+    # Session recovery
+    # ------------------------------------------------------------------
+    def get_pending_recovery(self):
+        return self.api.session.get_pending_recovery()
+
+    def resume_session(self):
+        return self.api.resume_session()
+
+    def discard_recovery(self):
+        return self.api.session.discard_recovery()
+
+    # ------------------------------------------------------------------
+    # Performance reports / history
+    # ------------------------------------------------------------------
     def list_completed_sessions(self):
-        return self.track_api.list_completed_sessions()
+        return self.api.history.list_completed_sessions()
 
     def get_session_details(self, session_id: str):
-        return self.track_api.get_session_details(session_id)
+        return self.api.history.get_session_details(session_id)
 
     def delete_completed_session(self, session_id: str):
-        return self.track_api.delete_completed_session(session_id)
-
-    def add_athlete_to_roster(self, roster_id: str, data: dict):
-        return self.track_api.add_athlete_to_roster(roster_id, data)
-
-    def update_athlete(self, athlete_id: str, data: dict):
-        return self.track_api.update_athlete(athlete_id, data)
-
-    def update_athlete_email(self, lap_id: str, email: str):
-        return self.track_api.update_athlete_email(lap_id, email)
+        return self.api.history.delete_completed_session(session_id)
 
     def send_reports(self, reports: list):
-        return self.track_api.send_reports(reports)
+        return self.api.history.send_reports(reports)
 
+    # ------------------------------------------------------------------
+    # Roster athlete management
+    # ------------------------------------------------------------------
+    def add_athlete_to_roster(self, roster_id: str, data: dict):
+        return self.api.roster.add_athlete_to_roster(roster_id, data)
+
+    def update_athlete(self, athlete_id: str, data: dict):
+        return self.api.roster.update_athlete(athlete_id, data)
+
+    def update_athlete_email(self, lap_id: str, email: str):
+        return self.api.roster.update_athlete_email(lap_id, email)
+
+    # ------------------------------------------------------------------
+    # File utilities
+    # ------------------------------------------------------------------
     def write_files(self, files: list):
         """Write a list of {path, content} dicts to disk. Used for HTML report export."""
-        import os
         written = []
         for entry in files:
             path    = entry['path']
@@ -169,46 +218,8 @@ class PyWebViewAPI:
             return {"path": result[0]}
         return {"path": None}
 
-    def list_athletes(self):
-        return self.track_api.list_athletes()
-
-    def list_athletes_with_status(self):
-        return self.track_api.list_athletes_with_status()
-    
-    def connect_nfc(self):
-        return self.track_api.connect_nfc()
-
-    def start_selected(self, tag_ids_json: str):
-        try:
-            tag_ids = _json.loads(tag_ids_json)
-            return self.track_api.start_selected(tag_ids)
-        except Exception:
-            return {"ok": False, "msg": "Invalid tag IDs format."}
-    
-    def get_resting(self):
-        return self.track_api.get_resting()
-    
-    def finish_workout(self):
-        return self.track_api.finish_workout()
-
-    # ------------------------------------------------------------------
-    # Session recovery
-    # ------------------------------------------------------------------
-    def get_pending_recovery(self):
-        return self.track_api.get_pending_recovery()
-
-    def resume_session(self):
-        return self.track_api.resume_session()
-
-    def discard_recovery(self):
-        return self.track_api.discard_recovery()
-
-    # ------------------------------------------------------------------
-    # File dialog – called from JS to open a native CSV picker
-    # ------------------------------------------------------------------
     def pick_csv_file(self):
         import webview as _wv
-        # create_file_dialog returns a tuple of selected paths, or None
         result = _wv.windows[0].create_file_dialog(
             dialog_type=_wv.FileDialog.OPEN,
             allow_multiple=False,
@@ -238,7 +249,10 @@ class PyWebViewAPI:
             return {"ok": True, "msg": "Template saved."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
-    
+
+    # ------------------------------------------------------------------
+    # Theme & secondary window
+    # ------------------------------------------------------------------
     def get_theme(self):
         return self._theme
 
@@ -271,16 +285,20 @@ class PyWebViewAPI:
                 return False
             self.resting_window.events.closing += on_closing_resting
         return {"ok": True, "msg": ""}
+
+    def shutdown(self):
+        return self.api.shutdown()
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 def main():
     api = PyWebViewAPI()
 
-    # Get HTML path - check environment variable first (for bundled app)
     html_path = os.environ.get('GUI_HTML_PATH', os.path.join(os.path.dirname(__file__), "html"))
     ui_path = os.path.join(html_path, "index.html")
-    api._html_path = html_path  # used by show_resting_runners for lazy window creation
+    api._html_path = html_path
 
     main_window = webview.create_window(
         title="Splits",
@@ -297,10 +315,6 @@ def main():
 
     main_window.events.closed += on_closed
 
-    # Suppress the pywebview Windows accessibility RecursionError.
-    # On Windows, pywebview's WinForms backend triggers infinite recursion
-    # through Rectangle.Empty when accessibility tools inspect a new window.
-    # Catching it here prevents it from crashing the window-management thread.
     import sys
     import threading
     if sys.platform == 'win32':

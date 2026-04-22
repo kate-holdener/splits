@@ -1,139 +1,110 @@
 import uuid
-from queue import Queue
-from typing import Optional
 from datetime import datetime
 
-from interactors.interval_timer import SplitsTimer
-from readers.acr122u_nfc import NFCReader
-from reader import Reader
-from controller.start_controller import ManualStartController
-from api.runnerObserver import RunnerObserver
 from entity.runner import Runner
-from entity.workout import Workout
 from entity.RunnerState import RunnerState
 from parser.runner_parser import parse_runner_data
-from discovery.auto_connect import auto_connect_to_rfid_scanner, connect_rfid_with_scanner_info
 from persistence.roster_persistence import (
-    get_active_roster, create_roster as _create_roster,
-    load_roster, merge_athletes_from_csv,
-    list_rosters as _list_rosters, set_active_roster,
-    list_all_rosters as _list_all_rosters
+    get_active_roster,
+    create_roster as _create_roster,
+    load_roster,
+    merge_athletes_from_csv,
+    list_rosters as _list_rosters,
+    set_active_roster,
+    list_all_rosters as _list_all_rosters,
 )
-from persistence.scanner_persistence import save_scanner_config, load_scanner_config
-from persistence.workout_persistence import (
-    list_workouts as _list_workouts,
-    save_workout as _save_workout,
-    get_workout_by_id as _get_workout_by_id,
-)
-from persistence.session_persistence import (
-    WorkoutSessionPersistence,
-    delete_completed_session as _delete_completed_session,
-    load_active_session,
-    load_completed_session,
-    list_completed_sessions as _list_completed_sessions,
-    restore_session_from_dict,
-    discard_active_session,
-)
+from persistence.session_persistence import restore_session_from_dict
 
-class SplitsApi:
+from api.workout_manager import WorkoutManager
+from api.session_history_manager import SessionHistoryManager
+from api.scanner_manager import ScannerManager
+from api.roster_manager import RosterManager
+from api.workout_session import WorkoutSession
+
+
+class AppApi:
+    """
+    Lightweight coordinator that owns one instance of each sub-manager and handles
+    cross-cutting orchestration (athlete initialization, timer lifecycle, workout wiring).
+    Sub-managers are exposed as public attributes so callers can access them directly.
+    """
 
     def __init__(self):
-        self.athletes: list[Runner] = []
-        self.workout: Optional[object] = None
-        self.current_roster: Optional[dict] = None  # {id, name, created_at}
+        self.workout = WorkoutManager()
+        self.history = SessionHistoryManager()
+        self.session = WorkoutSession()
+        self.scanner = ScannerManager(self.session.lap_event_q, self.session.start_event_q)
+        self.roster  = RosterManager()
 
-        self.rfid_connected = False
-        self.nfc_connected = False
-        self.rfid_scanner_failed = False
-        self.nfc_scanner_failed = False
-        self.athletes_loaded = False
-        self.workout_configured = False
-        self.workout_active = False
-        self.session_loaded = False  # True when an active roster with athletes is loaded
-        self.current_workout_config: Optional[dict] = None  # {distance, laps, rest}
-
-        # Protocol information for scanners
-        self.rfid_protocol = None      # 'llrp' or 'rest' when connected
-        self.rfid_address = None       # IP address when connected
-        self.rfid_port = None          # Port number when connected
-        
-        # Load saved scanner configuration for potential auto-connect
-        self.saved_scanner_config = load_scanner_config()
-
-        self.runner_observer = RunnerObserver()
-        self.session_persistence: Optional[WorkoutSessionPersistence] = None
-        self.pending_recovery: Optional[dict] = None
-
-        self.start_event_q = Queue()
-        self.lap_event_q = Queue()
-        self.manual_start_controller = ManualStartController(self.start_event_q)
-
-        self.nfc_scanner = None
-        self.rfid_scanner = None
-        self.timer = None
-
-        self.resting_window = None
-        self._last_session_id: Optional[str] = None  # set when a workout is finished
-
-        # Load the active roster on startup
         self._load_active_roster()
-        self._check_for_recovery()
-
-
+        self.session.check_for_recovery()
 
     # ------------------------------------------------------------------
-    # State helper returned to the frontend
+    # Aggregated state for the frontend
     # ------------------------------------------------------------------
     def get_state(self):
         return {
-            "athletesLoaded": self.athletes_loaded,
-            "workoutConfigured": self.workout_configured,
-            "rfidConnected": self.rfid_connected,
-            "nfcConnected": self.nfc_connected,
-            "rfidFailed": self.rfid_scanner_failed,
-            "nfcFailed": self.nfc_scanner_failed,
-            "workoutActive": self.workout_active,
-            "athleteCount": len(self.athletes),
-            "sessionLoaded": self.session_loaded,
-            "currentRoster": self.current_roster,
-            # Protocol information for scanners
-            "rfidProtocol": self.rfid_protocol,
-            "rfidAddress": self.rfid_address,
-            "rfidPort": self.rfid_port,
-            "currentWorkoutConfig": self.current_workout_config,
+            "athletesLoaded":      self.roster.athletes_loaded,
+            "workoutConfigured":   self.workout.workout_configured,
+            "rfidConnected":       self.scanner.rfid_connected,
+            "nfcConnected":        self.scanner.nfc_connected,
+            "rfidFailed":          self.scanner.rfid_scanner_failed,
+            "nfcFailed":           self.scanner.nfc_scanner_failed,
+            "workoutActive":       self.session.workout_active,
+            "athleteCount":        len(self.roster.athletes),
+            "sessionLoaded":       self.roster.session_loaded,
+            "currentRoster":       self.roster.current_roster,
+            "rfidProtocol":        self.scanner.rfid_protocol,
+            "rfidAddress":         self.scanner.rfid_address,
+            "rfidPort":            self.scanner.rfid_port,
+            "currentWorkoutConfig": self.workout.current_workout_config,
         }
 
     # ------------------------------------------------------------------
-    # Roster management
+    # Athlete initialization (internal orchestration)
     # ------------------------------------------------------------------
-    def get_current_roster(self):
-        return {"ok": True, "roster": self.current_roster}
+    def _init_athletes(self, athletes):
+        """Set up athletes with observers and (re)start the timer."""
+        self.roster.athletes = athletes
+        self.roster.athletes_loaded = bool(athletes)
+        for a in athletes:
+            a.add_observer(self.session.runner_observer)
+            if self.session.session_persistence is not None:
+                a.add_observer(self.session.session_persistence)
+        if self.workout.workout:
+            for a in athletes:
+                a.add_workout(self.workout.workout)
+        self.session._start_timer(athletes)
 
-    def list_rosters(self):
+    def _load_active_roster(self):
+        """Load the active roster on application startup."""
         try:
-            rosters = _list_rosters()
-            return {"ok": True, "rosters": rosters}
+            roster = get_active_roster()
+            if not roster:
+                return
+            self.roster.current_roster = roster
+            athletes = load_roster(roster["id"])
+            if athletes:
+                self._init_athletes(athletes)
+                self.roster.session_loaded = True
         except Exception as e:
-            return {"ok": False, "msg": str(e), "rosters": []}
+            print(f"Error loading active roster on startup: {e}")
 
-    def list_all_rosters_with_archived(self):
-        try:
-            rosters = _list_all_rosters()
-            return {"ok": True, "rosters": rosters}
-        except Exception as e:
-            return {"ok": False, "msg": str(e), "rosters": []}
-
+    # ------------------------------------------------------------------
+    # Roster management (orchestrated — touch timer + roster data)
+    # ------------------------------------------------------------------
     def select_roster(self, roster_id: str):
         try:
             roster = set_active_roster(roster_id)
             if not roster:
                 return {"ok": False, "msg": f"Roster '{roster_id}' not found."}
-            self.current_roster = roster
+            self.roster.current_roster = roster
             athletes = load_roster(roster_id)
-            self._stop_timer()
-            self.init_athletes(athletes or [])
-            self.session_loaded = bool(athletes)
-            return {"ok": True, "msg": f"Roster '{roster['name']}' selected.", "roster": roster, "state": self.get_state()}
+            self.session._stop_timer()
+            self._init_athletes(athletes or [])
+            self.roster.session_loaded = bool(athletes)
+            return {"ok": True, "msg": f"Roster '{roster['name']}' selected.",
+                    "roster": roster, "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
@@ -142,31 +113,32 @@ class SplitsApi:
             return {"ok": False, "msg": "Roster name is required."}
         try:
             roster = _create_roster(name.strip())
-            self.current_roster = roster
-            self._stop_timer()
-            self.athletes = []
-            self.athletes_loaded = False
-            self.session_loaded = False
+            self.roster.current_roster = roster
+            self.session._stop_timer()
+            self.roster.athletes = []
+            self.roster.athletes_loaded = False
+            self.roster.session_loaded = False
             rosters = _list_rosters()
-            return {"ok": True, "msg": f"Roster '{roster['name']}' created.", "roster": roster, "rosters": rosters, "state": self.get_state()}
+            return {"ok": True, "msg": f"Roster '{roster['name']}' created.",
+                    "roster": roster, "rosters": rosters, "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
     def add_athletes_from_csv(self, csv_path: str):
         if not csv_path.strip():
             return {"ok": False, "msg": "CSV file path is required."}
-        if not self.current_roster:
+        if not self.roster.current_roster:
             return {"ok": False, "msg": "No active roster. Create a roster first."}
         try:
             new_runners = parse_runner_data(csv_path.strip())
             counts = merge_athletes_from_csv(
-                self.current_roster["id"],
-                self.current_roster["name"],
-                new_runners
+                self.roster.current_roster["id"],
+                self.roster.current_roster["name"],
+                new_runners,
             )
-            merged = load_roster(self.current_roster["id"])
-            self._stop_timer()
-            self.init_athletes(merged or [])
+            merged = load_roster(self.roster.current_roster["id"])
+            self.session._stop_timer()
+            self._init_athletes(merged or [])
             rosters = _list_rosters()
             msg = f"Added {counts['added']}, updated {counts['updated']} athletes ({counts['total']} total)."
             return {"ok": True, "msg": msg, "counts": counts, "rosters": rosters, "state": self.get_state()}
@@ -183,94 +155,23 @@ class SplitsApi:
             roster = next((r for r in rosters if r["id"] == roster_id), None)
             if not roster:
                 return {"ok": False, "msg": f"Roster '{roster_id}' not found."}
-
             new_runners = parse_runner_data(csv_path.strip())
-            counts = merge_athletes_from_csv(
-                roster_id,
-                roster["name"],
-                new_runners
-            )
-
-            # If this is the current roster, refresh the athletes
-            if self.current_roster and self.current_roster["id"] == roster_id:
+            counts = merge_athletes_from_csv(roster_id, roster["name"], new_runners)
+            if self.roster.current_roster and self.roster.current_roster["id"] == roster_id:
                 merged = load_roster(roster_id)
-                self._stop_timer()
-                self.init_athletes(merged or [])
-
+                self.session._stop_timer()
+                self._init_athletes(merged or [])
             msg = f"Added {counts['added']}, updated {counts['updated']} athletes to {roster['name']} ({counts['total']} total)."
             return {"ok": True, "msg": msg, "counts": counts}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
-    # ------------------------------------------------------------------
-    # Archive functionality
-    # ------------------------------------------------------------------
     def archive_roster(self, roster_id: str):
-        try:
-            from persistence.roster_persistence import archive_roster as _archive_roster
-            success = _archive_roster(roster_id)
-            if success:
-                rosters = _list_rosters()
-                if self.current_roster and self.current_roster["id"] == roster_id:
-                    self.current_roster = None
-                    self._stop_timer()
-                    self.athletes = []
-                    self.athletes_loaded = False
-                    self.session_loaded = False
-                return {"ok": True, "msg": "Roster archived successfully.", "rosters": rosters, "state": self.get_state()}
-            else:
-                return {"ok": False, "msg": "Failed to archive roster."}
-        except Exception as e:
-            return {"ok": False, "msg": str(e)}
-
-    def restore_roster(self, roster_id: str):
-        try:
-            from persistence.roster_persistence import restore_roster as _restore_roster
-            success = _restore_roster(roster_id)
-            if success:
-                rosters = _list_rosters()
-                return {"ok": True, "msg": "Roster restored successfully.", "rosters": rosters}
-            else:
-                return {"ok": False, "msg": "Failed to restore roster."}
-        except Exception as e:
-            return {"ok": False, "msg": str(e)}
-
-    def list_all_athletes(self):
-        try:
-            from persistence.roster_persistence import list_all_athletes as _list_all_athletes
-            athletes = _list_all_athletes()
-            return {"ok": True, "athletes": athletes}
-        except Exception as e:
-            return {"ok": False, "msg": str(e), "athletes": []}
-
-    def list_athletes_for_roster_including_archived(self, roster_id: str):
-        try:
-            from persistence.roster_persistence import load_roster
-            from serializer.json_serializer import runner_to_json
-            athletes = load_roster(roster_id, include_archived=True)
-            athletes_data = [runner_to_json(a) for a in (athletes or [])]
-            return {"ok": True, "athletes": athletes_data}
-        except Exception as e:
-            return {"ok": False, "msg": str(e), "athletes": []}
-
-    def archive_athlete(self, athlete_id: str):
-        try:
-            from persistence.roster_persistence import find_athlete_by_id, archive_athlete as _archive_athlete
-            result = find_athlete_by_id(athlete_id)
-            if not result:
-                return {"ok": False, "msg": "Athlete not found."}
-
-            roster_id, athlete = result
-            success = _archive_athlete(roster_id, athlete_id)
-            if success:
-                # Remove from the live athletes list without restarting the timer
-                if self.current_roster and self.current_roster["id"] == roster_id:
-                    self.athletes[:] = [a for a in self.athletes if a.lap_id != athlete_id]
-                return {"ok": True, "msg": "Athlete deactivated.", "state": self.get_state()}
-            else:
-                return {"ok": False, "msg": "Failed to deactivate athlete."}
-        except Exception as e:
-            return {"ok": False, "msg": str(e)}
+        result = self.roster.archive_roster(roster_id)
+        if result.get("ok") and result.pop("_cleared_current", False):
+            self.session._stop_timer()
+        result["state"] = self.get_state()
+        return result
 
     def restore_athlete(self, athlete_id: str):
         try:
@@ -278,275 +179,100 @@ class SplitsApi:
             result = find_athlete_by_id(athlete_id)
             if not result:
                 return {"ok": False, "msg": "Athlete not found."}
-
             roster_id, athlete = result
             success = _restore_athlete(roster_id, athlete_id)
             if success:
-                # Add the athlete back to the live list without restarting the timer
-                if self.current_roster and self.current_roster["id"] == roster_id:
-                    already_present = any(a.lap_id == athlete_id for a in self.athletes)
+                if self.roster.current_roster and self.roster.current_roster["id"] == roster_id:
+                    already_present = any(a.lap_id == athlete_id for a in self.roster.athletes)
                     if not already_present:
                         athlete.archived = False
-                        athlete.add_observer(self.runner_observer)
-                        if self.workout:
-                            athlete.add_workout(self.workout)
-                        self.athletes.append(athlete)
+                        athlete.add_observer(self.session.runner_observer)
+                        if self.workout.workout:
+                            athlete.add_workout(self.workout.workout)
+                        self.roster.athletes.append(athlete)
                 return {"ok": True, "msg": "Athlete activated.", "state": self.get_state()}
-            else:
-                return {"ok": False, "msg": "Failed to activate athlete."}
+            return {"ok": False, "msg": "Failed to activate athlete."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
-    # ------------------------------------------------------------------
-    # Load athletes (kept for backward compatibility)
-    # ------------------------------------------------------------------
+    def archive_athlete(self, athlete_id: str):
+        result = self.roster.archive_athlete(athlete_id)
+        if result.get("ok"):
+            result["state"] = self.get_state()
+        return result
+
     def load_athletes(self, csv_path: str):
+        """Backward-compatibility alias for add_athletes_from_csv."""
         return self.add_athletes_from_csv(csv_path)
-        
-    def init_athletes(self, athletes):
-        self.athletes = athletes
-        self.athletes_loaded = True
-        for a in self.athletes:
-            a.add_observer(self.runner_observer)
-            if self.session_persistence is not None:
-                a.add_observer(self.session_persistence)
-        if self.workout:
-            for a in self.athletes:
-                a.add_workout(self.workout)
-        self.timer = SplitsTimer(self.start_event_q, self.lap_event_q, self.athletes)
-        self.timer.start()
-        self.athletes_loaded = True
 
-        return {"ok": True, "msg": f"Loaded {len(self.athletes)} athletes.", "state": self.get_state()}
+    def clear_session(self):
+        """Clear the current athlete roster."""
+        self.session._stop_timer()
+        self.roster.athletes = []
+        self.roster.athletes_loaded = False
+        self.roster.session_loaded = False
+        return {"ok": True, "msg": "Athletes cleared.", "state": self.get_state()}
 
     # ------------------------------------------------------------------
-    # Configure workout
+    # Workout configuration (orchestrated — pushes workout to athletes)
     # ------------------------------------------------------------------
     def configure_workout(self, distance: int, laps: int, rest: int):
         try:
-            self.workout = Workout(datetime.now())
-            self.workout.configure(distance, laps, rest)
-            self.workout_configured = True
-            self.current_workout_config = {"distance": distance, "laps": laps, "rest": rest}
-            if self.athletes:
-                for a in self.athletes:
-                    a.add_workout(self.workout)
-            if self.session_persistence is None and self.current_roster:
-                self._wire_session_persistence(
+            new_workout = self.workout._set_workout(distance, laps, rest)
+            for a in self.roster.athletes:
+                a.add_workout(new_workout)
+            if self.session.session_persistence is None and self.roster.current_roster:
+                self.session._wire_session_persistence(
                     session_id=str(uuid.uuid4()),
-                    roster_id=self.current_roster["id"],
+                    roster_id=self.roster.current_roster["id"],
+                    athletes=self.roster.athletes,
                 )
             return {
                 "ok": True,
                 "msg": f"Workout configured: {distance}m × {laps} laps with {rest} second rest.",
-                "state": self.get_state()
+                "state": self.get_state(),
             }
         except ValueError:
             return {"ok": False, "msg": "Invalid input – please enter numeric values."}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
-    # ------------------------------------------------------------------
-    # Workout persistence
-    # ------------------------------------------------------------------
-    def list_workouts(self):
-        """Return all saved workout configurations."""
-        try:
-            return {"ok": True, "workouts": _list_workouts()}
-        except Exception as e:
-            return {"ok": False, "msg": str(e), "workouts": []}
-
     def save_and_configure_workout(self, distance: int, laps: int, rest: int):
-        """
-        Persist the workout configuration and apply it to the current session.
-
-        If an identical workout (same distance, laps, rest) already exists in the
-        saved list it is returned as-is rather than duplicated.
-        """
         try:
-            workout_entry = _save_workout(distance, laps, rest)
+            workout_entry = self.workout.save_workout_entry(distance, laps, rest)
             result = self.configure_workout(distance, laps, rest)
             if result["ok"]:
-                # Store the full entry (including id) so the frontend can use it directly
-                self.current_workout_config = workout_entry
+                self.workout.current_workout_config = workout_entry
                 result["state"] = self.get_state()
-                result["workouts"] = _list_workouts()
+                result["workouts"] = self.workout.get_all_workouts()
                 result["workout_config"] = workout_entry
             return result
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
     # ------------------------------------------------------------------
-    # Option 3 – Connect RFID
+    # Live workout controls (orchestrated — span session + roster)
     # ------------------------------------------------------------------
-    def connect_rfid(self):
-        """Connect to RFID scanner with auto-discovery."""
-        if not (self.athletes_loaded and self.workout_configured):
-            return {"ok": False, "msg": "Complete steps 1 and 2 first.", "state": self.get_state()}
+    def start_selected(self, tag_ids: list):
+        if not tag_ids:
+            return {"ok": False, "msg": "No athletes selected."}
+        valid_ids = {a.start_id for a in self.roster.athletes}
+        ids_to_start = [t for t in tag_ids if t in valid_ids]
+        if not ids_to_start:
+            return {"ok": False, "msg": "None of the selected tag IDs match known athletes."}
+        self.session.manual_start_controller.start(ids_to_start)
+        self.session.workout_active = True
+        return {"ok": True, "msg": f"Started {len(ids_to_start)} athletes.", "state": self.get_state()}
 
-        try:
-            self.rfid_scanner = auto_connect_to_rfid_scanner()
-            self.rfid_scanner.start(self.lap_event_q)
-            self.rfid_connected = True
-            
-            # Get the connection information directly from the reader
-            reader_protocol = self.rfid_scanner.get_protocol().lower()
-            reader_address = self.rfid_scanner.get_address()
-            reader_port = self.rfid_scanner.get_port()
-            
-            # Store normalized values
-            self.rfid_protocol = reader_protocol
-            if reader_protocol == 'llrp':
-                # LLRP get_address() returns "host:port"
-                hostname = reader_address.split(':')[0]
-            else:
-                # REST get_address() returns "http://host:port"
-                hostname = reader_address.replace('http://', '').split(':')[0]
-            
-            self.rfid_address = hostname
-            self.rfid_port = reader_port
-
-            connection_details = {
-                "address": hostname,
-                "port": reader_port,
-                "protocol": reader_protocol
-            }
-            
-            # Persist successful auto-connection
-            save_scanner_config(hostname, reader_port, reader_protocol)
-
-            return {
-                "ok": True, 
-                "msg": f"Connected to {reader_protocol.upper()} on {hostname}:{reader_port}", 
-                "state": self.get_state(),
-                "connection_details": connection_details
-            }
-        except Exception as e:
-            return {"ok": False, "msg": f"Auto-connection failed: {e}", "state": self.get_state()}
-
-    def connect_rfid_with_address(self, address: str):
-        """Connect to RFID scanner at a specific IP address, trying LLRP then REST."""
-        if not address or not address.strip():
-            return {"ok": False, "msg": "IP address is required.", "state": self.get_state()}
-        address = address.strip()
-        # Try LLRP first, then REST
-        for protocol in ('llrp', 'rest'):
-            scanner_info = {"address": address, "protocol": protocol, "port": 5084}
-            result, reader = connect_rfid_with_scanner_info(scanner_info)
-            if result["ok"] and reader:
-                reader.start(self.lap_event_q)
-                self.rfid_scanner = reader
-                self.rfid_connected = True
-                self.rfid_scanner_failed = False
-                self.rfid_protocol = protocol  # Use the input protocol, already validated
-                self.rfid_address = address.strip()
-                self.rfid_port = 5084
-                
-                # Persist successful connection
-                save_scanner_config(address.strip(), 5084, protocol)
-                
-                return {"ok": True, "msg": f"Connected via {protocol.upper()} to {address}:5084", "state": self.get_state()}
-        self.rfid_scanner_failed = True
-        return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}.", "state": self.get_state()}
-
-    def connect_rfid_manual(self, address: str, port: int, protocol: str):
-        """Connect to RFID scanner with manual configuration (IP, port, protocol)."""
-        if not address or not address.strip():
-            return {"ok": False, "msg": "IP address is required.", "state": self.get_state()}
-        if protocol not in ('llrp', 'rest'):
-            return {"ok": False, "msg": "Protocol must be 'llrp' or 'rest'.", "state": self.get_state()}
-        if not isinstance(port, int) or port < 1 or port > 65535:
-            return {"ok": False, "msg": "Port must be between 1 and 65535.", "state": self.get_state()}
-            
-        address = address.strip()
-        scanner_info = {"address": address, "protocol": protocol, "port": port}
-        result, reader = connect_rfid_with_scanner_info(scanner_info)
-        
-        if result["ok"] and reader:
-            reader.start(self.lap_event_q)
-            self.rfid_scanner = reader
-            self.rfid_connected = True
-            self.rfid_scanner_failed = False
-            self.rfid_protocol = reader.get_protocol().lower()  # Normalize to lowercase
-            self.rfid_address = address.strip()  # Store the original address, not display format
-            self.rfid_port = port
-            
-            # Persist successful connection parameters
-            save_scanner_config(address.strip(), port, protocol)
-            
-            return {"ok": True, "msg": f"Connected via {protocol.upper()} to {address}:{port}", "state": self.get_state()}
-        else:
-            self.rfid_scanner_failed = True
-            return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}:{port} using {protocol.upper()}.", "state": self.get_state()}
-
-    def get_rfid_connection_info(self):
-        return self._get_connection_info(self.rfid_scanner)
-
-
-    def get_nfc_connection_info(self):
-        return self.get_connection_info(self.nfc_scanner)
- 
-    def _get_connection_info(self, reader: Reader):
-        if reader and reader.is_connected():
-            return {"connected": True, 
-                    "address": self.rfid_scanner.get_address(), 
-                    "port": self.rfid_scanner.get_port(),
-                    "protocol": self.rfid_scanner.get_protocol()}
-        else:
-            return {"connected": False}
-      
-    def get_saved_scanner_config(self):
-        """Return the saved scanner configuration if available."""
-        return self.saved_scanner_config
-
-    def try_auto_connect_rfid(self):
-        """Attempt to auto-connect using saved scanner configuration."""
-        if not self.saved_scanner_config:
-            return {"ok": False, "msg": "No saved scanner configuration.", "state": self.get_state()}
-            
-        if self.rfid_connected:
-            return {"ok": False, "msg": "RFID scanner already connected.", "state": self.get_state()}
-            
-        config = self.saved_scanner_config
-        return self.connect_rfid_manual(config['hostname'], config['port'], config['protocol'])
-
-    # ------------------------------------------------------------------
-    # Option 4 – Connect NFC
-    # ------------------------------------------------------------------
-    def connect_nfc(self):
-        try:
-            self.nfc_scanner = NFCReader()
-            self.nfc_scanner.start(self.start_event_q)
-            self.nfc_connected = True
-            self.nfc_scanner_failed = False
-            return {"ok": True, "msg": "NFC scanner connected.", "state": self.get_state()}
-        except Exception as e:
-            self.nfc_scanner_failed = True
-            return {"ok": False, "msg": f"NFC failed: {e}", "state": self.get_state()}
-
-    # ------------------------------------------------------------------
-    # Option 5 – List all athletes
-    # ------------------------------------------------------------------
-    def list_athletes(self):
-        return {
-            "ok": True,
-            "athletes": [a.to_dict() for a in self.athletes]
-        }
-
-    # ------------------------------------------------------------------
-    # List all athletes with live status (for workout tab)
-    # ------------------------------------------------------------------
     def list_athletes_with_status(self):
-        running_ids = {id(r) for r in self.runner_observer.running}
-        resting_ids = {id(r) for r in self.runner_observer.resting}
+        running_ids = {id(r) for r in self.session.runner_observer.running}
+        resting_ids = {id(r) for r in self.session.runner_observer.resting}
         now_ms = datetime.now().timestamp() * 1000
         result = []
-        for a in self.athletes:
+        for a in self.roster.athletes:
             if getattr(a, 'archived', False):
                 continue
             d = a.to_dict()
-
-            # Performance: completed interval durations and inter-interval rests (all in ms)
             all_intervals = a.get_intervals()
             completed = [iv for iv in all_intervals if not iv.incomplete]
             in_progress = [iv for iv in all_intervals if iv.incomplete]
@@ -555,21 +281,16 @@ class SplitsApi:
                 completed[i + 1].get_start_time() - completed[i].get_end_time()
                 for i in range(len(completed) - 1)
             ]
-            # If there's a current in-progress interval, compute the rest that preceded it
             if completed and in_progress:
                 rests.append(in_progress[0].start_time - completed[-1].get_end_time())
             d['rests'] = rests
-
             if id(a) in running_ids:
-                if all_intervals:
-                    elapsed = round((now_ms - all_intervals[-1].start_time) / 1000)
-                else:
-                    elapsed = 0
+                elapsed = round((now_ms - all_intervals[-1].start_time) / 1000) if all_intervals else 0
                 d['status'] = 'RUNNING'
                 d['elapsed_seconds'] = max(0, elapsed)
             elif id(a) in resting_ids:
-                rest_duration = self.workout.get_rest_time()
-                rest_elapsed = self.runner_observer.rest_elapsed(a)
+                rest_duration = self.workout.workout.get_rest_time()
+                rest_elapsed = self.session.runner_observer.rest_elapsed(a)
                 d['status'] = 'RESTING'
                 d['elapsed_seconds'] = round(rest_elapsed)
                 d['rest_remaining_seconds'] = max(0, round(rest_duration - rest_elapsed))
@@ -579,382 +300,51 @@ class SplitsApi:
             result.append(d)
         return {"ok": True, "athletes": result}
 
-    # ------------------------------------------------------------------
-    # Start a specific set of athletes by start_tag (new UI)
-    # ------------------------------------------------------------------
-    def start_selected(self, tag_ids: list[str]):
-        #if not self._full_setup_ok():
-        #    return {"ok": False, "msg": "Setup not complete."}
-        if not tag_ids:
-            return {"ok": False, "msg": "No athletes selected."}
-        valid_ids = {a.start_id for a in self.athletes}
-        ids_to_start = [t for t in tag_ids if t in valid_ids]
-        if not ids_to_start:
-            return {"ok": False, "msg": "None of the selected tag IDs match known athletes."}
-        self.manual_start_controller.start(ids_to_start)
-        self.workout_active = True
-        return {"ok": True, "msg": f"Started {len(ids_to_start)} athletes.",
-                "state": self.get_state()}
+    def finish_workout(self):
+        last_id = self.session.finish_workout()
+        self.history._last_session_id = last_id
+        return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
+
+    def shutdown(self):
+        return self.session.shutdown()
 
     # ------------------------------------------------------------------
-    # Resting athletes – ungated, for the second window
+    # Session recovery (orchestrated — restores athletes + wires session)
     # ------------------------------------------------------------------
-    def get_resting(self):
-        """Always returns the current resting list with timing data; no setup check."""
-        athletes = []
-        for r in self.runner_observer.resting:
-            rest_duration = r.get_workout().get_rest_time()
-            d = r.to_dict()
-            rest_elapsed = self.runner_observer.rest_elapsed(r)
-            d['rest_elapsed'] = round(rest_elapsed, 1)
-            d['rest_duration'] = rest_duration
-            d['rest_remaining_seconds'] = max(0, round(rest_duration - rest_elapsed))
-            athletes.append(d)
-        return {"ok": True, "athletes": athletes}
-
-    # ------------------------------------------------------------------
-    # Option 10 – Performance
-    # ------------------------------------------------------------------
-    def list_completed_sessions(self):
-        """Return metadata list of all archived workout sessions."""
-        try:
-            sessions = _list_completed_sessions()
-            return {"ok": True, "sessions": sessions}
-        except Exception as e:
-            return {"ok": False, "msg": str(e), "sessions": []}
-
-    def get_session_details(self, session_id: str):
-        """Return full session details with per-athlete performance data (raw ms values)."""
-        session_data = load_completed_session(session_id)
-        if not session_data:
-            return {"ok": False, "msg": "Session not found."}
-
-        runners = session_data.get("runners", [])
-        workout = next((r.get("workout") for r in runners if r.get("workout")), None)
-
-        athletes = []
-        max_intervals = 0
-
-        for r in runners:
-            completed = [
-                iv for iv in r.get("session_intervals", [])
-                if not iv.get("incomplete", True)
-            ]
-            if not completed:
-                continue
-
-            intervals_ms = [iv["end_time"] - iv["start_time"] for iv in completed]
-            rests_ms = [
-                completed[i + 1]["start_time"] - completed[i]["end_time"]
-                for i in range(len(completed) - 1)
-            ]
-            total_ms = sum(intervals_ms)
-            total_distance = sum(iv.get("distance", 0) for iv in completed)
-            avg_pace_ms = int(total_ms / total_distance * 1600) if total_distance > 0 else 0
-
-            max_intervals = max(max_intervals, len(intervals_ms))
-            athletes.append({
-                "name":            r.get("name", ""),
-                "lname":           r.get("lname", ""),
-                "lap_id":          r.get("lap_id", ""),
-                "intervals_ms":    intervals_ms,
-                "rests_ms":        rests_ms,
-                "avg_pace_ms":     avg_pace_ms,
-                "completed_count": len(completed),
-            })
-
-        # Augment with email from current roster data
-        from persistence.roster_persistence import find_athlete_by_id
-        for athlete in athletes:
-            result = find_athlete_by_id(athlete["lap_id"])
-            if result:
-                _, runner = result
-                athlete["email"] = getattr(runner, "email", None) or ""
-            else:
-                athlete["email"] = ""
-
-        return {
-            "ok":           True,
-            "session_id":   session_id,
-            "started_at":   session_data.get("started_at"),
-            "workout":      workout,
-            "athletes":     athletes,
-            "max_intervals": max_intervals,
-        }
-
-    def delete_completed_session(self, session_id: str):
-        """Delete an archived workout session."""
-        if not session_id or not session_id.strip():
-            return {"ok": False, "msg": "Session ID is required."}
-        success = _delete_completed_session(session_id.strip())
-        if success:
-            if self._last_session_id == session_id:
-                self._last_session_id = None
-            return {"ok": True, "msg": "Workout session deleted."}
-        return {"ok": False, "msg": "Session not found or could not be deleted."}
-
-    # ------------------------------------------------------------------
-    # Session recovery
-    # ------------------------------------------------------------------
-    def _check_for_recovery(self):
-        """Check for an unfinished session from a previous run."""
-        session_dict = load_active_session()
-        if session_dict:
-            self.pending_recovery = session_dict
-
-    def get_pending_recovery(self) -> dict:
-        """Return recovery info for the GUI to display a resume dialog."""
-        if not self.pending_recovery:
-            return {"hasPendingRecovery": False}
-        s = self.pending_recovery
-        runners = s.get("runners", [])
-        first_workout = runners[0].get("workout") if runners else None
-        return {
-            "hasPendingRecovery": True,
-            "started_at":    s.get("started_at"),
-            "saved_at":      s.get("saved_at"),
-            "athlete_count": len(runners),
-            "workout":       first_workout,
-        }
-
     def resume_session(self) -> dict:
         """Restore a previously interrupted workout session."""
-        if not self.pending_recovery:
+        if not self.session.pending_recovery:
             return {"ok": False, "msg": "No pending session."}
         try:
-            athletes = restore_session_from_dict(self.pending_recovery)
+            athletes = restore_session_from_dict(self.session.pending_recovery)
             first_workout = athletes[0].current_workout if athletes else None
-            self.workout = first_workout
-            self.workout_configured = bool(first_workout)
-            self.current_workout_config = {
+            self.workout.workout = first_workout
+            self.workout.workout_configured = bool(first_workout)
+            self.workout.current_workout_config = {
                 "distance": first_workout.interval_distance,
                 "laps":     first_workout.laps_per_interval,
                 "rest":     first_workout.rest_time,
             } if first_workout else None
-            roster_id = self.pending_recovery.get("roster_id")
-            self._stop_timer()
-            self.init_athletes(athletes)
-            # Sync RunnerObserver with restored runner states. init_athletes()
-            # registers the observer but never calls update(), so running/resting
-            # lists stay empty and all runners appear INACTIVE in the GUI.
-            for a in self.athletes:
-                self.runner_observer.update(a)
-                # For resting runners, restore the rest start time from the
-                # end_time of their last completed interval rather than using
-                # "now", so the rest countdown reflects actual elapsed time.
+            roster_id = self.session.pending_recovery.get("roster_id")
+            self.session._stop_timer()
+            self._init_athletes(athletes)
+            for a in self.roster.athletes:
+                self.session.runner_observer.update(a)
                 if a.current_status == RunnerState.RESTING:
                     completed = [iv for iv in a.intervals if not iv.incomplete]
                     if completed:
-                        self.runner_observer._rest_start[id(a)] = completed[-1].end_time / 1000
-            self._wire_session_persistence(
-                session_id=self.pending_recovery["session_id"],
+                        self.session.runner_observer._rest_start[id(a)] = completed[-1].end_time / 1000
+            self.session._wire_session_persistence(
+                session_id=self.session.pending_recovery["session_id"],
                 roster_id=roster_id,
+                athletes=self.roster.athletes,
             )
-            self.workout_active = True
-            self.pending_recovery = None
+            self.session.workout_active = True
+            self.session.pending_recovery = None
             return {"ok": True, "msg": "Session resumed.", "state": self.get_state()}
         except Exception as e:
             return {"ok": False, "msg": f"Failed to resume: {e}"}
 
-    def discard_recovery(self) -> dict:
-        """Delete the active session file without restoring it."""
-        discard_active_session()
-        self.pending_recovery = None
-        return {"ok": True}
 
-    def _wire_session_persistence(self, session_id: str, roster_id: str) -> None:
-        """Create a WorkoutSessionPersistence observer and register it with all runners."""
-        self.session_persistence = WorkoutSessionPersistence(
-            session_id=session_id,
-            roster_id=roster_id,
-            athletes=self.athletes,
-        )
-        for a in self.athletes:
-            a.add_observer(self.session_persistence)
-
-    # ------------------------------------------------------------------
-    # Option 11 – Finish workout
-    # ------------------------------------------------------------------
-    def finish_workout(self):
-        self.runner_observer.running.clear()
-        self.runner_observer.resting.clear()
-        self.workout_active = False
-        if self.session_persistence:
-            self._last_session_id = self.session_persistence._session_id
-            self.session_persistence.finish_session()
-            self.session_persistence = None
-        return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
-
-    # ------------------------------------------------------------------
-    # Email
-    # ------------------------------------------------------------------
-    def add_athlete_to_roster(self, roster_id: str, data: dict):
-        from persistence.roster_persistence import load_roster, save_roster, load_rosters_index
-        index = load_rosters_index()
-        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
-        if not roster_meta:
-            return {"ok": False, "msg": "Roster not found."}
-        rfid_tag = data.get("rfid_tag", "").strip()
-        if not rfid_tag:
-            return {"ok": False, "msg": "RFID tag is required."}
-        athletes = load_roster(roster_id, include_archived=True) or []
-        if any(a.lap_id == rfid_tag for a in athletes):
-            return {"ok": False, "msg": f"An athlete with RFID tag '{rfid_tag}' already exists in this roster."}
-        runner = Runner()
-        runner.name     = data.get("first_name", "").strip()
-        runner.lname    = data.get("last_name",  "").strip()
-        runner.lap_id   = rfid_tag
-        runner.start_id = data.get("nfc_tag", "").strip()
-        runner.email    = data.get("email", "").strip() or None
-        athletes.append(runner)
-        save_roster(roster_id, roster_meta["name"], athletes)
-        return {"ok": True, "msg": f"{runner.name} added to roster."}
-
-    def update_athlete(self, athlete_id: str, data: dict):
-        from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
-        result = find_athlete_by_id(athlete_id)
-        if not result:
-            return {"ok": False, "msg": "Athlete not found."}
-        roster_id, _ = result
-        index = load_rosters_index()
-        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
-        if not roster_meta:
-            return {"ok": False, "msg": "Roster not found."}
-        athletes = load_roster(roster_id, include_archived=True) or []
-        for a in athletes:
-            if a.lap_id == athlete_id:
-                a.name     = data.get("first_name", "").strip()
-                a.lname    = data.get("last_name",  "").strip()
-                a.start_id = data.get("nfc_tag", "").strip()
-                a.email    = data.get("email", "").strip() or None
-                break
-        save_roster(roster_id, roster_meta["name"], athletes)
-        return {"ok": True, "msg": "Athlete updated."}
-
-    def update_athlete_email(self, lap_id: str, email: str):
-        """Persist an email address for an athlete identified by lap_id."""
-        from persistence.roster_persistence import (
-            find_athlete_by_id, load_roster, save_roster, load_rosters_index
-        )
-        result = find_athlete_by_id(lap_id)
-        if not result:
-            return {"ok": False, "msg": "Athlete not found."}
-        roster_id, _ = result
-        index = load_rosters_index()
-        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
-        if not roster_meta:
-            return {"ok": False, "msg": "Roster not found."}
-        athletes = load_roster(roster_id, include_archived=True) or []
-        for a in athletes:
-            if a.lap_id == lap_id:
-                a.email = email.strip() if email else ""
-                break
-        save_roster(roster_id, roster_meta["name"], athletes)
-        return {"ok": True}
-
-    def send_reports(self, reports: list):
-        """Send HTML performance reports via email. reports is [{name, email, html, lap_id}]."""
-        import importlib.util, os
-        email_path = os.path.normpath(
-            os.path.join(os.path.dirname(__file__), "..", "email", "email_sender.py")
-        )
-        spec = importlib.util.spec_from_file_location("_email_sender", email_path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        EmailSender    = mod.EmailSender
-        SMTPConfigError = mod.SMTPConfigError
-
-        try:
-            sender = EmailSender()
-        except SMTPConfigError as e:
-            return {"ok": False, "msg": str(e)}
-        except Exception as e:
-            return {"ok": False, "msg": f"Email configuration error: {e}"}
-
-        # Verify Playwright is available before attempting any sends
-        try:
-            import playwright  # noqa: F401
-        except ImportError:
-            return {"ok": False, "msg": "Playwright is not installed. Run: pip install playwright && playwright install chromium"}
-
-        sent, failed = [], []
-        for report in reports:
-            try:
-                ok = sender.send_report(
-                    to_email=report["email"],
-                    runner_name=report["name"],
-                    report_html_string=report["html"],
-                )
-                (sent if ok else failed).append(report["name"])
-            except Exception as e:
-                failed.append(f"{report['name']} ({e})")
-
-        if failed:
-            msg = f"Failed: {'; '.join(failed)}."
-            if sent:
-                msg += f" Sent: {', '.join(sent)}."
-            return {"ok": False, "msg": msg}
-        return {"ok": True, "msg": f"Sent {len(sent)} email{'s' if len(sent) != 1 else ''}."}
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-    def _full_setup_ok(self) -> bool:
-        return (
-            self.athletes_loaded and self.workout_configured
-            and self.rfid_connected and self.nfc_connected
-            and not self.rfid_scanner_failed and not self.nfc_scanner_failed
-        )
-
-    # ------------------------------------------------------------------
-    # Session / Roster Management
-    # ------------------------------------------------------------------
-    def _load_active_roster(self):
-        """Load the active roster on application startup."""
-        try:
-            roster = get_active_roster()
-            if not roster:
-                return
-            self.current_roster = roster
-            athletes = load_roster(roster["id"])
-            if athletes:
-                self.init_athletes(athletes)
-                self.session_loaded = True
-            else:
-                pass  # roster exists but has no athletes yet
-        except Exception as e:
-            print(f"Error loading active roster on startup: {e}")
-
-    def _stop_timer(self):
-        """Stop the interval timer if it is running."""
-        if self.timer:
-            self.timer.stop()
-            self.timer = None
-
-    def clear_session(self):
-        """Clear the current athlete roster (kept for frontend compatibility)."""
-        self._stop_timer()
-        self.athletes = []
-        self.athletes_loaded = False
-        self.session_loaded = False
-        return {"ok": True, "msg": "Athletes cleared.", "state": self.get_state()}
-
-    def get_session_info(self):
-        """Return session/roster info for the frontend."""
-        return {
-            "ok": True,
-            "sessionLoaded": self.session_loaded,
-            "athleteCount": len(self.athletes),
-            "athletesLoaded": self.athletes_loaded,
-            "currentRoster": self.current_roster,
-        }
-
-    def shutdown(self):
-        if self.timer:
-            self.timer.stop()
-        if self.session_persistence and self.workout_active:
-            try:
-                self.session_persistence._persist()
-            except Exception:
-                pass
-        return {"ok": True}
+# Backward-compatibility alias so existing imports keep working.
+SplitsApi = AppApi

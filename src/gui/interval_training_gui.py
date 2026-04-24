@@ -20,6 +20,7 @@ import json as _json
 # Default (light-mode) background color — must match --bg in shared.css
 LIGHT_MODE_BG = "#f0f0f0"
 
+resting_window = None
 
 class PyWebViewAPI:
     def __init__(self):
@@ -250,26 +251,8 @@ class PyWebViewAPI:
             self.resting_window.evaluate_js(f'applyTheme("{mode}")')
 
     def show_resting_runners(self):
-        import webview as _wv
-        if hasattr(self, 'resting_window') and self.resting_window:
-            self.resting_window.show()
-        else:
-            resting_path = os.path.join(self._html_path, "resting.html")
-            self.resting_window = _wv.create_window(
-                title="Resting Runners",
-                url=resting_path,
-                js_api=self,
-                width=600,
-                height=800,
-                min_size=(400, 500),
-                background_color=LIGHT_MODE_BG,
-                x=1120,
-                y=0,
-            )
-            def on_closing_resting():
-                self.resting_window.hide()
-                return False
-            self.resting_window.events.closing += on_closing_resting
+        global resting_window
+        resting_window.show()
         return {"ok": True, "msg": ""}
 # ---------------------------------------------------------------------------
 # Entry point
@@ -280,7 +263,7 @@ def main():
     # Get HTML path - check environment variable first (for bundled app)
     html_path = os.environ.get('GUI_HTML_PATH', os.path.join(os.path.dirname(__file__), "html"))
     ui_path = os.path.join(html_path, "index.html")
-    api._html_path = html_path  # used by show_resting_runners for lazy window creation
+    api._html_path = html_path
 
     main_window = webview.create_window(
         title="Splits",
@@ -293,26 +276,40 @@ def main():
     )
 
     def on_closed():
-        api.shutdown()
+        #api.shutdown()
+        pass
 
     main_window.events.closed += on_closed
 
-    # Suppress the pywebview Windows accessibility RecursionError.
-    # On Windows, pywebview's WinForms backend triggers infinite recursion
-    # through Rectangle.Empty when accessibility tools inspect a new window.
-    # Catching it here prevents it from crashing the window-management thread.
-    import sys
-    import threading
-    if sys.platform == 'win32':
-        _orig_hook = threading.excepthook
-        def _threading_excepthook(args):
-            if args.exc_type is RecursionError:
-                return
-            _orig_hook(args)
-        threading.excepthook = _threading_excepthook
+    # Pre-create the resting window hidden before webview.start().
+    # On Windows, creating a window after webview.start() causes pywebview to
+    # Invoke back onto the UI thread, where the WinForms accessibility probe of
+    # Rectangle.Empty triggers infinite recursion that threading.excepthook
+    # cannot catch (it runs on the main UI thread, not a background thread).
+    # Creating it upfront — like the POC — avoids that code path entirely.
+    resting_path = os.path.join(html_path, "resting.html")
+    global resting_window
+    resting_window = webview.create_window(
+        title="Resting Runners",
+        url=resting_path,
+        js_api=api,
+        width=600,
+        height=800,
+        min_size=(400, 500),
+        background_color=LIGHT_MODE_BG,
+        x=1120,
+        y=0,
+        hidden=True,
+    )
 
-    gui = 'edgechromium' if sys.platform == 'win32' else None
-    webview.start(debug=False, gui=gui)
+    def on_closing_resting():
+        global resting_window
+        resting_window.hide()
+        return False
+
+    resting_window.events.closing += on_closing_resting
+
+    webview.start(debug=False)
 
 
 if __name__ == "__main__":

@@ -281,19 +281,22 @@ class AppApi:
                 completed[i + 1].get_start_time() - completed[i].get_end_time()
                 for i in range(len(completed) - 1)
             ]
-            if completed and in_progress:
-                rests.append(in_progress[0].start_time - completed[-1].get_end_time())
-            d['rests'] = rests
             if id(a) in running_ids:
                 elapsed = round((now_ms - all_intervals[-1].start_time) / 1000) if all_intervals else 0
                 d['status'] = 'RUNNING'
                 d['elapsed_seconds'] = max(0, elapsed)
+                # all_intervals[-1] is always the current in-progress interval
+                if completed and all_intervals and all_intervals[-1].incomplete:
+                    rests.append(all_intervals[-1].start_time - completed[-1].get_end_time())
             elif id(a) in resting_ids:
                 rest_duration = self.workout.workout.get_rest_time()
                 rest_elapsed = self.session.runner_observer.rest_elapsed(a)
                 d['status'] = 'RESTING'
                 d['elapsed_seconds'] = round(rest_elapsed)
                 d['rest_remaining_seconds'] = max(0, round(rest_duration - rest_elapsed))
+                # Use the same wall-clock rest_elapsed as the resting window (one source of truth)
+                if completed:
+                    rests.append(round(rest_elapsed * 1000))
             else:
                 d['status'] = 'INACTIVE'
                 d['elapsed_seconds'] = None

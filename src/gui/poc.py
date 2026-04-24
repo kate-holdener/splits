@@ -9,10 +9,11 @@ class PocApi:
 
     def __init__(self):
         self._counter = 0
-
+        self.second_window = None
     def ping(self, source: str):
         """Called from either window; returns which window called it."""
         print(f"[PocApi] ping from: {source}")
+        self.second_window.show()
         return {"ok": True, "msg": f"pong from Python (caller: {source})"}
 
     def increment(self):
@@ -28,7 +29,7 @@ class PocApi:
 def main():
     api = PocApi()
 
-    win1 = webview.create_window(
+    webview.create_window(
         title="Screen 1",
         url=os.path.join(HTML_DIR, "poc1.html"),
         js_api=api,
@@ -36,7 +37,7 @@ def main():
         height=600,
     )
 
-    win2 = webview.create_window(
+    api.second_window = webview.create_window(
         title="Screen 2",
         url=os.path.join(HTML_DIR, "poc2.html"),
         js_api=api,
@@ -44,10 +45,10 @@ def main():
         height=400,
         x=850,
         y=0,
+        hidden=True
     )
 
     webview.start(debug=False)
-
-
+    
 if __name__ == "__main__":
     main()

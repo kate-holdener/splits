@@ -293,9 +293,13 @@ def main():
         background_color=LIGHT_MODE_BG,
     )
 
+    _shutting_down = [False]
+
     def on_closed():
-        #api.shutdown()
-        pass
+        api.shutdown()
+        _shutting_down[0] = True
+        if resting_window:
+            resting_window.destroy()
 
     main_window.events.closed += on_closed
 
@@ -321,6 +325,8 @@ def main():
     )
 
     def on_closing_resting():
+        if _shutting_down[0]:
+            return True  # allow destroy during app shutdown
         global resting_window
         resting_window.hide()
         return False

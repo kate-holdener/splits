@@ -51,8 +51,14 @@ class ImpinjRestReader(Reader):
             raise
 
     def connect(self):
-        self.connected = self._connect();
+        self.connected = self._connect()
         return self.connected
+
+    def stop(self):
+        """Signal the REST stream loop to exit and stop the thread."""
+        self.running = False
+        if self.thread is not None:
+            self.thread.join(timeout=2.0)
 
     def is_connected(self):
         return self.is_connected;

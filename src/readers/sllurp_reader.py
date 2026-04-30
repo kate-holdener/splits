@@ -48,6 +48,17 @@ class LLRPReader(Reader):
         self.connected = self._connect()
         return self.connected
 
+    def stop(self):
+        """Disconnect the LLRP reader to unblock reader.join() in _run(), then stop the thread."""
+        self.running = False
+        if self.reader:
+            try:
+                self.reader.disconnect()
+            except Exception:
+                pass
+        if self.thread is not None:
+            self.thread.join(timeout=2.0)
+
     def is_connected(self):
         return self.connected
 

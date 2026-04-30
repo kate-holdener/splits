@@ -27,39 +27,55 @@ class ScannerManager:
 
         self.saved_scanner_config = load_scanner_config()
 
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _activate_rfid_reader(self, reader: Reader, hostname: str) -> dict:
+        """Start the reader thread and record RFID connection state."""
+        reader.start(self.lap_event_q)
+        self.rfid_scanner = reader
+        self.rfid_connected = True
+        self.rfid_scanner_failed = False
+
+        protocol = reader.get_protocol().lower()
+        port = reader.get_port()
+
+        self.rfid_protocol = protocol
+        self.rfid_address = hostname
+        self.rfid_port = port
+
+        save_scanner_config(hostname, port, protocol)
+
+        return {
+            "ok": True,
+            "msg": f"Connected via {protocol.upper()} to {hostname}:{port}",
+            "connection_details": {"address": hostname, "port": port, "protocol": protocol},
+        }
+
+    def _stop_reader(self, reader: Optional[Reader]) -> None:
+        """Stop a reader thread, suppressing all errors."""
+        if reader:
+            try:
+                reader.stop()
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------
+    # RFID connect
+    # ------------------------------------------------------------------
+
     def connect_rfid(self):
         """Connect to RFID scanner with auto-discovery."""
         try:
-            self.rfid_scanner = auto_connect_to_rfid_scanner()
-            self.rfid_scanner.start(self.lap_event_q)
-            self.rfid_connected = True
-
-            reader_protocol = self.rfid_scanner.get_protocol().lower()
-            reader_address = self.rfid_scanner.get_address()
-            reader_port = self.rfid_scanner.get_port()
-
-            self.rfid_protocol = reader_protocol
-            if reader_protocol == 'llrp':
-                hostname = reader_address.split(':')[0]
+            reader = auto_connect_to_rfid_scanner()
+            protocol = reader.get_protocol().lower()
+            address = reader.get_address()
+            if protocol == 'llrp':
+                hostname = address.split(':')[0]
             else:
-                hostname = reader_address.replace('http://', '').split(':')[0]
-
-            self.rfid_address = hostname
-            self.rfid_port = reader_port
-
-            connection_details = {
-                "address": hostname,
-                "port": reader_port,
-                "protocol": reader_protocol
-            }
-
-            save_scanner_config(hostname, reader_port, reader_protocol)
-
-            return {
-                "ok": True,
-                "msg": f"Connected to {reader_protocol.upper()} on {hostname}:{reader_port}",
-                "connection_details": connection_details
-            }
+                hostname = address.replace('http://', '').split(':')[0]
+            return self._activate_rfid_reader(reader, hostname)
         except Exception as e:
             return {"ok": False, "msg": f"Auto-connection failed: {e}"}
 
@@ -72,15 +88,7 @@ class ScannerManager:
             scanner_info = {"address": address, "protocol": protocol, "port": 5084}
             result, reader = connect_rfid_with_scanner_info(scanner_info)
             if result["ok"] and reader:
-                reader.start(self.lap_event_q)
-                self.rfid_scanner = reader
-                self.rfid_connected = True
-                self.rfid_scanner_failed = False
-                self.rfid_protocol = protocol
-                self.rfid_address = address
-                self.rfid_port = 5084
-                save_scanner_config(address, 5084, protocol)
-                return {"ok": True, "msg": f"Connected via {protocol.upper()} to {address}:5084"}
+                return self._activate_rfid_reader(reader, address)
         self.rfid_scanner_failed = True
         return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}."}
 
@@ -98,37 +106,35 @@ class ScannerManager:
         result, reader = connect_rfid_with_scanner_info(scanner_info)
 
         if result["ok"] and reader:
-            reader.start(self.lap_event_q)
-            self.rfid_scanner = reader
-            self.rfid_connected = True
-            self.rfid_scanner_failed = False
-            self.rfid_protocol = reader.get_protocol().lower()
-            self.rfid_address = address
-            self.rfid_port = port
-            save_scanner_config(address, port, protocol)
-            return {"ok": True, "msg": f"Connected via {protocol.upper()} to {address}:{port}"}
-        else:
-            self.rfid_scanner_failed = True
-            return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}:{port} using {protocol.upper()}."}
+            return self._activate_rfid_reader(reader, address)
+        self.rfid_scanner_failed = True
+        return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}:{port} using {protocol.upper()}."}
+
+    # ------------------------------------------------------------------
+    # RFID disconnect
+    # ------------------------------------------------------------------
+
+    def disconnect_rfid(self):
+        """Disconnect the currently connected RFID scanner."""
+        if not self.rfid_connected:
+            return {"ok": False, "msg": "RFID scanner is not connected."}
+        self._stop_reader(self.rfid_scanner)
+        self.rfid_scanner = None
+        self.rfid_connected = False
+        self.rfid_scanner_failed = False
+        self.rfid_protocol = None
+        self.rfid_address = None
+        self.rfid_port = None
+        return {"ok": True, "msg": "RFID scanner disconnected."}
+
+    # ------------------------------------------------------------------
+    # RFID helpers
+    # ------------------------------------------------------------------
 
     def get_rfid_connection_info(self):
         return self._get_connection_info(self.rfid_scanner)
 
-    def get_nfc_connection_info(self):
-        return self._get_connection_info(self.nfc_scanner)
-
-    def _get_connection_info(self, reader: Reader):
-        if reader and reader.is_connected():
-            return {
-                "connected": True,
-                "address":   reader.get_address(),
-                "port":      reader.get_port(),
-                "protocol":  reader.get_protocol(),
-            }
-        return {"connected": False}
-
     def get_saved_scanner_config(self):
-        """Return the saved scanner configuration if available."""
         return self.saved_scanner_config
 
     def try_auto_connect_rfid(self):
@@ -140,7 +146,12 @@ class ScannerManager:
         config = self.saved_scanner_config
         return self.connect_rfid_manual(config['hostname'], config['port'], config['protocol'])
 
+    # ------------------------------------------------------------------
+    # NFC connect / disconnect
+    # ------------------------------------------------------------------
+
     def connect_nfc(self):
+        """Connect to the ACR122U NFC scanner."""
         try:
             self.nfc_scanner = NFCReader()
             self.nfc_scanner.start(self.start_event_q)
@@ -150,3 +161,39 @@ class ScannerManager:
         except Exception as e:
             self.nfc_scanner_failed = True
             return {"ok": False, "msg": f"NFC failed: {e}"}
+
+    def disconnect_nfc(self):
+        """Disconnect the currently connected NFC scanner."""
+        if not self.nfc_connected:
+            return {"ok": False, "msg": "NFC scanner is not connected."}
+        self._stop_reader(self.nfc_scanner)
+        self.nfc_scanner = None
+        self.nfc_connected = False
+        self.nfc_scanner_failed = False
+        return {"ok": True, "msg": "NFC scanner disconnected."}
+
+    # ------------------------------------------------------------------
+    # Shared info helper
+    # ------------------------------------------------------------------
+
+    def get_nfc_connection_info(self):
+        return self._get_connection_info(self.nfc_scanner)
+
+    def _get_connection_info(self, reader: Optional[Reader]) -> dict:
+        if reader and reader.is_connected():
+            return {
+                "connected": True,
+                "address":   reader.get_address(),
+                "port":      reader.get_port(),
+                "protocol":  reader.get_protocol(),
+            }
+        return {"connected": False}
+
+    # ------------------------------------------------------------------
+    # Shutdown
+    # ------------------------------------------------------------------
+
+    def shutdown(self):
+        """Stop all connected scanners so they stop feeding the event queues."""
+        self._stop_reader(self.rfid_scanner)
+        self._stop_reader(self.nfc_scanner)

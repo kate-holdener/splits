@@ -16,13 +16,25 @@ function setRfidModalView(view) {
   connectedActions.style.display = (view === 'connected') ? 'flex'  : 'none';
 }
 
+function updateNfcBtn(connected) {
+  const btn = document.getElementById('nfc-btn');
+  if (!btn) return;
+  if (connected) {
+    btn.textContent = 'Disconnect';
+    btn.className   = 'btn btn-ghost btn-sm';
+    btn.onclick     = disconnectNfc;
+  } else {
+    btn.textContent = 'Connect';
+    btn.className   = 'btn btn-primary btn-sm';
+    btn.onclick     = connectNfc;
+  }
+}
+
 async function openScannersModal() {
   document.getElementById('scanners-modal').style.display = 'flex';
 
-  const [info, state] = await Promise.all([
-    pywebview.api.get_rfid_connection_info(),
-    pywebview.api.get_state()
-  ]);
+  const info  = await pywebview.api.get_rfid_connection_info();
+  const state = await pywebview.api.get_state();
 
   // RFID
   const rfidStatusEl = document.getElementById('rfid-status-text');
@@ -47,15 +59,10 @@ async function openScannersModal() {
 
   // NFC
   updateConnector('nfc-status-text', state.nfcConnected, state.nfcFailed);
+  updateNfcBtn(state.nfcConnected);
 
   // Topbar button color
   updateScannersBtnColor(info.connected, state.nfcConnected);
-}
-
-function updateScannersBtnColor(rfidConnected, nfcConnected) {
-  const btn = document.getElementById('scanners-btn');
-  if (!btn) return;
-  btn.className = (rfidConnected && nfcConnected) ? 'btn btn-sm btn-success' : 'btn btn-sm btn-danger';
 }
 
 function closeScannersModal() {
@@ -72,6 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 // RFID CONNECTION STATUS DISPLAY
 // ============================================================
+
+function updateScannersBtnColor(rfidConnected, nfcConnected) {
+  const btn = document.getElementById('scanners-btn');
+  if (!btn) return;
+  btn.className = (rfidConnected && nfcConnected) ? 'btn btn-sm btn-success' : 'btn btn-sm btn-danger';
+}
 
 function updateRfidStatus(result, connectionDetails = null) {
   const statusText = document.getElementById('rfid-status-text');
@@ -183,17 +196,60 @@ async function connectRfidManualSubmit() {
   if (btn) btn.disabled = false;
 }
 
+// ============================================================
+// RFID DISCONNECT
+// ============================================================
+
 async function disconnectRfid() {
-  log('Disconnect functionality not yet implemented.', 'info');
+  const btn = document.querySelector('#rfid-connected-actions .btn');
+  if (btn) btn.disabled = true;
+
+  log('Disconnecting RFID scanner…', 'info');
+  const r = await pywebview.api.disconnect_rfid();
+  log(r.msg, r.ok ? 'ok' : 'err');
+
+  if (r.ok) {
+    const nameEl       = document.getElementById('rfid-name');
+    const rfidStatusEl = document.getElementById('rfid-status-text');
+    if (nameEl) nameEl.textContent = 'RFID Scanner';
+    if (rfidStatusEl) {
+      rfidStatusEl.textContent = 'Not connected';
+      rfidStatusEl.className   = 'connector-status idle';
+    }
+    setRfidModalView('options');
+  }
+
+  if (r.state) {
+    applyState(r.state);
+    updateScannersBtnColor(false, r.state.nfcConnected);
+  }
+  if (btn) btn.disabled = false;
 }
 
+// ============================================================
+// NFC CONNECT / DISCONNECT
+// ============================================================
+
 async function connectNfc() {
-  document.getElementById('nfc-btn').disabled = true;
+  const btn = document.getElementById('nfc-btn');
+  if (btn) btn.disabled = true;
   log('Connecting to NFC scanner…', 'info');
   const r = await pywebview.api.connect_nfc();
   log(r.msg, r.ok ? 'ok' : 'err');
   if (r.state) applyState(r.state);
-  document.getElementById('nfc-btn').disabled = false;
+  if (r.ok) updateNfcBtn(true);
+  if (btn) btn.disabled = false;
+}
+
+async function disconnectNfc() {
+  const btn = document.getElementById('nfc-btn');
+  if (btn) btn.disabled = true;
+  log('Disconnecting NFC scanner…', 'info');
+  const r = await pywebview.api.disconnect_nfc();
+  log(r.msg, r.ok ? 'ok' : 'err');
+  if (r.state) applyState(r.state);
+  if (r.ok) updateNfcBtn(false);
+  if (btn) btn.disabled = false;
 }
 
 async function autoConnectScanners() {

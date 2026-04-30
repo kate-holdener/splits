@@ -309,6 +309,7 @@ class AppApi:
         return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
 
     def shutdown(self):
+        self.scanner.shutdown()
         return self.session.shutdown()
 
     # ------------------------------------------------------------------

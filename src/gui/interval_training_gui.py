@@ -127,6 +127,16 @@ class PyWebViewAPI:
         result["state"] = self.api.get_state()
         return result
 
+    def disconnect_rfid(self):
+        result = self.api.scanner.disconnect_rfid()
+        result["state"] = self.api.get_state()
+        return result
+
+    def disconnect_nfc(self):
+        result = self.api.scanner.disconnect_nfc()
+        result["state"] = self.api.get_state()
+        return result
+
     # ------------------------------------------------------------------
     # Live workout controls
     # ------------------------------------------------------------------

@@ -62,7 +62,7 @@ async function resumeSession() {
   log(r.msg, r.ok ? 'ok' : 'err');
   if (r.ok) {
     if (r.state) applyState(r.state);
-    _sessionActive = true;
+    setSessionActive(true);
     _activateScreen('workout-screen');
   }
 }

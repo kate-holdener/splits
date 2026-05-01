@@ -14,6 +14,20 @@ let _workoutRefreshTimer = null;
 let _workoutScreenVisited = false;
 let _sessionActive = false;
 
+function setSessionActive(val) {
+  _sessionActive = val;
+  const tile    = document.getElementById('settings-tile');
+  const tileSub = document.getElementById('settings-tile-sub');
+  if (!tile || !tileSub) return;
+  if (val) {
+    tile.classList.add('locked');
+    tileSub.innerHTML = 'Not available during an active workout.<br>Terminate the workout to update settings.';
+  } else {
+    tile.classList.remove('locked');
+    tileSub.innerHTML = 'Manage rosters, athletes<br>and system configuration';
+  }
+}
+
 function goTo(screenId) {
   if (_workoutRefreshTimer) {
     clearInterval(_workoutRefreshTimer);
@@ -21,6 +35,14 @@ function goTo(screenId) {
   }
   if (screenId === 'workout-screen' && !_sessionActive) {
     openSessionSetup();
+    return;
+  }
+  if (screenId === 'settings-screen' && _sessionActive) {
+    const tile = document.getElementById('settings-tile');
+    if (tile) {
+      tile.classList.add('locked-flash');
+      setTimeout(() => tile.classList.remove('locked-flash'), 500);
+    }
     return;
   }
   _activateScreen(screenId);

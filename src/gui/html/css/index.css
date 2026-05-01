@@ -162,6 +162,33 @@ body {
   border-color: var(--accent);
 }
 
+.home-tile.settings-tile.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.home-tile.settings-tile.locked:hover {
+  border-color: var(--border);
+}
+
+.home-tile.settings-tile.locked .tile-label {
+  color: var(--muted);
+}
+
+@keyframes locked-shake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-6px); }
+  40%  { transform: translateX(6px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
+.home-tile.settings-tile.locked-flash {
+  animation: locked-shake 0.4s ease;
+  border-color: var(--danger) !important;
+}
+
 .home-tile.reports-tile:hover {
   border-color: var(--accent);
 }

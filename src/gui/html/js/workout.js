@@ -222,7 +222,7 @@ async function finishWorkout() {
   log(r.msg, r.ok ? 'ok' : 'err');
   if (r.state) applyState(r.state);
   if (r.ok) {
-    _sessionActive = false;
+    setSessionActive(false);
     goTo('home-screen');
   }
 }

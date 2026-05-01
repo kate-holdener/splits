@@ -64,7 +64,7 @@ async function confirmSessionSetup() {
     renderRostersList(lr.rosters);
   }
 
-  _sessionActive = true;
+  setSessionActive(true);
 
   // Wait for scanner connections before showing workout screen
   const confirmBtn = document.getElementById('setup-confirm-btn');

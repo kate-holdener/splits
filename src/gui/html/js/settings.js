@@ -121,9 +121,10 @@ async function archiveSelectedRoster() {
   const roster = settingsRosters.find(s => s.id === selectedSettingsRosterId);
   if (!roster) return;
 
-  if (!confirm(`Are you sure you want to archive "${roster.name}"? This will hide it from normal views.`)) {
-    return;
-  }
+  if (!await showConfirm(
+    `This will hide "${roster.name}" from normal views.`,
+    { title: `Archive "${roster.name}"?`, confirmText: 'Archive' }
+  )) return;
 
   try {
     const result = await pywebview.api.archive_roster(selectedSettingsRosterId);

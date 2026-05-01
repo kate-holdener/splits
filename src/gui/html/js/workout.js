@@ -217,7 +217,10 @@ function toggleSelectAll(masterCb) {
 }
 
 async function finishWorkout() {
-  if (!confirm('End the workout? This will clear all running and resting state.')) return;
+  if (!await showConfirm(
+    'This will clear all running and resting state.',
+    { title: 'End the workout?', confirmText: 'End Workout' }
+  )) return;
   const r = await pywebview.api.finish_workout();
   log(r.msg, r.ok ? 'ok' : 'err');
   if (r.state) applyState(r.state);

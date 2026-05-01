@@ -97,11 +97,10 @@ async function deleteSessionFromButton(event, btn) {
 async function deleteSession(event, sessionId, sessionDate, workoutLabel) {
   if (event) event.stopPropagation();
 
-  const confirmMsg =
-    `Delete the workout session from ${sessionDate}?`
-    + `\n\n${workoutLabel}`
-    + '\n\nThis cannot be undone.';
-  if (!confirm(confirmMsg)) return;
+  if (!await showConfirm(
+    `${workoutLabel}\n\nThis cannot be undone.`,
+    { title: `Delete session from ${sessionDate}?`, confirmText: 'Delete' }
+  )) return;
 
   try {
     const result = await pywebview.api.delete_completed_session(sessionId);

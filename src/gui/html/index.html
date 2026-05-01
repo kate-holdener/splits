@@ -10,6 +10,7 @@
 <script src="js/log.js"     defer></script>
 <script src="js/state.js"   defer></script>
 <script src="js/utils.js"   defer></script>
+<script src="js/confirm.js" defer></script>
 <script src="js/rosters.js" defer></script>
 <script src="js/athletes.js" defer></script>
 <script src="js/settings.js" defer></script>
@@ -527,6 +528,18 @@
     <div style="display:flex;gap:10px;margin-top:14px">
       <button class="btn btn-ghost"   style="flex:1" onclick="discardRecovery()">Discard</button>
       <button class="btn btn-primary" style="flex:2" onclick="resumeSession()">Resume Workout</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation modal — reusable replacement for browser confirm() -->
+<div id="confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:700;align-items:center;justify-content:center">
+  <div class="card" style="width:420px;max-width:92vw;margin:0;padding:32px">
+    <div class="card-title warn" id="confirm-modal-title">Are you sure?</div>
+    <div id="confirm-modal-message" style="color:var(--muted);line-height:1.6;margin-bottom:20px;white-space:pre-wrap"></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-ghost" style="flex:1"  id="confirm-modal-cancel">Cancel</button>
+      <button class="btn btn-danger" style="flex:2" id="confirm-modal-ok">Confirm</button>
     </div>
   </div>
 </div>

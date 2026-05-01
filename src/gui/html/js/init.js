@@ -120,3 +120,8 @@ document.getElementById('session-setup-modal').addEventListener('click', e => {
 document.getElementById('recovery-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('recovery-modal')) discardRecovery();
 });
+document.getElementById('confirm-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('confirm-modal')) {
+    document.getElementById('confirm-modal-cancel').click();
+  }
+});

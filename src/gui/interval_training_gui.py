@@ -137,6 +137,15 @@ class PyWebViewAPI:
         result["state"] = self.api.get_state()
         return result
 
+    def start_nfc_capture(self):
+        return self.api.start_nfc_capture()
+
+    def poll_nfc_capture(self):
+        return self.api.poll_nfc_capture()
+
+    def cancel_nfc_capture(self):
+        return self.api.cancel_nfc_capture()
+
     # ------------------------------------------------------------------
     # Live workout controls
     # ------------------------------------------------------------------

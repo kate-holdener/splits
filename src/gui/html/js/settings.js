@@ -6,6 +6,16 @@ let settingsRosters = [];
 let settingsAthletes = [];
 let selectedSettingsRosterId = null;
 
+let _activeScanInterval = null;
+
+function _cancelActiveScan() {
+  if (_activeScanInterval) {
+    clearInterval(_activeScanInterval);
+    _activeScanInterval = null;
+  }
+  pywebview.api.cancel_nfc_capture().catch(() => {});
+}
+
 // ============================================================
 // SETTINGS SCREEN — Roster dropdown functionality
 // ============================================================
@@ -204,6 +214,7 @@ async function loadSettingsRosters() {
 // ============================================================
 
 async function loadSettingsAthletesForRoster(rosterId) {
+  _cancelActiveScan();
   try {
     const result = await pywebview.api.list_athletes_for_roster_including_archived(rosterId);
     if (result.ok) {
@@ -234,13 +245,24 @@ function renderSettingsAthletes() {
     const fullName = `${athlete.first_name || athlete.name || ''} ${athlete.last_name || athlete.lname || ''}`.trim();
     const id = escapeHtml(athlete.id);
 
+    const nfcCell = athlete.start_tag
+      ? `<td><code>${escapeHtml(athlete.start_tag)}</code></td>`
+      : `<td style="white-space:nowrap">
+           <button class="btn btn-ghost btn-sm" id="nfc-scan-btn-${id}"
+                   onclick="scanNfcForAthlete('${id}')"
+                   ${_sessionActive ? 'disabled title="Workout in progress"' : ''}>
+             Scan
+           </button>
+           <span id="nfc-scan-status-${id}" style="font-size:12px;color:var(--muted);margin-left:6px"></span>
+         </td>`;
+
     row.innerHTML = `
       <td><strong>${escapeHtml(fullName)}</strong></td>
       <td style="color:${athlete.email ? 'var(--text)' : 'var(--muted)'};font-size:13px">
         ${escapeHtml(athlete.email || '—')}
       </td>
       <td><code>${escapeHtml(athlete.finish_tag || '-')}</code></td>
-      <td><code>${escapeHtml(athlete.start_tag || '-')}</code></td>
+      ${nfcCell}
       <td>
         <label class="athlete-toggle" title="${isActive ? 'Active — click to deactivate' : 'Inactive — click to activate'}">
           <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleAthleteActive('${id}', this.checked)"/>
@@ -416,15 +438,80 @@ async function downloadCsvTemplate() {
 
 
 // ============================================================
+// NFC TAG SCAN CAPTURE
+// ============================================================
+
+async function scanNfcForAthlete(athleteId) {
+  _cancelActiveScan();
+
+  const btn = document.getElementById(`nfc-scan-btn-${athleteId}`);
+  const status = document.getElementById(`nfc-scan-status-${athleteId}`);
+
+  btn.disabled = true;
+  status.textContent = 'Waiting…';
+
+  const startResult = await pywebview.api.start_nfc_capture();
+  if (!startResult.ok) {
+    status.textContent = startResult.msg || 'Failed to start scan.';
+    btn.disabled = false;
+    return;
+  }
+
+  let attempts = 0;
+  const maxAttempts = 32; // 32 × 500ms = 16s (matches 15s backend timeout + buffer)
+  _activeScanInterval = setInterval(async () => {
+    attempts++;
+    const result = await pywebview.api.poll_nfc_capture();
+
+    if (result.pending) {
+      if (attempts >= maxAttempts) {
+        _cancelActiveScan();
+        status.textContent = 'Timed out.';
+        btn.disabled = false;
+      }
+      return;
+    }
+
+    _cancelActiveScan();
+
+    if (!result.ok) {
+      status.textContent = result.msg || 'Scan failed.';
+      btn.disabled = false;
+      return;
+    }
+
+    const athlete = settingsAthletes.find(a => a.id === athleteId);
+    const saveResult = await pywebview.api.update_athlete(athleteId, {
+      first_name: athlete.first_name || athlete.name  || '',
+      last_name:  athlete.last_name  || athlete.lname || '',
+      rfid_tag:   athlete.finish_tag || athlete.id    || '',
+      nfc_tag:    result.tag,
+      email:      athlete.email || '',
+    });
+
+    if (saveResult.ok) {
+      if (window.log) window.log(`NFC tag assigned to ${athlete.first_name || athlete.name}.`, 'ok');
+      loadSettingsAthletesForRoster(selectedSettingsRosterId);
+    } else {
+      status.textContent = saveResult.msg || 'Failed to save.';
+      btn.disabled = false;
+    }
+  }, 500);
+}
+
+// ============================================================
 // INITIALIZATION
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      if (mutation.target.id === 'settings-screen' &&
-          mutation.target.classList.contains('active')) {
-        loadSettingsRosters();
+      if (mutation.target.id === 'settings-screen') {
+        if (mutation.target.classList.contains('active')) {
+          loadSettingsRosters();
+        } else {
+          _cancelActiveScan();
+        }
       }
     });
   });

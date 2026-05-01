@@ -8,7 +8,7 @@ from persistence.session_persistence import (
     load_active_session,
     discard_active_session,
 )
-
+from interactors.interval_timer import SplitsTimer
 
 class WorkoutSession:
     """Owns the live workout runtime: timer, event queues, RunnerObserver, and session persistence."""
@@ -35,7 +35,6 @@ class WorkoutSession:
 
     def _start_timer(self, athletes):
         """Start a new SplitsTimer for the given athlete list."""
-        from interactors.interval_timer import SplitsTimer
         self.timer = SplitsTimer(self.start_event_q, self.lap_event_q, athletes)
         self.timer.start()
 

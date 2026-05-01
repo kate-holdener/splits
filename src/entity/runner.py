@@ -114,7 +114,7 @@ class Runner:
             return
         if self.current_status == RunnerState.RUNNING and timestamp > self.last_seen_timestamp:
             self.lap_count+=1
-            if self.lap_count == self.current_workout.laps_per_interval:
+            if self.lap_count >= self.current_workout.laps_per_interval:
                 self.intervals[len(self.intervals) - 1].finish(timestamp)
                 self.current_status = RunnerState.RESTING
                 interval = self.intervals[len(self.intervals)-1]

@@ -35,8 +35,6 @@ class AppApi:
         self.session = WorkoutSession()
         self.scanner = ScannerManager(self.session.lap_event_q, self.session.start_event_q)
         self.roster  = RosterManager()
-
-        self._load_active_roster()
         self.session.check_for_recovery()
 
     # ------------------------------------------------------------------
@@ -219,6 +217,7 @@ class AppApi:
     def configure_workout(self, distance: int, laps: int, rest: int):
         try:
             new_workout = self.workout._set_workout(distance, laps, rest)
+            self._load_active_roster()
             for a in self.roster.athletes:
                 a.add_workout(new_workout)
             if self.session.session_persistence is None and self.roster.current_roster:
@@ -307,6 +306,20 @@ class AppApi:
         last_id = self.session.finish_workout()
         self.history._last_session_id = last_id
         return {"ok": True, "msg": "Workout finished.", "state": self.get_state()}
+
+    # ------------------------------------------------------------------
+    # NFC tag capture (Settings → assign tag to athlete)
+    # ------------------------------------------------------------------
+    def start_nfc_capture(self) -> dict:
+        if self.session.workout_active:
+            return {"ok": False, "msg": "Cannot scan tags during an active workout."}
+        return self.scanner.start_nfc_capture()
+
+    def poll_nfc_capture(self) -> dict:
+        return self.scanner.poll_nfc_capture()
+
+    def cancel_nfc_capture(self) -> dict:
+        return self.scanner.cancel_nfc_capture()
 
     def shutdown(self):
         self.scanner.shutdown()

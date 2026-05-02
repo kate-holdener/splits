@@ -408,10 +408,7 @@ function _updateGenerateBtn() {
   document.getElementById('email-reports-btn').disabled    = selected.length === 0 || !_gmailSignedIn;
 
   const hint = document.getElementById('generate-reports-hint');
-  if (!dir && !selected.length)  hint.textContent = 'Select athletes and an output directory';
-  else if (!dir)                 hint.textContent = 'Choose an output directory';
-  else if (!selected.length)     hint.textContent = 'Select at least one athlete';
-  else hint.textContent = `${selected.length} athlete${selected.length !== 1 ? 's' : ''} selected`;
+  hint.textContent = selected.length > 0 ? `${selected.length} athlete${selected.length !== 1 ? 's' : ''} selected` : '';
 }
 
 // ── Export ────────────────────────────────────────────────────

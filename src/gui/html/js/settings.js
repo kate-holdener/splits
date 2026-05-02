@@ -535,21 +535,40 @@ function loadGmailAuthStatus() {
 function startGmailSignIn() {
   const signinBtn = document.getElementById('reports-gmail-signin-btn');
   const label     = document.getElementById('reports-gmail-label');
-  if (signinBtn) signinBtn.disabled = true;
   if (label) label.textContent = 'Opening browser…';
 
   pywebview.api.start_gmail_sign_in().then(result => {
     if (!result.ok) {
       if (label) label.textContent = result.msg || 'Sign-in failed.';
-      if (signinBtn) signinBtn.disabled = false;
       return;
     }
     if (label) label.textContent = 'Waiting for sign-in…';
+    if (signinBtn) {
+      signinBtn.textContent = 'Cancel';
+      signinBtn.onclick = cancelGmailSignIn;
+      signinBtn.classList.replace('btn-primary', 'btn-ghost');
+    }
     _gmailPollInterval = setInterval(_pollGmailSignIn, 1500);
   }).catch(() => {
     if (label) label.textContent = '';
-    if (signinBtn) signinBtn.disabled = false;
   });
+}
+
+function cancelGmailSignIn() {
+  clearInterval(_gmailPollInterval);
+  _gmailPollInterval = null;
+  pywebview.api.cancel_gmail_sign_in().catch(() => {});
+  _restoreSignInButton();
+  const label = document.getElementById('reports-gmail-label');
+  if (label) label.textContent = '';
+}
+
+function _restoreSignInButton() {
+  const signinBtn = document.getElementById('reports-gmail-signin-btn');
+  if (!signinBtn) return;
+  signinBtn.textContent = 'Sign in with Google';
+  signinBtn.onclick = startGmailSignIn;
+  signinBtn.classList.replace('btn-ghost', 'btn-primary');
 }
 
 function _pollGmailSignIn() {
@@ -558,14 +577,14 @@ function _pollGmailSignIn() {
     if (!result.ok) {
       clearInterval(_gmailPollInterval);
       _gmailPollInterval = null;
-      if (signinBtn) signinBtn.disabled = false;
+      _restoreSignInButton();
       _renderGmailStatus({ signed_in: false, email: null });
       return;
     }
     if (result.done) {
       clearInterval(_gmailPollInterval);
       _gmailPollInterval = null;
-      if (signinBtn) signinBtn.disabled = false;
+      _restoreSignInButton();
       _renderGmailStatus({ signed_in: true, email: result.email });
     }
   }).catch(() => {});

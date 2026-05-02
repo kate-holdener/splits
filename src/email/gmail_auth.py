@@ -168,6 +168,14 @@ def poll_sign_in() -> dict:
     return {"ok": True, "done": True, "email": email}
 
 
+def cancel_sign_in() -> dict:
+    """Abort an in-progress sign-in flow."""
+    _auth_state["code"] = None
+    _auth_state["error"] = None
+    _stop_callback_server()
+    return {"ok": True}
+
+
 def sign_out() -> dict:
     """Remove stored tokens."""
     path = _tokens_path()

@@ -295,6 +295,9 @@ class PyWebViewAPI:
     def poll_gmail_sign_in(self):
         return self._gmail_auth_mod().poll_sign_in()
 
+    def cancel_gmail_sign_in(self):
+        return self._gmail_auth_mod().cancel_sign_in()
+
     def gmail_sign_out(self):
         return self._gmail_auth_mod().sign_out()
 

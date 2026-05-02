@@ -93,18 +93,33 @@ class SessionHistoryManager:
     def send_reports(self, reports: list):
         """Send HTML performance reports via email. reports is [{name, email, html, lap_id}]."""
         import importlib.util, os
-        email_path = os.path.normpath(
-            os.path.join(os.path.dirname(__file__), "..", "email", "email_sender.py")
-        )
+        email_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "email"))
+
+        # Prefer Gmail OAuth when the user is signed in.
+        use_gmail = False
+        try:
+            from persistence.user_data_dir import get_user_data_dir
+            if (get_user_data_dir() / "gmail_tokens.json").exists():
+                use_gmail = True
+        except Exception:
+            pass
+
+        if use_gmail:
+            email_path = os.path.join(email_dir, "gmail_oauth_sender.py")
+            config_error_name = "GmailConfigError"
+        else:
+            email_path = os.path.join(email_dir, "email_sender.py")
+            config_error_name = "SMTPConfigError"
+
         spec = importlib.util.spec_from_file_location("_email_sender", email_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        EmailSender     = mod.EmailSender
-        SMTPConfigError = mod.SMTPConfigError
+        EmailSender = mod.EmailSender
+        ConfigError = getattr(mod, config_error_name, Exception)
 
         try:
             sender = EmailSender()
-        except SMTPConfigError as e:
+        except ConfigError as e:
             return {"ok": False, "msg": str(e)}
         except Exception as e:
             return {"ok": False, "msg": f"Email configuration error: {e}"}

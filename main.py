@@ -30,9 +30,13 @@ def setup_python_path():
 
 def main():
     """Main entry point for the application"""
+    # Load .env before anything else so all modules see the variables.
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / '.env')
+
     # Setup Python path for imports
     setup_python_path()
-    
+
     # Set environment variables for resource paths
     os.environ['GUI_HTML_PATH'] = get_resource_path('src/gui/html')
     os.environ['DATA_PATH'] = get_resource_path('data')

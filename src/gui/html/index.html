@@ -118,7 +118,9 @@
   <div class="topbar">
     <button class="back-btn" id="reports-back-btn" onclick="reportsBack()">← <span id="reports-back-label">Home</span></button>
     <div class="screen-title">Reports</div>
-    <button class="btn btn-ghost btn-sm" id="reports-refresh-btn" style="margin-left:auto" onclick="loadSessions()">↻</button>
+    <span id="reports-gmail-label" style="font-size:13px;color:var(--muted)"></span>
+    <button class="btn btn-primary btn-sm" id="reports-gmail-signin-btn" onclick="startGmailSignIn()" style="display:none">Sign in with Google</button>
+    <button class="btn btn-ghost btn-sm" id="reports-gmail-signout-btn" onclick="gmailSignOut()" style="display:none">Sign out of Gmail</button>
   </div>
 
   <div class="scroll-area" style="flex:1">
@@ -278,6 +280,7 @@
         <span id="roster-status-display" style="color:var(--muted);font-size:14px"></span>
       </div>
     </div>
+
   </div>
 </div><!-- /settings-screen -->
 

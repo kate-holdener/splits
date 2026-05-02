@@ -20,15 +20,13 @@ function reportsBack() {
 function _showListView() {
   document.getElementById('reports-list-view').style.display   = '';
   document.getElementById('reports-detail-view').style.display = 'none';
-  document.getElementById('reports-back-label').textContent    = 'Home';
-  document.getElementById('reports-refresh-btn').style.display = '';
+  document.getElementById('reports-back-label').textContent = 'Home';
 }
 
 function _showDetailView() {
   document.getElementById('reports-list-view').style.display   = 'none';
   document.getElementById('reports-detail-view').style.display = '';
-  document.getElementById('reports-back-label').textContent    = 'All Sessions';
-  document.getElementById('reports-refresh-btn').style.display = 'none';
+  document.getElementById('reports-back-label').textContent = 'All Sessions';
 }
 
 // ── Session list ─────────────────────────────────────────────
@@ -407,7 +405,7 @@ function _updateGenerateBtn() {
   const dir      = document.getElementById('report-dir').value.trim();
   const ok       = selected.length > 0 && !!dir;
   document.getElementById('generate-reports-btn').disabled = !ok;
-  document.getElementById('email-reports-btn').disabled    = selected.length === 0;
+  document.getElementById('email-reports-btn').disabled    = selected.length === 0 || !_gmailSignedIn;
 
   const hint = document.getElementById('generate-reports-hint');
   if (!dir && !selected.length)  hint.textContent = 'Select athletes and an output directory';

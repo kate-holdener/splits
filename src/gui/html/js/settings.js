@@ -501,29 +501,104 @@ async function scanNfcForAthlete(athleteId) {
 }
 
 // ============================================================
+// GMAIL SIGN-IN  (topbar of the Reports screen)
+// ============================================================
+
+let _gmailPollInterval = null;
+let _gmailSignedIn = false;
+
+function _renderGmailStatus(status) {
+  _gmailSignedIn = !!status.signed_in;
+
+  const label     = document.getElementById('reports-gmail-label');
+  const signinBtn = document.getElementById('reports-gmail-signin-btn');
+  const signoutBtn = document.getElementById('reports-gmail-signout-btn');
+
+  if (status.signed_in) {
+    if (label) { label.textContent = status.email || ''; }
+    if (signinBtn)  signinBtn.style.display  = 'none';
+    if (signoutBtn) signoutBtn.style.display = 'inline-flex';
+  } else {
+    if (label) { label.textContent = ''; }
+    if (signinBtn)  signinBtn.style.display  = 'inline-flex';
+    if (signoutBtn) signoutBtn.style.display = 'none';
+  }
+
+  // Keep the Email Reports button in sync.
+  _updateGenerateBtn();
+}
+
+function loadGmailAuthStatus() {
+  pywebview.api.get_gmail_auth_status().then(_renderGmailStatus).catch(() => {});
+}
+
+function startGmailSignIn() {
+  const signinBtn = document.getElementById('reports-gmail-signin-btn');
+  const label     = document.getElementById('reports-gmail-label');
+  if (signinBtn) signinBtn.disabled = true;
+  if (label) label.textContent = 'Opening browser…';
+
+  pywebview.api.start_gmail_sign_in().then(result => {
+    if (!result.ok) {
+      if (label) label.textContent = result.msg || 'Sign-in failed.';
+      if (signinBtn) signinBtn.disabled = false;
+      return;
+    }
+    if (label) label.textContent = 'Waiting for sign-in…';
+    _gmailPollInterval = setInterval(_pollGmailSignIn, 1500);
+  }).catch(() => {
+    if (label) label.textContent = '';
+    if (signinBtn) signinBtn.disabled = false;
+  });
+}
+
+function _pollGmailSignIn() {
+  pywebview.api.poll_gmail_sign_in().then(result => {
+    const signinBtn = document.getElementById('reports-gmail-signin-btn');
+    if (!result.ok) {
+      clearInterval(_gmailPollInterval);
+      _gmailPollInterval = null;
+      if (signinBtn) signinBtn.disabled = false;
+      _renderGmailStatus({ signed_in: false, email: null });
+      return;
+    }
+    if (result.done) {
+      clearInterval(_gmailPollInterval);
+      _gmailPollInterval = null;
+      if (signinBtn) signinBtn.disabled = false;
+      _renderGmailStatus({ signed_in: true, email: result.email });
+    }
+  }).catch(() => {});
+}
+
+function gmailSignOut() {
+  pywebview.api.gmail_sign_out().then(() => {
+    _renderGmailStatus({ signed_in: false, email: null });
+  }).catch(() => {});
+}
+
+// ============================================================
 // INITIALIZATION
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      if (mutation.target.id === 'settings-screen') {
-        if (mutation.target.classList.contains('active')) {
-          loadSettingsRosters();
-        } else {
-          _cancelActiveScan();
-        }
+      const id = mutation.target.id;
+      const active = mutation.target.classList.contains('active');
+      if (id === 'settings-screen') {
+        if (active) loadSettingsRosters();
+        else _cancelActiveScan();
+      } else if (id === 'reports-screen' && active) {
+        loadGmailAuthStatus();
       }
     });
   });
 
-  const settingsScreen = document.getElementById('settings-screen');
-  if (settingsScreen) {
-    observer.observe(settingsScreen, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-  }
+  ['settings-screen', 'reports-screen'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
 
   // Close settings roster picker when clicking outside it
   document.addEventListener('click', e => {

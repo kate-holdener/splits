@@ -271,6 +271,34 @@ class PyWebViewAPI:
             return {"ok": False, "msg": str(e)}
 
     # ------------------------------------------------------------------
+    # Gmail OAuth
+    # ------------------------------------------------------------------
+    def _gmail_auth_mod(self):
+        import importlib.util, os, sys
+        if "_gmail_auth" in sys.modules:
+            return sys.modules["_gmail_auth"]
+        path = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "..", "email", "gmail_auth.py")
+        )
+        spec = importlib.util.spec_from_file_location("_gmail_auth", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        sys.modules["_gmail_auth"] = mod
+        return mod
+
+    def get_gmail_auth_status(self):
+        return self._gmail_auth_mod().get_auth_status()
+
+    def start_gmail_sign_in(self):
+        return self._gmail_auth_mod().start_sign_in()
+
+    def poll_gmail_sign_in(self):
+        return self._gmail_auth_mod().poll_sign_in()
+
+    def gmail_sign_out(self):
+        return self._gmail_auth_mod().sign_out()
+
+    # ------------------------------------------------------------------
     # Theme & secondary window
     # ------------------------------------------------------------------
     def get_theme(self):
@@ -296,6 +324,9 @@ class PyWebViewAPI:
 # Entry point
 # ---------------------------------------------------------------------------
 def main():
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+
     api = PyWebViewAPI()
 
     html_path = os.environ.get('GUI_HTML_PATH', os.path.join(os.path.dirname(__file__), "html"))

@@ -1,5 +1,6 @@
 pyllrp
 pyscard
+python-dotenv
 pywebview
 reportlab
 requests

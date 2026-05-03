@@ -171,5 +171,5 @@ class EmailSender:
                 f"Gmail send failed with status {resp.status_code}{details}"
             ) from exc
 
-        print(f"  [✓] Email sent to {to_email} via Gmail API")
+        print(f"  [OK] Email sent to {to_email} via Gmail API")
         return True

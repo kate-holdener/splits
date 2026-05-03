@@ -98,5 +98,5 @@ class EmailSender:
             server.starttls()
             server.login(self.username, self.password)
             server.send_message(msg)
-        print(f"  [✓] Email sent to {to_email}")
+        print(f"  [OK] Email sent to {to_email}")
         return True

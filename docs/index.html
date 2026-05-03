@@ -16,11 +16,11 @@
   </div>
   <p class="tagline">Interval training management for running coaches — automated timing, real-time rest countdowns, and performance reporting.</p>
   <div class="download-buttons">
-    <a class="btn btn-primary"
+    <a id="btn-macos" class="btn btn-secondary"
        href="https://github.com/cse-4504-wustl-sp26/interval_timer/releases/latest/download/Splits-macos.zip">
       Download for macOS
     </a>
-    <a class="btn btn-secondary"
+    <a id="btn-windows" class="btn btn-secondary"
        href="https://github.com/cse-4504-wustl-sp26/interval_timer/releases/latest/download/Splits-installer.exe">
       Download for Windows
     </a>
@@ -127,5 +127,18 @@
   <p style="margin-top: 8px;">&copy; 2026 Kate Holdener</p>
 </footer>
 
+<script>
+  (function () {
+    var ua = navigator.userAgent;
+    var isWindows = /Windows/i.test(ua);
+    var isMac = /Macintosh|Mac OS X/i.test(ua) && !isWindows;
+    var id = isMac ? 'btn-macos' : isWindows ? 'btn-windows' : 'btn-macos';
+    var el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('btn-secondary');
+      el.classList.add('btn-primary');
+    }
+  })();
+</script>
 </body>
 </html>

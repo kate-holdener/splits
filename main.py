@@ -31,8 +31,13 @@ def setup_python_path():
 def main():
     """Main entry point for the application"""
     # Load .env before anything else so all modules see the variables.
-    from dotenv import load_dotenv
-    load_dotenv(Path(__file__).parent / '.env')
+    # In a PyInstaller bundle __file__ is inside _MEIPASS; look next to the
+    # .app bundle instead so users can drop a .env file alongside the app.
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(get_resource_path('.env'))
+    except ImportError:
+        pass
 
     # Setup Python path for imports
     setup_python_path()

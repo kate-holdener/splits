@@ -15,6 +15,25 @@ fi
 echo "Cleaning previous builds..."
 rm -rf dist/ build/ *.spec
 
+# Bake environment variables into a runtime hook so os.getenv() works in the
+# frozen app. Values come from the environment (set via GitHub Actions secrets
+# in CI, or exported locally for manual builds).
+echo "Generating runtime hook from environment..."
+python3 - << 'PYEOF'
+import os
+vars_to_embed = [
+    'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_SENDER_NAME',
+    'SMTP_PASSWORD', 'SMTP_SENDER_EMAIL', 'GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET',
+]
+lines = ['import os']
+for var in vars_to_embed:
+    val = os.environ.get(var, '')
+    if val:
+        lines.append(f'os.environ.setdefault({var!r}, {val!r})')
+with open('runtime_hook.py', 'w') as f:
+    f.write('\n'.join(lines) + '\n')
+PYEOF
+
 # Build the executable
 echo "Building executable..."
 pyinstaller \
@@ -22,8 +41,11 @@ pyinstaller \
     --name "Splits" \
     --icon "icon/icon.icns" \
     --osx-bundle-identifier "com.splits.app" \
+    --runtime-hook=runtime_hook.py \
     --add-data "src/gui/html:src/gui/html" \
     --add-data "src:src" \
+    --add-data "data:data" \
+    --hidden-import=dotenv \
     --hidden-import=smartcard \
     --hidden-import=smartcard.scard \
     --hidden-import=smartcard.util \
@@ -33,7 +55,8 @@ pyinstaller \
     --hidden-import=reportlab \
     --hidden-import=requests \
     --hidden-import=webview \
-    --collect-submodules=webview \
+    --collect-all=webview \
+    --collect-all=dotenv \
     --collect-submodules=smartcard \
     --collect-binaries=smartcard \
     --collect-submodules=sllurp \

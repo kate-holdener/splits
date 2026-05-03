@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Splits — Interval Training Timer</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<header>
+  <div style="display: inline-flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+    <img src="assets/splits.png" alt="Splits logo" style="width: 72px; height: 72px; border-radius: 16px;" />
+    <h1>Splits</h1>
+  </div>
+  <p class="tagline">Interval training management for running coaches — automated timing, real-time rest countdowns, and performance reporting.</p>
+  <div class="download-buttons">
+    <a class="btn btn-primary"
+       href="https://github.com/cse-4504-wustl-sp26/interval_timer/releases/latest/download/Splits-macos.zip">
+      Download for macOS
+    </a>
+    <a class="btn btn-secondary"
+       href="https://github.com/cse-4504-wustl-sp26/interval_timer/releases/latest/download/Splits-installer.exe">
+      Download for Windows
+    </a>
+    <a class="btn btn-outline"
+       href="https://github.com/cse-4504-wustl-sp26/interval_timer/releases">
+      All releases
+    </a>
+  </div>
+</header>
+
+<main>
+  <section class="overview">
+    <h2>How It Works</h2>
+    <p>Splits is built for running coaches who use interval training — repeated high-effort runs separated by structured rest periods. Before a session, the coach configures the interval distance and rest duration. During the workout:</p>
+    <ol>
+      <li>A runner begins their interval by tapping an NFC reader to register the start.</li>
+      <li>When they cross the finish, their RFID tag is automatically detected, stopping the clock and logging their split time.</li>
+      <li>The runner immediately sees a countdown showing how much rest time remains before their next interval.</li>
+      <li>When rest time is up, the app alerts the runner that it's time to go again.</li>
+    </ol>
+    <p>After the session, the coach can generate an HTML performance report for each athlete and email it directly from the app using their Google account.</p>
+  </section>
+
+  <section class="features">
+    <h2>Features</h2>
+    <div class="feature-grid">
+
+      <div class="feature-card">
+        <h3>Automated Interval Timing</h3>
+        <p>Interval start is registered with an NFC tap; finish is detected automatically via each runner's RFID tag — no manual stopwatch or human error.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Real-Time Rest Countdown</h3>
+        <p>As soon as a runner finishes, they see exactly how much rest time they have left and receive an alert when it's time to start their next interval.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Session Configuration</h3>
+        <p>Coaches set the interval distance and rest duration before each workout. The app handles all the timing from there.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Roster Management</h3>
+        <p>Import your athlete roster and associate each runner with their RFID tag so every split is logged to the right person automatically.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>HTML Performance Reports</h3>
+        <p>Generate rich HTML reports after each session, showing split times and performance summaries for every athlete.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Email Reports via Gmail</h3>
+        <p>Sign in with your Google account to send reports directly to athletes from within the app — no copy-pasting required.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="requirements">
+    <h2>System Requirements</h2>
+    <ul>
+      <li>
+        <strong>macOS</strong>
+        macOS 10.14 or later. NFC timing requires pcsc-lite
+        (<code>brew install pcsc-lite</code>).
+      </li>
+      <li>
+        <strong>Windows</strong>
+        Windows 10 or later. Installer includes a desktop shortcut and uninstaller.
+      </li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <p>
+    <a href="privacy-policy.html">Privacy Policy</a> &middot;
+    <a href="terms-of-service.html">Terms of Service</a> &middot;
+    <a href="https://github.com/cse-4504-wustl-sp26/interval_timer">Source on GitHub</a>
+  </p>
+  <p style="margin-top: 8px;">&copy; 2026 Kate Holdener</p>
+</footer>
+
+</body>
+</html>

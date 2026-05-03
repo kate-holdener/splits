@@ -80,15 +80,38 @@ header p.tagline {
   border: 2px solid #4a5568;
 }
 
-main {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0 24px;
+.btn-donate {
+  background: #2f7d32;
+  color: #fff;
+  font-size: 1.05rem;
+  padding: 16px 36px;
+  border-radius: 8px;
+}
+
+.btn-donate:hover {
+  background: #1b5e20;
+  opacity: 1;
+  text-decoration: none;
+}
+
+.donate-section {
+  padding: 48px 0 64px;
+  text-align: center;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.donate-section p {
+  color: #4a5568;
+  font-size: 1rem;
+  max-width: 420px;
 }
 
 .overview {
-  padding: 64px 0 48px;
-  max-width: 720px;
+  padding: 56px 0 48px;
 }
 
 .overview h2 {
@@ -96,19 +119,64 @@ main {
   margin-bottom: 16px;
 }
 
-.overview p {
+.overview > p {
   color: #2d3748;
   margin-bottom: 16px;
 }
 
-.overview ol {
-  padding-left: 22px;
-  margin-bottom: 16px;
+.timeline {
+  position: relative;
+  margin: 32px 0 32px;
 }
 
-.overview li {
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.timeline-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  position: relative;
+  padding-bottom: 28px;
+}
+
+.timeline-step:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-marker {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1a1a2e;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.timeline-content {
   color: #2d3748;
-  margin-bottom: 8px;
+  padding-top: 7px;
+  line-height: 1.6;
+}
+
+main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px;
 }
 
 .features {

@@ -58,7 +58,7 @@ async function loadSessions() {
       : 'Unknown workout';
     const n = s.athletes_with_data;
     return `
-      <div class="session-item">
+      <div class="session-item session-item-gray">
         <div class="session-item-main">
           <div class="session-dot"></div>
           <div class="session-info">
@@ -100,17 +100,59 @@ async function deleteSession(event, sessionId, sessionDate, workoutLabel) {
     { title: `Delete session from ${sessionDate}?`, confirmText: 'Delete' }
   )) return;
 
+  // Add visual feedback by finding and highlighting the item being deleted
+  const sessionElement = document.querySelector(`[data-session-id="${sessionId}"]`)?.closest('.session-item');
+  if (sessionElement) {
+    sessionElement.style.transition = 'opacity 0.3s ease, background-color 0.3s ease';
+    sessionElement.style.opacity = '0.5';
+    sessionElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+  }
+
   try {
     const result = await pywebview.api.delete_completed_session(sessionId);
-    log(result.msg || (result.ok ? 'Workout session deleted.' : 'Failed to delete session.'), result.ok ? 'ok' : 'err');
+    
     if (result.ok) {
+      // Show success feedback
+      log(`✓ Session from ${sessionDate} deleted successfully`, 'ok');
+      
+      // Temporarily expand the log bar to show success message
+      const logBar = document.getElementById('log-bar');
+      if (logBar && logBar.classList.contains('collapsed')) {
+        logBar.classList.remove('collapsed');
+        // Auto-collapse after 3 seconds
+        setTimeout(() => {
+          if (logBar) logBar.classList.add('collapsed');
+        }, 3000);
+      }
+      
+      // Add a short success animation before removing the item
+      if (sessionElement) {
+        sessionElement.style.backgroundColor = 'rgba(0, 128, 0, 0.2)';
+        sessionElement.style.opacity = '0';
+        
+        // Wait for animation before refreshing the list
+        await new Promise(resolve => setTimeout(resolve, 400));
+      }
+      
       if (_activeSessionId === sessionId) {
         _activeSessionId = null;
         _activeSessionData = null;
       }
       await loadSessions();
+    } else {
+      // Reset the visual state on failure
+      if (sessionElement) {
+        sessionElement.style.opacity = '1';
+        sessionElement.style.backgroundColor = '';
+      }
+      log(result.msg || 'Failed to delete session.', 'err');
     }
   } catch (e) {
+    // Reset the visual state on error
+    if (sessionElement) {
+      sessionElement.style.opacity = '1';
+      sessionElement.style.backgroundColor = '';
+    }
     log(`Error deleting session: ${e.message}`, 'err');
   }
 }

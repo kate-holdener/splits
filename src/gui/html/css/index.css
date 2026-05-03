@@ -22,6 +22,7 @@
   --td-sep: rgba(255,255,255,0.094);
   --td-hover: rgba(255,255,255,0.071);
   --bar-fill: rgba(255,255,0,0.18);
+  --session-item-gray-bg: #3a3a3a;
 }
 
 /* ============================================================
@@ -42,6 +43,7 @@ body.light-mode {
   --td-sep: rgba(0,0,0,0.094);
   --td-hover: rgba(0,0,0,0.04);
   --bar-fill: rgba(0,68,187,0.15);
+  --session-item-gray-bg: #f5f5f5;
 }
 
 body {
@@ -763,6 +765,8 @@ tr:hover td       { background: var(--td-hover); }
   border-color: var(--border);
   background: var(--td-hover);
 }
+
+.session-item-gray { background: var(--session-item-gray-bg) !important; }
 
 .session-item-main {
   display: flex;

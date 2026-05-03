@@ -73,6 +73,7 @@ class WorkoutSession:
         self.runner_observer.resting.clear()
         self.workout_active = False
         last_id = None
+        self._stop_timer()
         if self.session_persistence:
             last_id = self.session_persistence._session_id
             self.session_persistence.finish_session()

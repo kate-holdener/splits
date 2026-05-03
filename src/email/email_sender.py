@@ -6,7 +6,6 @@ for configuration.
 """
 
 import os
-import re
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -80,22 +79,16 @@ class EmailSender:
         if not subject:
             subject = f"Your Interval Training Report — {runner_name}"
 
-        safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', runner_name)
-
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = self.from_email
         msg['To'] = to_email
         msg['Subject'] = subject
 
         msg.attach(MIMEText(
-            f"Hi {runner_name},\n\nYour interval training performance report is attached.\n\n— Splits",
+            f"Hi {runner_name},\n\nYour interval training performance report is below.\n\n— Splits",
             'plain'
         ))
-
-        html_attachment = MIMEText(report_html_string, 'html', 'utf-8')
-        html_attachment.add_header('Content-Disposition', 'attachment',
-                                   filename=f'{safe_name}_report.html')
-        msg.attach(html_attachment)
+        msg.attach(MIMEText(report_html_string, 'html', 'utf-8'))
 
         if self.dry_run:
             print(f"  [DRY RUN] Would send report to {to_email}")

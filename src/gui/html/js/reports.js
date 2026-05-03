@@ -239,11 +239,26 @@ function _buildAthletePanel(a, wk, idx) {
       </div>
     </div>
 
-    <!-- Interval data table (left) + performance stats (right) -->
+    <!-- Performance summary -->
     <div class="acc-middle-row">
-      <div class="acc-table-col">
+      <div class="acc-stats-col" style="flex-direction:row;flex-wrap:wrap;gap:16px;padding:18px 20px;border-right:none">
+        <div class="acc-col-label" style="width:100%;margin-bottom:0">Performance</div>
+        <div class="acc-stat-card" style="flex:1;min-width:160px">
+          <div class="acc-stat-val">${_fmtMs(a.avg_pace_ms)}</div>
+          <div class="acc-stat-label">Avg Pace / 1600 m</div>
+        </div>
+        <div class="acc-stat-card" style="flex:1;min-width:160px;border-left-color:${slowdownColor}">
+          <div class="acc-stat-val" style="color:${slowdownColor}">${slowdownStr}</div>
+          <div class="acc-stat-label">Slowdown (1st → last interval)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interval data table -->
+    <div class="acc-middle-row" style="border-bottom:none">
+      <div class="acc-table-col" style="border-right:none;width:100%">
         <div class="acc-col-label">Interval Data</div>
-        <table class="acc-table">
+        <table class="acc-table" style="width:100%">
           <thead><tr>
             <th class="acc-th-num">#</th>
             <th>Duration</th>
@@ -251,17 +266,6 @@ function _buildAthletePanel(a, wk, idx) {
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>
-      <div class="acc-stats-col">
-        <div class="acc-col-label">Performance</div>
-        <div class="acc-stat-card">
-          <div class="acc-stat-val">${_fmtMs(a.avg_pace_ms)}</div>
-          <div class="acc-stat-label">Avg Pace / 1600 m</div>
-        </div>
-        <div class="acc-stat-card">
-          <div class="acc-stat-val" style="color:${slowdownColor}">${slowdownStr}</div>
-          <div class="acc-stat-label">Slowdown (1st → last interval)</div>
-        </div>
       </div>
     </div>
 
@@ -558,31 +562,29 @@ body { height: auto !important; overflow: auto !important; }
   </div>
 
   <div class="card">
-    <div class="card-title">Performance</div>
-    <div class="acc-middle-row" style="border-bottom:none">
-      <div class="acc-table-col">
-        <div class="acc-col-label">Interval Data</div>
-        <table class="acc-table">
-          <thead><tr>
-            <th class="acc-th-num">#</th>
-            <th>Duration</th>
-            <th>Rest After</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+    <div class="card-title">Performance Summary</div>
+    <div class="acc-stats-col" style="flex-direction:row;flex-wrap:wrap;gap:16px;padding:0">
+      <div class="acc-stat-card" style="flex:1;min-width:180px">
+        <div class="acc-stat-val">${_fmtMs(a.avg_pace_ms)}</div>
+        <div class="acc-stat-label">Avg Pace / 1600 m</div>
       </div>
-      <div class="acc-stats-col">
-        <div class="acc-col-label">Summary</div>
-        <div class="acc-stat-card">
-          <div class="acc-stat-val">${_fmtMs(a.avg_pace_ms)}</div>
-          <div class="acc-stat-label">Avg Pace / 1600 m</div>
-        </div>
-        <div class="acc-stat-card">
-          <div class="acc-stat-val" style="color:${slowdownColor}">${slowdownStr}</div>
-          <div class="acc-stat-label">Slowdown (1st → last interval)</div>
-        </div>
+      <div class="acc-stat-card" style="flex:1;min-width:180px;border-left-color:${slowdownColor}">
+        <div class="acc-stat-val" style="color:${slowdownColor}">${slowdownStr}</div>
+        <div class="acc-stat-label">Slowdown (1st → last interval)</div>
       </div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Interval Data</div>
+    <table class="acc-table" style="width:auto">
+      <thead><tr>
+        <th class="acc-th-num">#</th>
+        <th>Duration</th>
+        <th>Rest After</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
   </div>
 
   <div class="card">
@@ -614,12 +616,15 @@ async function emailReports() {
   const sessionDate = _fmtDate(_activeSessionData.started_at);
   const selected    = _activeSessionData.athletes.filter(a => selectedIds.includes(a.lap_id));
 
-  // Build standalone HTML — Python converts it to PDF server-side via WeasyPrint
-  _emailModalReports = selected.map(a => ({
-    lap_id: a.lap_id,
-    name:   `${a.name} ${a.lname}`.trim(),
-    email:  a.email || '',
-    html:   _buildStandaloneHtml(a, wk, sessionDate, css),
+  _emailModalReports = await Promise.all(selected.map(async a => {
+    const svgStr  = _buildFatigueCurveSvgStandalone(a.intervals_ms);
+    const chartPng = svgStr ? await _svgToPngDataUrl(svgStr, 760, 220) : null;
+    return {
+      lap_id: a.lap_id,
+      name:   `${a.name} ${a.lname}`.trim(),
+      email:  a.email || '',
+      html:   _buildEmailHtml(a, wk, sessionDate, css, chartPng),
+    };
   }));
 
   // Build modal rows
@@ -797,10 +802,10 @@ function _svgToPngDataUrl(svgStr, width, height) {
 }
 
 /**
- * Like _buildStandaloneHtml but embeds the chart as a <img> PNG data URL
- * instead of an SVG, so it renders correctly in all email clients.
+ * Fully inline-styled email HTML — no <style> block, no CSS classes, no CSS
+ * variables. Required for Gmail compatibility (Gmail strips <style> tags).
  */
-function _buildEmailHtml(a, wk, sessionDate, css, chartPngDataUrl) {
+function _buildEmailHtml(a, wk, sessionDate, _css, chartPngDataUrl) {
   const fullName = `${a.name} ${a.lname}`.trim();
   const n        = a.intervals_ms.length;
 
@@ -812,20 +817,49 @@ function _buildEmailHtml(a, wk, sessionDate, css, chartPngDataUrl) {
     : slowdown > 5  ? '#bb5500'
     :                 '#006600';
 
+  const S = {
+    wrap:       'max-width:600px;margin:0 auto;padding:24px 16px;font-family:system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;background:#f0f0f0;color:#111111',
+    brand:      'font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#0044bb;margin-bottom:10px',
+    name:       'font-size:20px;font-weight:700;color:#111111;line-height:1.1;margin-bottom:4px',
+    date:       'font-size:13px;color:#555555;margin-bottom:22px',
+    card:       'background:#ffffff;border:1px solid #bbbbbb;border-radius:6px;padding:18px;margin-bottom:14px',
+    cardTitle:  'font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#555555;margin-bottom:12px',
+    paramStrip: 'display:flex;border-top:1px solid #bbbbbb',
+    paramCell:  'flex:1;padding:10px 14px;border-right:1px solid #bbbbbb;text-align:center',
+    paramCellL: 'flex:1;padding:10px 14px;text-align:center',
+    paramVal:   'font-size:15px;font-weight:700;color:#111111;line-height:1.1',
+    paramLbl:   'font-size:10px;color:#555555;letter-spacing:1.5px;text-transform:uppercase;margin-top:3px',
+    midRow:     'display:flex;flex-wrap:wrap',
+    tableCol:   'padding:0 18px 0 0;margin-right:18px;border-right:1px solid #bbbbbb',
+    colLabel:   'font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#555555;margin-bottom:8px',
+    th:         'font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#555555;padding:6px 14px;border-bottom:1px solid #bbbbbb;text-align:left;font-family:monospace',
+    thNum:      'font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#555555;padding:6px 14px;border-bottom:1px solid #bbbbbb;text-align:right;font-family:monospace',
+    td:         'padding:7px 14px;font-size:13px;border-bottom:1px solid rgba(0,0,0,0.08);font-family:monospace',
+    tdNum:      'padding:7px 14px;font-size:13px;border-bottom:1px solid rgba(0,0,0,0.08);font-family:monospace;text-align:right;color:#555555',
+    statsCol:   'flex:1;min-width:150px;display:flex;flex-direction:column;gap:10px;padding-top:2px',
+    statCard:   'padding:10px 14px;border-left:3px solid #0044bb;background:#f0f0f0;border-radius:0 6px 6px 0',
+    statVal:    'font-size:17px;font-weight:900;color:#0044bb;line-height:1',
+    statLbl:    'font-size:10px;color:#555555;letter-spacing:1.5px;text-transform:uppercase;margin-top:5px',
+    xlabel:     'font-size:11px;color:#555555;text-align:center;margin-top:6px;letter-spacing:1.5px;text-transform:uppercase',
+  };
+
+  const tdLast = `padding:7px 14px;font-size:13px;font-family:monospace`;
+  const tdNumLast = `padding:7px 14px;font-size:13px;font-family:monospace;text-align:right;color:#555555`;
+
   let rows = '';
   for (let i = 0; i < n; i++) {
-    const iv   = a.intervals_ms[i];
-    const rest = a.rests_ms[i];
+    const isLast = i === n - 1;
+    const iv     = a.intervals_ms[i];
+    const rest   = a.rests_ms[i];
     rows += `<tr>
-      <td class="acc-td-num">${i + 1}</td>
-      <td class="acc-td-dur">${_fmtMs(iv)}</td>
-      <td class="acc-td-rest">${rest !== undefined ? _fmtMs(rest) : '—'}</td>
+      <td style="${isLast ? tdNumLast : S.tdNum}">${i + 1}</td>
+      <td style="${isLast ? tdLast : S.td}">${_fmtMs(iv)}</td>
+      <td style="${isLast ? tdLast : S.td}">${rest !== undefined ? _fmtMs(rest) : '<span style="color:#555555">—</span>'}</td>
     </tr>`;
   }
 
   const chartHtml = chartPngDataUrl
-    ? `<img src="${chartPngDataUrl}" alt="Fatigue Curve"
-            style="width:100%;max-width:760px;height:auto;display:block"/>`
+    ? `<img src="${chartPngDataUrl}" alt="Fatigue Curve" style="width:100%;max-width:580px;height:auto;display:block"/>`
     : `<p style="color:#555555;font-size:13px;margin:8px 0">Need at least 2 intervals to draw chart.</p>`;
 
   return `<!DOCTYPE html>
@@ -834,98 +868,62 @@ function _buildEmailHtml(a, wk, sessionDate, css, chartPngDataUrl) {
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>${fullName} — Splits Report</title>
-<style>
-${css}
-/* ── Email report overrides ── */
-body { height: auto !important; overflow: auto !important; font-size: 13px; }
-.rpt-wrap    { max-width: 640px; margin: 0 auto; padding: 28px 20px; }
-.rpt-brand   { font-size: 10px; font-weight: 700; letter-spacing: 3px;
-               text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
-.rpt-name    { font-size: 26px; font-weight: 700; color: var(--text);
-               line-height: 1.1; margin-bottom: 4px; }
-.rpt-date    { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
-.acc-param-val   { font-size: 18px; }
-.acc-param-label { font-size: 11px; }
-.acc-stat-val    { font-size: 20px; }
-.acc-stat-label  { font-size: 12px; }
-.acc-col-label   { font-size: 11px; }
-.acc-table       { font-size: 13px; }
-.card-title      { font-size: 13px; }
-
-@media (max-width: 600px) {
-  .rpt-wrap       { padding: 16px 12px; }
-  .rpt-name       { font-size: 20px; }
-  .card           { padding: 12px !important; }
-  .acc-param-cell { padding: 8px 10px; }
-  .acc-param-val  { font-size: 15px; }
-  .acc-middle-row { flex-direction: column; }
-  .acc-table-col  { border-right: none !important;
-                    border-bottom: 1px solid var(--border);
-                    width: 100%; box-sizing: border-box; }
-  .acc-stats-col  { width: 100%; box-sizing: border-box; }
-  .acc-stat-val   { font-size: 18px; }
-}
-</style>
 </head>
-<body class="light-mode">
-<div class="rpt-wrap">
+<body style="margin:0;padding:0;background:#f0f0f0">
+<div style="${S.wrap}">
 
-  <div class="rpt-brand">Splits</div>
-  <div class="rpt-name">${fullName}</div>
-  <div class="rpt-date">${sessionDate}</div>
+  <div style="${S.brand}">Splits</div>
+  <div style="${S.name}">${fullName}</div>
+  <div style="${S.date}">${sessionDate}</div>
 
-  <div class="card">
-    <div class="card-title">Workout</div>
-    <div class="acc-params-strip" style="border-radius:var(--radius)">
-      <div class="acc-param-cell">
-        <div class="acc-param-val">${wk.interval_distance ?? '—'}&thinsp;m</div>
-        <div class="acc-param-label">per interval</div>
+  <div style="${S.card}">
+    <div style="${S.cardTitle}">Workout</div>
+    <div style="${S.paramStrip}">
+      <div style="${S.paramCell}">
+        <div style="${S.paramVal}">${wk.interval_distance ?? '—'} m</div>
+        <div style="${S.paramLbl}">per interval</div>
       </div>
-      <div class="acc-param-cell">
-        <div class="acc-param-val">${wk.rest_time ?? '—'}&thinsp;s</div>
-        <div class="acc-param-label">rest time</div>
+      <div style="${S.paramCell}">
+        <div style="${S.paramVal}">${wk.rest_time ?? '—'} s</div>
+        <div style="${S.paramLbl}">rest time</div>
       </div>
-      <div class="acc-param-cell">
-        <div class="acc-param-val">${n}</div>
-        <div class="acc-param-label">completed</div>
+      <div style="${S.paramCellL}">
+        <div style="${S.paramVal}">${n}</div>
+        <div style="${S.paramLbl}">completed</div>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Performance</div>
-    <div class="acc-middle-row" style="border-bottom:none">
-      <div class="acc-table-col">
-        <div class="acc-col-label">Interval Data</div>
-        <table class="acc-table">
-          <thead><tr>
-            <th class="acc-th-num">#</th>
-            <th>Duration</th>
-            <th>Rest After</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+  <div style="${S.card}">
+    <div style="${S.cardTitle}">Performance Summary</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px">
+      <div style="${S.statCard};flex:1;min-width:160px">
+        <div style="${S.statVal}">${_fmtMs(a.avg_pace_ms)}</div>
+        <div style="${S.statLbl}">Avg Pace / 1600 m</div>
       </div>
-      <div class="acc-stats-col">
-        <div class="acc-col-label">Summary</div>
-        <div class="acc-stat-card">
-          <div class="acc-stat-val">${_fmtMs(a.avg_pace_ms)}</div>
-          <div class="acc-stat-label">Avg Pace / 1600 m</div>
-        </div>
-        <div class="acc-stat-card">
-          <div class="acc-stat-val" style="color:${slowdownColor}">${slowdownStr}</div>
-          <div class="acc-stat-label">Slowdown (1st → last interval)</div>
-        </div>
+      <div style="padding:10px 14px;border-left:3px solid ${slowdownColor};background:#f0f0f0;border-radius:0 6px 6px 0;flex:1;min-width:160px">
+        <div style="font-size:17px;font-weight:900;color:${slowdownColor};line-height:1">${slowdownStr}</div>
+        <div style="${S.statLbl}">Slowdown (1st → last)</div>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Fatigue Curve</div>
-    <div style="padding:8px 0">
-      ${chartHtml}
-      <div class="acc-chart-xlabel">Interval Number</div>
-    </div>
+  <div style="${S.card}">
+    <div style="${S.cardTitle}">Interval Data</div>
+    <table style="border-collapse:collapse;width:100%">
+      <thead><tr>
+        <th style="${S.thNum}">#</th>
+        <th style="${S.th}">Duration</th>
+        <th style="${S.th}">Rest After</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+
+  <div style="${S.card}">
+    <div style="${S.cardTitle}">Fatigue Curve</div>
+    ${chartHtml}
+    <div style="${S.xlabel}">Interval Number</div>
   </div>
 
 </div>

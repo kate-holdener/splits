@@ -58,6 +58,9 @@ pyinstaller \
     --collect-all=zeroconf \
     --hidden-import=yaml \
     --collect-all=yaml \
+    --hidden-import=email.mime.application \
+    --hidden-import=email.mime.multipart \
+    --hidden-import=email.mime.text \
     --hidden-import=webview \
     --collect-all=webview \
     --collect-all=dotenv \

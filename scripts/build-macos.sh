@@ -54,6 +54,8 @@ pyinstaller \
     --hidden-import=sllurp.llrp \
     --hidden-import=reportlab \
     --hidden-import=requests \
+    --hidden-import=zeroconf \
+    --collect-all=zeroconf \
     --hidden-import=webview \
     --collect-all=webview \
     --collect-all=dotenv \

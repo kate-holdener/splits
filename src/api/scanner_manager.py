@@ -84,8 +84,9 @@ class ScannerManager:
         if not address or not address.strip():
             return {"ok": False, "msg": "IP address is required."}
         address = address.strip()
+        default_ports = {'llrp': 5084, 'rest': 80}
         for protocol in ('llrp', 'rest'):
-            scanner_info = {"address": address, "protocol": protocol, "port": 5084}
+            scanner_info = {"address": address, "protocol": protocol, "port": default_ports[protocol]}
             result, reader = connect_rfid_with_scanner_info(scanner_info)
             if result["ok"] and reader:
                 return self._activate_rfid_reader(reader, address)

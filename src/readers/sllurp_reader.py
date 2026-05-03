@@ -65,59 +65,9 @@ class LLRPReader(Reader):
     def _connect(self):
         """Connect to the RFID reader and return connection status."""
         try:
-            # Start the connection
-            self.reader.connect(start_main_loop=False)
-            
-            # Wait for initial connection
-            time.sleep(0.5)
-            
-            # Check if basic connection is alive
-            if not self.reader.is_alive():
-                return False
-            
-            # Validate this is actually an LLRP connection by checking connection stability
-            # over a period - LLRP connections should remain stable, while non-LLRP 
-            # connections may drop or behave unexpectedly
-            validation_attempts = 8
-            failed_checks = 0
-            
-            for i in range(validation_attempts):
-                time.sleep(0.2)
-                
-                try:
-                    # Check multiple indicators of connection health
-                    alive = self.reader.is_alive()
-                    peer = self.reader.get_peername()
-                    
-                    if not alive or peer is None:
-                        failed_checks += 1
-                        
-                except Exception as e:
-                    failed_checks += 1
-                
-                # If too many checks fail, this is not a valid LLRP connection
-                if failed_checks > validation_attempts // 2:
-                    try:
-                        self.reader.disconnect()
-                    except:
-                        pass
-                    return False
-            
-            # Additional validation: try to perform an LLRP-specific operation
-            try:
-                # This should work on a real LLRP reader but fail on non-LLRP servers
-                self.reader.add_tag_report_callback(lambda reader, reports: None)
-                print("LLRP callback registration successful")
-            except Exception as e:
-                print(f"LLRP protocol validation failed: {e}")
-                try:
-                    self.reader.disconnect()
-                except:
-                    pass
-                return False
-            
+            self.reader.connect()
+            print(f"Connected to LLRP reader at {self.host}:{self.port}")
             return True
-                
         except (socket.timeout, TimeoutError) as e:
             print(f"Connection timeout: {e}")
             return False
@@ -125,10 +75,7 @@ class LLRPReader(Reader):
             print(f"Connection refused: {e}")
             return False
         except OSError as e:
-            if "Network is unreachable" in str(e) or "No route to host" in str(e):
-                print(f"Network error: {e}")
-            else:
-                print(f"Connection error: {e}")
+            print(f"Network error: {e}")
             return False
         except Exception as e:
             print(f"Unexpected connection error: {e}")
@@ -150,7 +97,6 @@ class LLRPReader(Reader):
             factory_args = dict(
                 report_every_n_tags=1,
                 antennas=[0],
-                tx_power=50,
                 start_inventory=True,
                 tag_content_selector={
                     'EnableROSpecID': True,
@@ -183,8 +129,9 @@ class LLRPReader(Reader):
             raise
 
     def _on_tag_report(self, reader, tag_reports):
+        if not self.queue:
+            return
         for tag in tag_reports:
-            print(tag)
             try:
                 # sllurp tag info typically contains .epc
                 epc_raw = tag.get('EPC')
@@ -200,8 +147,6 @@ class LLRPReader(Reader):
                     #event.timestamp = int(tag.get('LastSeenTimestampUTC')) / 1_000_000
                     timestamp = get_timestamp_now() #int(datetime.now(timezone.utc).timestamp())
                     event = Event(normalized, timestamp)
-                    with open("rfid.txt", "a") as f:
-                        f.write(f"RFID, {normalized}, {timestamp}\n")
                     self.queue.put(event)
 
             except Exception as e:
@@ -216,14 +161,14 @@ class LLRPReader(Reader):
 
         except socket.timeout:
             print(f"Timeout connecting to LLRP reader at {self.host}:{self.port}")
-            raise ConnectionTimeoutError(self.host, self.timeout)
+            raise ConnectionTimeoutError(self.host, self.port)
         except ConnectionRefusedError:
             print(f"Connection refused by LLRP reader at {self.host}:{self.port}")
-            raise ConnectionTimeoutError(self.host, self.timeout)
+            raise ConnectionTimeoutError(self.host, self.port)
         except Exception as e:
             print(f"Error in sllurp reader: {e}")
             if "timeout" in str(e).lower() or "unreachable" in str(e).lower():
-                raise ConnectionTimeoutError(self.host, self.timeout)
+                raise ConnectionTimeoutError(self.host, self.port)
             else:
                 raise ProtocolError(self.host, "LLRP", str(e))
 

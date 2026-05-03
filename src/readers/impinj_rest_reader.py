@@ -35,7 +35,7 @@ class ImpinjRestReader(Reader):
             else:
                 raise ProtocolError(self.hostname, "HTTP/REST", f"HTTP {e.response.status_code}")
         except Exception as e:
-            raise ProtocolError(hostname, "HTTP/REST", str(e))
+            raise ProtocolError(self.hostname, "HTTP/REST", str(e))
             
     def _test_connection(self):
         """Test basic connectivity to the scanner."""
@@ -61,7 +61,7 @@ class ImpinjRestReader(Reader):
             self.thread.join(timeout=2.0)
 
     def is_connected(self):
-        return self.is_connected;
+        return self.connected
 
     def _connect(self):
         """Connect to the Impinj REST API and return connection status."""
@@ -155,15 +155,17 @@ class ImpinjRestReader(Reader):
         
     def _run(self):
         try:
-            # Connect to the event stream
+            # Connect to the event stream.
+            # timeout=(connect_timeout, read_timeout): read_timeout=None because
+            # the stream may be silent for long periods when no tags are present.
             stream_response = requests.get(
                 urljoin(self.hostname, 'api/v1/data/stream'),
-                verify=False, 
+                verify=False,
                 stream=True,
-                timeout=10.0
+                timeout=(10.0, None)
             )
             stream_response.raise_for_status()
-            
+
             while self.running:
                 try:
                     for event_data in stream_response.iter_lines():
@@ -172,16 +174,16 @@ class ImpinjRestReader(Reader):
                         event = self.extract_rfid_data(event_data)
                         if event:
                             self.queue.put(event)
-                            
-                except requests.exceptions.ChunkedEncodingError:
+
+                except (requests.exceptions.ChunkedEncodingError,
+                        requests.exceptions.ConnectionError):
                     print("Warning: Connection interrupted, attempting to reconnect...")
-                    # Try to reconnect
                     try:
                         stream_response = requests.get(
                             urljoin(self.hostname, 'api/v1/data/stream'),
-                            verify=False, 
+                            verify=False,
                             stream=True,
-                            timeout=10.0
+                            timeout=(10.0, None)
                         )
                         stream_response.raise_for_status()
                     except Exception as e:
@@ -190,21 +192,21 @@ class ImpinjRestReader(Reader):
                         
         except requests.exceptions.ConnectTimeout:
             print(f"Timeout connecting to REST reader at {self.hostname}")
-            raise ConnectionTimeoutError(self.scanner, 5.0)
+            raise ConnectionTimeoutError(self.hostname, 5.0)
         except requests.exceptions.ConnectionError as e:
             if "Connection refused" in str(e):
                 print(f"Connection refused by REST reader at {self.hostname}")
-                raise ConnectionTimeoutError(self.scanner, 5.0)
+                raise ConnectionTimeoutError(self.hostname, 5.0)
             else:
                 print(f"Connection error with REST reader: {e}")
-                raise ProtocolError(self.scanner, "HTTP/REST", str(e))
+                raise ProtocolError(self.hostname, "HTTP/REST", str(e))
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 401:
-                raise AuthenticationError(self.scanner, "HTTP 401 Unauthorized")
+                raise AuthenticationError(self.hostname, "HTTP 401 Unauthorized")
             elif e.response.status_code == 403:
-                raise AuthenticationError(self.scanner, "HTTP 403 Forbidden")
+                raise AuthenticationError(self.hostname, "HTTP 403 Forbidden")
             else:
-                raise ProtocolError(self.scanner, "HTTP/REST", f"HTTP {e.response.status_code}")
+                raise ProtocolError(self.hostname, "HTTP/REST", f"HTTP {e.response.status_code}")
         except Exception as e:
             print(f"Error in REST reader: {e}")
-            raise ProtocolError(self.scanner, "HTTP/REST", str(e))
+            raise ProtocolError(self.hostname, "HTTP/REST", str(e))

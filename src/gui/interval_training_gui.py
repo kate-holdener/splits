@@ -155,6 +155,9 @@ class PyWebViewAPI:
     def list_athletes_with_status(self):
         return self.api.list_athletes_with_status()
 
+    def start_timer(self):
+        return self.api.start_timer()
+
     def start_selected(self, tag_ids_json: str):
         try:
             tag_ids = _json.loads(tag_ids_json)

@@ -29,6 +29,9 @@ function openSessionSetup() {
   if (workoutLabel) { workoutLabel.textContent = '— Select a workout —'; workoutLabel.classList.add('placeholder'); }
   document.getElementById('setup-workout-trigger')?.classList.remove('open');
 
+  const confirmBtn = document.getElementById('setup-confirm-btn');
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Begin Session'; }
+
   _renderSetupWorkoutMenu();
   _renderSetupRosterMenu();
   _applySetupDefaults();
@@ -45,18 +48,20 @@ function cancelSessionSetup() {
 async function confirmSessionSetup() {
   if (!_setupSelectedWorkout || !_setupSelectedRosterId) return;
 
+  const confirmBtn = document.getElementById('setup-confirm-btn');
+  if (confirmBtn) { confirmBtn.disabled = true; }
+
   const { distance, laps, rest } = _setupSelectedWorkout;
 
-  const [wr, rr] = await Promise.all([
-    pywebview.api.configure_workout(String(distance), String(laps), String(rest || 0)),
-    pywebview.api.select_roster(_setupSelectedRosterId)
-  ]);
-
+  const wr = await pywebview.api.configure_workout(String(distance), String(laps), String(rest || 0));
   log(wr.msg, wr.ok ? 'ok' : 'err');
-  log(rr.msg, rr.ok ? 'ok' : 'err');
-
   if (wr.state) applyState(wr.state);
+
+  const rr = await pywebview.api.select_roster(_setupSelectedRosterId);
+  log(rr.msg, rr.ok ? 'ok' : 'err');
   if (rr.state) applyState(rr.state);
+
+  await pywebview.api.start_timer();
 
   const lr = await pywebview.api.list_rosters();
   if (lr.rosters) {
@@ -67,8 +72,7 @@ async function confirmSessionSetup() {
   setSessionActive(true);
 
   // Wait for scanner connections before showing workout screen
-  const confirmBtn = document.getElementById('setup-confirm-btn');
-  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Connecting to scanners…'; }
+  if (confirmBtn) { confirmBtn.textContent = 'Connecting to scanners…'; }
 
   _workoutScreenVisited = true;
   await Promise.all([reconnectRfid(), connectNfc()]);

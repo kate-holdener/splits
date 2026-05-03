@@ -1,3 +1,5 @@
+import threading
+from queue import Queue, Empty
 from typing import Optional
 
 from entity.runner import Runner
@@ -11,13 +13,22 @@ from persistence.roster_persistence import (
 
 
 class RosterManager:
-    """Owns the athlete list and roster metadata. No timer or scanner knowledge."""
+    """Owns the athlete list, roster metadata, and NFC tag capture for roster configuration."""
 
     def __init__(self):
         self.athletes: list[Runner] = []
         self.current_roster: Optional[dict] = None
         self.athletes_loaded = False
         self.session_loaded = False
+
+        self._nfc_capture_active = False
+        self._nfc_capture_result = None
+        self._nfc_capture_lock = threading.Lock()
+        self._nfc_capture_done = threading.Event()
+        self._nfc_capture_done.set()
+        self._nfc_capture_queue = Queue()
+        self._original_nfc_queue = None
+        self._nfc_scanner_ref = None
 
     # ------------------------------------------------------------------
     # Roster queries
@@ -174,4 +185,75 @@ class RosterManager:
                 a.email = email.strip() if email else ""
                 break
         save_roster(roster_id, roster_meta["name"], athletes)
+        return {"ok": True}
+
+    # ------------------------------------------------------------------
+    # NFC tag capture (for assigning tags to athletes in Settings)
+    # ------------------------------------------------------------------
+
+    def start_nfc_capture(self, nfc_scanner, timeout_seconds: int = 15) -> dict:
+        """Begin capturing the next NFC tag scan into a side-channel queue.
+
+        nfc_scanner is the live NFCReader instance supplied by ScannerManager via AppApi.
+        """
+        with self._nfc_capture_lock:
+            if self._nfc_capture_active:
+                return {"ok": False, "msg": "A scan is already in progress."}
+            self._nfc_capture_active = True
+            self._nfc_capture_result = None
+            self._nfc_capture_done.clear()
+
+        # Drain any stale events from a previous capture before reuse.
+        while not self._nfc_capture_queue.empty():
+            try:
+                self._nfc_capture_queue.get_nowait()
+            except Empty:
+                break
+
+        self._nfc_scanner_ref = nfc_scanner
+        self._original_nfc_queue = nfc_scanner.queue
+        nfc_scanner.queue = self._nfc_capture_queue
+
+        threading.Thread(
+            target=self._nfc_capture_worker,
+            args=(timeout_seconds,),
+            daemon=True,
+        ).start()
+        return {"ok": True}
+
+    def _nfc_capture_worker(self, timeout_seconds: int) -> None:
+        try:
+            event = self._nfc_capture_queue.get(timeout=timeout_seconds)
+            if event is None:
+                result = {"ok": False, "msg": "Scan cancelled."}
+            else:
+                result = {"ok": True, "tag": event.id}
+        except Empty:
+            result = {"ok": False, "msg": "Scan timed out."}
+        finally:
+            if self._nfc_scanner_ref:
+                self._nfc_scanner_ref.queue = self._original_nfc_queue
+            self._nfc_scanner_ref = None
+            with self._nfc_capture_lock:
+                self._nfc_capture_result = result
+                self._nfc_capture_active = False
+            self._nfc_capture_done.set()
+
+    def poll_nfc_capture(self) -> dict:
+        """Return the current capture state. Clears the result once it's been read."""
+        with self._nfc_capture_lock:
+            if self._nfc_capture_active and self._nfc_capture_result is None:
+                return {"ok": False, "pending": True}
+            result = self._nfc_capture_result
+            self._nfc_capture_result = None
+        return result if result is not None else {"ok": False, "pending": False, "msg": "No scan in progress."}
+
+    def cancel_nfc_capture(self) -> dict:
+        """Cancel an in-progress capture and wait for the worker to finish."""
+        with self._nfc_capture_lock:
+            if not self._nfc_capture_active:
+                return {"ok": True}
+        if self._nfc_capture_queue:
+            self._nfc_capture_queue.put(None)
+        self._nfc_capture_done.wait(timeout=2.0)
         return {"ok": True}

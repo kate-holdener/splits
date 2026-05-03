@@ -62,7 +62,7 @@ class AppApi:
     # Athlete initialization (internal orchestration)
     # ------------------------------------------------------------------
     def _init_athletes(self, athletes):
-        """Set up athletes with observers and (re)start the timer."""
+        """Set up athletes with observers. Timer is started separately once the workout is configured."""
         self.roster.athletes = athletes
         self.roster.athletes_loaded = bool(athletes)
         for a in athletes:
@@ -72,7 +72,6 @@ class AppApi:
         if self.workout.workout:
             for a in athletes:
                 a.add_workout(self.workout.workout)
-        self.session._start_timer(athletes)
 
     def _load_active_roster(self):
         """Load the active roster on application startup."""
@@ -236,6 +235,11 @@ class AppApi:
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    def start_timer(self):
+        self.session._stop_timer()
+        self.session._start_timer(self.roster.athletes)
+        return {"ok": True}
+
     def save_and_configure_workout(self, distance: int, laps: int, rest: int):
         try:
             workout_entry = self.workout.save_workout_entry(distance, laps, rest)
@@ -313,13 +317,17 @@ class AppApi:
     def start_nfc_capture(self) -> dict:
         if self.session.workout_active:
             return {"ok": False, "msg": "Cannot scan tags during an active workout."}
-        return self.scanner.start_nfc_capture()
+        if not self.scanner.nfc_connected or not self.scanner.nfc_scanner:
+            result = self.scanner.connect_nfc()
+            if not result["ok"]:
+                return {"ok": False, "msg": f"NFC scanner not connected: {result['msg']}"}
+        return self.roster.start_nfc_capture(self.scanner.nfc_scanner)
 
     def poll_nfc_capture(self) -> dict:
-        return self.scanner.poll_nfc_capture()
+        return self.roster.poll_nfc_capture()
 
     def cancel_nfc_capture(self) -> dict:
-        return self.scanner.cancel_nfc_capture()
+        return self.roster.cancel_nfc_capture()
 
     def shutdown(self):
         self.scanner.shutdown()
@@ -356,6 +364,7 @@ class AppApi:
                 roster_id=roster_id,
                 athletes=self.roster.athletes,
             )
+            self.session._start_timer(self.roster.athletes)
             self.session.workout_active = True
             self.session.pending_recovery = None
             return {"ok": True, "msg": "Session resumed.", "state": self.get_state()}

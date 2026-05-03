@@ -37,7 +37,6 @@ PYEOF
 # Build the executable
 echo "Building executable..."
 pyinstaller \
-    --windowed \
     --name "Splits" \
     --icon "icon/icon.icns" \
     --osx-bundle-identifier "com.splits.app" \

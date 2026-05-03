@@ -78,6 +78,7 @@ function applyState(s) {
 
   updateRfidConnector(s);
   updateConnector('nfc-status-text', s.nfcConnected, s.nfcFailed);
+  updateScannersBtnColor(s.rfidConnected, s.nfcConnected);
 
   const setupOk = s.athletesLoaded && s.workoutConfigured;
   if (setupOk && !_autoConnectAttempted) {

@@ -106,8 +106,10 @@ class PyWebViewAPI:
         result["state"] = self.api.get_state()
         return result
 
-    def connect_rfid_manual(self, address: str, port: int, protocol: str):
-        result = self.api.scanner.connect_rfid_manual(address, port, protocol)
+    def connect_rfid_manual(self, address: str, port: int, protocol: str,
+                            tx_power_dbm=None):
+        result = self.api.scanner.connect_rfid_manual(address, port, protocol,
+                                                      tx_power_dbm=tx_power_dbm)
         result["state"] = self.api.get_state()
         return result
 

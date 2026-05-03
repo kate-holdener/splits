@@ -323,7 +323,7 @@
      SCANNERS MODAL
      ============================================================ -->
 <div id="scanners-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center">
-  <div class="card" style="width:480px;max-width:92vw;margin:0;padding:32px">
+  <div class="card" style="width:560px;max-width:92vw;margin:0;padding:32px">
     <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
       Scanners
       <button class="btn btn-ghost btn-sm" onclick="closeScannersModal()">✕</button>
@@ -354,10 +354,19 @@
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label>Protocol</label>
-              <select id="rfid-protocol">
+              <select id="rfid-protocol" onchange="onRfidProtocolChange(this.value)">
                 <option value="llrp">LLRP</option>
                 <option value="rest">REST</option>
               </select>
+            </div>
+          </div>
+          <div id="rfid-tx-power-group" class="form-group" style="margin-bottom:8px">
+            <label>TX Power</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="rfid-tx-power-max" checked onchange="onTxPowerMaxChange(this.checked)"/>
+              <label for="rfid-tx-power-max" style="margin:0;font-weight:normal">Max</label>
+              <input type="number" id="rfid-tx-power" value="30.0" min="10" max="33" step="0.25" style="max-width:140px" disabled/>
+              <span style="font-size:0.85em">dBm</span>
             </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:4px">

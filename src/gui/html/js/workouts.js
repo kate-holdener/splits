@@ -77,6 +77,15 @@ async function confirmSessionSetup() {
   _workoutScreenVisited = true;
   await Promise.all([reconnectRfid(), connectNfc()]);
 
+  // Both connections have settled — do one authoritative color update.
+  // reconnectRfid() snapshots nfcConnected before connectNfc() finishes,
+  // so reading state here avoids the race condition.
+  const [_info, _state] = await Promise.all([
+    pywebview.api.get_rfid_connection_info(),
+    pywebview.api.get_state(),
+  ]);
+  updateScannersBtnColor(_info.connected, _state.nfcConnected);
+
   cancelSessionSetup();
   _activateScreen('workout-screen');
 }

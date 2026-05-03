@@ -25,20 +25,23 @@ def get_scanner_config_path(data_dir=None) -> str:
     return str(base / "scanner_config.json")
 
 
-def save_scanner_config(hostname: str, port: int, protocol: str, data_dir=None) -> None:
+def save_scanner_config(hostname: str, port: int, protocol: str,
+                        tx_power_dbm: float = None, data_dir=None) -> None:
     """Save successful scanner connection parameters.
-    
+
     Args:
         hostname: Scanner IP address/hostname
         port: Scanner port number
         protocol: 'llrp' or 'rest'
+        tx_power_dbm: Transmit power in dBm (LLRP only); None uses reader default
     """
     config_path = get_scanner_config_path(data_dir)
-    
+
     config = {
         "hostname": hostname.strip(),
         "port": int(port),
-        "protocol": protocol.lower()
+        "protocol": protocol.lower(),
+        "tx_power_dbm": float(tx_power_dbm) if tx_power_dbm is not None else None,
     }
     
     try:
@@ -76,10 +79,14 @@ def load_scanner_config(data_dir=None) -> Optional[Dict[str, Any]]:
         if config['protocol'] not in ('llrp', 'rest'):
             return None
             
+        raw_power = config.get('tx_power_dbm')
+        tx_power_dbm = float(raw_power) if raw_power is not None else None
+
         return {
             'hostname': config['hostname'].strip(),
             'port': int(config['port']),
-            'protocol': config['protocol'].lower()
+            'protocol': config['protocol'].lower(),
+            'tx_power_dbm': tx_power_dbm,
         }
         
     except FileNotFoundError:

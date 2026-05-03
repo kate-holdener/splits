@@ -31,7 +31,8 @@ class ScannerManager:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _activate_rfid_reader(self, reader: Reader, hostname: str) -> dict:
+    def _activate_rfid_reader(self, reader: Reader, hostname: str,
+                              tx_power_dbm: float = None) -> dict:
         """Start the reader thread and record RFID connection state."""
         reader.start(self.lap_event_q)
         self.rfid_scanner = reader
@@ -45,7 +46,8 @@ class ScannerManager:
         self.rfid_address = hostname
         self.rfid_port = port
 
-        save_scanner_config(hostname, port, protocol)
+        save_scanner_config(hostname, port, protocol,
+                            tx_power_dbm=tx_power_dbm if protocol == 'llrp' else None)
 
         return {
             "ok": True,
@@ -93,7 +95,8 @@ class ScannerManager:
         self.rfid_scanner_failed = True
         return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}."}
 
-    def connect_rfid_manual(self, address: str, port: int, protocol: str):
+    def connect_rfid_manual(self, address: str, port: int, protocol: str,
+                            tx_power_dbm: float = None):
         """Connect to RFID scanner with manual configuration (IP, port, protocol)."""
         if not address or not address.strip():
             return {"ok": False, "msg": "IP address is required."}
@@ -103,11 +106,12 @@ class ScannerManager:
             return {"ok": False, "msg": "Port must be between 1 and 65535."}
 
         address = address.strip()
-        scanner_info = {"address": address, "protocol": protocol, "port": port}
+        scanner_info = {"address": address, "protocol": protocol, "port": port,
+                        "tx_power_dbm": tx_power_dbm if protocol == 'llrp' else None}
         result, reader = connect_rfid_with_scanner_info(scanner_info)
 
         if result["ok"] and reader:
-            return self._activate_rfid_reader(reader, address)
+            return self._activate_rfid_reader(reader, address, tx_power_dbm=tx_power_dbm)
         self.rfid_scanner_failed = True
         return {"ok": False, "msg": f"Could not connect to RFID scanner at {address}:{port} using {protocol.upper()}."}
 
@@ -145,7 +149,10 @@ class ScannerManager:
         if self.rfid_connected:
             return {"ok": False, "msg": "RFID scanner already connected."}
         config = self.saved_scanner_config
-        return self.connect_rfid_manual(config['hostname'], config['port'], config['protocol'])
+        return self.connect_rfid_manual(
+            config['hostname'], config['port'], config['protocol'],
+            tx_power_dbm=config.get('tx_power_dbm'),
+        )
 
     # ------------------------------------------------------------------
     # NFC connect / disconnect

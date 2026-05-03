@@ -105,8 +105,23 @@ function updateRfidStatus(result, connectionDetails = null) {
 // RFID MODAL VIEW TRANSITIONS
 // ============================================================
 
+function onRfidProtocolChange(protocol) {
+  const group = document.getElementById('rfid-tx-power-group');
+  if (group) group.style.display = protocol === 'llrp' ? 'block' : 'none';
+}
+
+function onTxPowerMaxChange(checked) {
+  const input = document.getElementById('rfid-tx-power');
+  if (input) input.disabled = checked;
+}
+
 function showRfidManualConfig() {
   setRfidModalView('manual');
+  const protocol = document.getElementById('rfid-protocol');
+  if (protocol) onRfidProtocolChange(protocol.value);
+  // reset to max power each time the form opens
+  const maxCb = document.getElementById('rfid-tx-power-max');
+  if (maxCb) { maxCb.checked = true; onTxPowerMaxChange(true); }
 }
 
 function cancelRfidManualConfig() {
@@ -175,12 +190,17 @@ async function connectRfidManualSubmit() {
     return;
   }
 
+  const maxChecked = document.getElementById('rfid-tx-power-max').checked;
+  const txPowerDbm = (protocol === 'llrp' && !maxChecked)
+    ? parseFloat(document.getElementById('rfid-tx-power').value) || null
+    : null;
+
   const btn = document.getElementById('rfid-manual-connect-btn');
   if (btn) btn.disabled = true;
 
   const connectionDetails = { address, port, protocol };
   log(`Connecting to RFID scanner at ${address}:${port} using ${protocol.toUpperCase()}…`, 'info');
-  const r = await pywebview.api.connect_rfid_manual(address, port, protocol);
+  const r = await pywebview.api.connect_rfid_manual(address, port, protocol, txPowerDbm);
   log(r.msg, r.ok ? 'ok' : 'err');
 
   if (r.ok) {

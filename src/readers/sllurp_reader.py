@@ -10,15 +10,16 @@ from datetime import datetime, timezone
 from discovery.exceptions import ConnectionTimeoutError, ProtocolError
 
 class LLRPReader(Reader):
-    def __init__(self,scanner_address, port=LLRP_DEFAULT_PORT):
+    def __init__(self, scanner_address, port=LLRP_DEFAULT_PORT, tx_power_dbm=None):
         super().__init__()
         self.host = scanner_address
         self.port = port
+        self.tx_power_dbm = tx_power_dbm
         self.runner_ids = None
         self.reader = None
         self.connected = False
-        try: 
-            self.reader = LLRPReader._init_reader(self.host, self.port)
+        try:
+            self.reader = LLRPReader._init_reader(self.host, self.port, tx_power_dbm)
             # Register the callback handler
             self.reader.add_tag_report_callback(self._on_tag_report)
         except socket.timeout:
@@ -89,10 +90,9 @@ class LLRPReader(Reader):
         return epc.lstrip('0') or '0'
 
     @staticmethod
-    def _init_reader(host, port)->LLRPReaderClient:
-        # Optional: enable sllurp debug logs
+    def _init_reader(host, port, tx_power_dbm=None) -> LLRPReaderClient:
         logging.getLogger('sllurp').setLevel(logging.INFO)
-        
+
         try:
             factory_args = dict(
                 report_every_n_tags=1,
@@ -117,6 +117,8 @@ class LLRPReader(Reader):
                 impinj_search_mode=2,
                 impinj_tag_content_selector=None,
             )
+            if tx_power_dbm is not None:
+                factory_args['tx_power_dbm'] = float(tx_power_dbm)
 
             config = LLRPReaderConfig(factory_args)
             reader = LLRPReaderClient(host, port, config)

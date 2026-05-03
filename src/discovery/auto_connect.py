@@ -29,7 +29,8 @@ def connect_rfid_with_scanner_info(scanner_info: dict):
     try:
         # Instantiate the appropriate reader based on discovered protocol
         if protocol == 'llrp':
-            rfid_scanner = LLRPReader(address, port)
+            rfid_scanner = LLRPReader(address, port,
+                                      tx_power_dbm=scanner_info.get('tx_power_dbm'))
         elif protocol == 'rest':
             rfid_scanner = ImpinjRestReader(address, port)
         else:

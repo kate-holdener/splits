@@ -56,6 +56,8 @@ pyinstaller \
     --hidden-import=requests \
     --hidden-import=zeroconf \
     --collect-all=zeroconf \
+    --hidden-import=yaml \
+    --collect-all=yaml \
     --hidden-import=webview \
     --collect-all=webview \
     --collect-all=dotenv \

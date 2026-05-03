@@ -161,6 +161,9 @@ async function connectRfidAutoDetect() {
   const r = await pywebview.api.connect_rfid();
   log(r.msg, r.ok ? 'ok' : 'err');
 
+  if (autoBtn)   autoBtn.disabled   = false;
+  if (manualBtn) manualBtn.disabled = false;
+
   if (r.ok) {
     const cd     = r.connection_details || null;
     const nameEl = document.getElementById('rfid-name');
@@ -169,8 +172,6 @@ async function connectRfidAutoDetect() {
     setRfidModalView('connected');
   } else {
     updateRfidStatus(r);
-    if (autoBtn)   autoBtn.disabled   = false;
-    if (manualBtn) manualBtn.disabled = false;
   }
 
   if (r.state) applyState(r.state);

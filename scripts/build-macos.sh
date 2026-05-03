@@ -64,11 +64,11 @@ pyinstaller \
 echo "Build completed successfully!"
 echo "Executable location: dist/Splits"
 
-if [ -d "dist/Splits.app" ]; then
-    echo "✓ App bundle created successfully"
+if [ -d "dist/Splits.app" ] || [ -d "dist/Splits" ]; then
+    echo "✓ Build output created successfully"
     ls -lh dist/
 else
-    echo "✗ App bundle not found!"
+    echo "✗ Build output not found!"
     exit 1
 fi
 echo ""

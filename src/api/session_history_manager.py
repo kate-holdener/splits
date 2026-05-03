@@ -124,11 +124,6 @@ class SessionHistoryManager:
         except Exception as e:
             return {"ok": False, "msg": f"Email configuration error: {e}"}
 
-        try:
-            import playwright  # noqa: F401
-        except ImportError:
-            return {"ok": False, "msg": "Playwright is not installed. Run: pip install playwright && playwright install chromium"}
-
         sent, failed = [], []
         for report in reports:
             try:

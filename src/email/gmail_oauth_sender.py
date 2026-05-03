@@ -7,17 +7,11 @@ Tokens are managed by gmail_auth.py and saved in the user data directory.
 Required environment variables:
     GMAIL_CLIENT_ID: Google OAuth client ID
     GMAIL_CLIENT_SECRET: Google OAuth client secret
-
-Dependencies:
-    pip install playwright requests
-    playwright install chromium
 """
 
 import base64
 import json
 import os
-import re
-from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -110,27 +104,6 @@ class EmailSender:
             raise RuntimeError("Gmail token response did not include access_token")
         return access_token
 
-    @staticmethod
-    def _build_pdf_and_filename(
-        runner_name: str, report_html_string: str
-    ) -> tuple[bytes, str, str]:
-        """Render the HTML report to PDF and return safe attachment names."""
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch()
-            page = browser.new_page()
-            page.set_content(report_html_string, wait_until="networkidle")
-            pdf_bytes = page.pdf(
-                format="A4",
-                print_background=True,
-                margin={"top": "16mm", "bottom": "16mm", "left": "14mm", "right": "14mm"},
-            )
-            browser.close()
-
-        safe_name = re.sub(r"[^A-Za-z0-9_-]", "_", runner_name)
-        return pdf_bytes, f"{safe_name}_report.pdf", f"{safe_name}_report.html"
-
     def send_report(
         self,
         to_email: str,
@@ -139,11 +112,11 @@ class EmailSender:
         subject: Optional[str] = None,
     ) -> bool:
         """
-        Render the report to PDF and send it via the Gmail API.
+        Send an HTML performance report as the email body via the Gmail API.
 
         Args:
             to_email: Recipient email address
-            runner_name: Athlete name (used in subject and filename)
+            runner_name: Athlete name (used in subject)
             report_html_string: Complete standalone HTML for the report
             subject: Email subject (auto-generated if omitted)
 
@@ -153,33 +126,20 @@ class EmailSender:
         if not subject:
             subject = f"Your Interval Training Report — {runner_name}"
 
-        pdf_bytes, pdf_filename, html_filename = self._build_pdf_and_filename(
-            runner_name, report_html_string
-        )
-
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg["To"] = to_email
         msg["Subject"] = subject
         if self.from_email:
             msg["From"] = self.from_email
 
         msg.attach(MIMEText(
-            f"Hi {runner_name},\n\n"
-            "Your interval training performance report is attached.\n\n"
-            "— Splits",
+            f"Hi {runner_name},\n\nYour interval training performance report is below.\n\n— Splits",
             "plain",
         ))
-
-        pdf_part = MIMEApplication(pdf_bytes, _subtype="pdf")
-        pdf_part.add_header("Content-Disposition", "attachment", filename=pdf_filename)
-        msg.attach(pdf_part)
-
-        html_part = MIMEText(report_html_string, "html", "utf-8")
-        html_part.add_header("Content-Disposition", "attachment", filename=html_filename)
-        msg.attach(html_part)
+        msg.attach(MIMEText(report_html_string, "html", "utf-8"))
 
         if self.dry_run:
-            print(f"  [DRY RUN] Would send {pdf_filename} to {to_email} via Gmail API")
+            print(f"  [DRY RUN] Would send report to {to_email} via Gmail API")
             return True
 
         access_token = self._get_access_token()

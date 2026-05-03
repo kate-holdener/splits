@@ -3,16 +3,10 @@ Infrastructure: SMTP email sender.
 
 Implements email delivery via SMTP protocol using environment variables
 for configuration.
-
-Dependencies:
-    pip install playwright
-    playwright install chromium
 """
 
 import os
-import re
 import smtplib
-from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
@@ -25,7 +19,7 @@ class SMTPConfigError(Exception):
 
 class EmailSender:
     """
-    Sends performance reports as PDF attachments via SMTP.
+    Sends performance reports as HTML emails via SMTP.
 
     Configuration is loaded from environment variables:
     - SMTP_HOST: SMTP server hostname
@@ -71,60 +65,33 @@ class EmailSender:
         subject: Optional[str] = None,
     ) -> bool:
         """
-        Convert an HTML report to PDF and send it as an email attachment.
+        Send an HTML performance report as the email body.
 
         Args:
             to_email: Recipient email address
-            runner_name: Name of the runner (used in subject and filename)
+            runner_name: Name of the runner (used in subject)
             report_html_string: Complete standalone HTML of the report
             subject: Email subject (auto-generated if not provided)
 
         Returns:
             True if the email was sent successfully, False otherwise
         """
-        from playwright.sync_api import sync_playwright
-
         if not subject:
             subject = f"Your Interval Training Report — {runner_name}"
 
-        # Convert HTML → PDF in memory via headless Chromium
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch()
-            page = browser.new_page()
-            page.set_content(report_html_string, wait_until='networkidle')
-            pdf_bytes = page.pdf(format='A4', print_background=True,
-                                 margin={'top': '16mm', 'bottom': '16mm',
-                                         'left': '14mm', 'right': '14mm'})
-            browser.close()
-
-        # Safe filename: replace anything that isn't alphanumeric/hyphen/underscore
-        safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', runner_name)
-        filename = f"{safe_name}_report.pdf"
-
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = self.from_email
         msg['To'] = to_email
         msg['Subject'] = subject
 
         msg.attach(MIMEText(
-            f"Hi {runner_name},\n\n"
-            f"Your interval training performance report is attached.\n\n"
-            f"— Splits",
+            f"Hi {runner_name},\n\nYour interval training performance report is below.\n\n— Splits",
             'plain'
         ))
-
-        attachment = MIMEApplication(pdf_bytes, _subtype='pdf')
-        attachment.add_header('Content-Disposition', 'attachment', filename=filename)
-        msg.attach(attachment)
-
-        # Also attach the raw HTML file
-        html_attachment = MIMEText(report_html_string, 'html', 'utf-8')
-        html_attachment.add_header('Content-Disposition', 'attachment',
-                                   filename=f'{safe_name}_report.html')
-        msg.attach(html_attachment)
+        msg.attach(MIMEText(report_html_string, 'html', 'utf-8'))
 
         if self.dry_run:
-            print(f"  [DRY RUN] Would send {filename} to {to_email}")
+            print(f"  [DRY RUN] Would send report to {to_email}")
             return True
 
         with smtplib.SMTP(self.host, self.port) as server:

@@ -2,9 +2,7 @@ pyllrp
 pyscard
 python-dotenv
 pywebview
-reportlab
 requests
 sllurp
 zeroconf
 PyYAML
-playwright

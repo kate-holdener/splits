@@ -37,6 +37,7 @@ PYEOF
 # Build the executable
 echo "Building executable..."
 pyinstaller \
+    --windowed \
     --name "Splits" \
     --icon "icon/icon.icns" \
     --osx-bundle-identifier "com.splits.app" \
@@ -64,11 +65,11 @@ pyinstaller \
 echo "Build completed successfully!"
 echo "Executable location: dist/Splits"
 
-if [ -d "dist/Splits.app" ] || [ -d "dist/Splits" ]; then
-    echo "✓ Build output created successfully"
+if [ -d "dist/Splits.app" ]; then
+    echo "✓ App bundle created successfully"
     ls -lh dist/
 else
-    echo "✗ Build output not found!"
+    echo "✗ App bundle not found!"
     exit 1
 fi
 echo ""

@@ -26,7 +26,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            executable_name: Splits
+            executable_name: Splits.app
             artifact_name: Splits-macos.zip
             build_script: scripts/build-macos.sh
 

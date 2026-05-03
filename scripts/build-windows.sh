@@ -30,31 +30,55 @@ fi
 echo "Cleaning previous builds..."
 rm -rf dist/ build/ *.spec
 
+# Bake environment variables into a runtime hook so os.getenv() works in the
+# frozen app. Values come from the environment (set via GitHub Actions secrets
+# in CI, or exported locally for manual builds).
+echo "Generating runtime hook from environment..."
+python - << 'PYEOF'
+import os
+vars_to_embed = [
+    'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_SENDER_NAME',
+    'SMTP_PASSWORD', 'SMTP_SENDER_EMAIL', 'GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET',
+]
+lines = ['import os']
+for var in vars_to_embed:
+    val = os.environ.get(var, '')
+    if val:
+        lines.append(f'os.environ.setdefault({var!r}, {val!r})')
+with open('runtime_hook.py', 'w') as f:
+    f.write('\n'.join(lines) + '\n')
+PYEOF
+
 # Build the executable (onefile bundles Python + all deps into a single .exe)
 echo "Building executable..."
 pyinstaller \
     --onefile \
+    --windowed \
     --name "Splits" \
     --icon "icon/splits.ico" \
+    --runtime-hook=runtime_hook.py \
     --add-data "src/gui/html;src/gui/html" \
-    --add-data "data;data" \
     --add-data "src;src" \
+    --add-data "data;data" \
+    --hidden-import=dotenv \
     --hidden-import=smartcard \
     --hidden-import=smartcard.scard \
     --hidden-import=smartcard.util \
     --hidden-import=pyllrp \
     --hidden-import=sllurp \
     --hidden-import=sllurp.llrp \
-    --hidden-import=reportlab \
     --hidden-import=requests \
     --hidden-import=zeroconf \
+    --collect-all=zeroconf \
     --hidden-import=yaml \
-    --collect-submodules=zeroconf \
-    --collect-submodules=yaml \
+    --collect-all=yaml \
+    --hidden-import=email.mime.multipart \
+    --hidden-import=email.mime.text \
     --hidden-import=webview \
-    --collect-submodules=webview \
+    --collect-all=webview \
+    --collect-all=dotenv \
     --collect-submodules=smartcard \
-    --collect-submodules=pyscard \
+    --collect-binaries=smartcard \
     --collect-submodules=sllurp \
     --noconfirm \
     main.py

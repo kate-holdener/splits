@@ -35,7 +35,7 @@
   <ul>
     <li><strong>OAuth refresh token</strong> — issued by Google after you grant consent. Stored locally on your device (in the application's user data directory) as <code>gmail_tokens.json</code>. This allows the app to send email in future sessions without requiring you to sign in again. The token is never transmitted to any server other than Google's OAuth token endpoint (<code>oauth2.googleapis.com</code>) when the app silently refreshes an access token to send an email.</li>
     <li><strong>Your Google account email address</strong> — obtained from the OpenID Connect ID token at sign-in. Stored locally alongside the refresh token. Used only to display your signed-in account in the app and to populate the "From" field of outgoing emails.</li>
-    <li><strong>Outgoing email content</strong> — the HTML performance report body and athlete recipient addresses you specify are transmitted directly from your device to Google's Gmail API endpoint (<code>gmail.googleapis.com</code>) at the moment you initiate a send. This content is not stored or logged by Splits beyond what already exists in your Gmail "Sent" folder.</li>
+    <li><strong>Outgoing email content</strong> — the HTML performance report body and athlete recipient addresses you specify are transmitted directly from your device to Google's Gmail API endpoint (<code>gmail.googleapis.com</code>) at the moment you initiate a send. This content is not stored or logged by Splits.</li>
   </ul>
   <p>No Google user data is transmitted to any server operated by Splits or its developers. All storage occurs exclusively on your local device. Emails are sent only when you explicitly initiate a send action — the app never sends email autonomously.</p>
 

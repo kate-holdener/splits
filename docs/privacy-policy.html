@@ -22,16 +22,25 @@
   <h2>Data You Provide</h2>
   <p>Splits does not collect, transmit, or store any data on external servers. All data you work with in the application — including athlete rosters and session results — is created and managed by you and stored exclusively on your local device. This data is never sent anywhere except when you explicitly choose to email a report (see below).</p>
 
-  <h2>Google Sign-In and Gmail</h2>
-  <p>Splits includes an optional feature that lets you send performance reports to athletes via Gmail. To use this feature, you sign in with your Google account using OAuth 2.0. Specifically:</p>
+  <h2>Google User Data — Data Accessed</h2>
+  <p>Splits includes an optional feature that lets you send performance reports to athletes via Gmail. To use this feature, you sign in with your Google account using OAuth 2.0. The application requests the following Google API scopes:</p>
   <ul>
-    <li>The sign-in flow opens your browser to Google's consent screen. You grant the application permission to send email on your behalf.</li>
-    <li>Google issues an OAuth refresh token, which is stored locally on your device (in your user data directory) so you do not need to sign in again each session.</li>
-    <li>This token is never transmitted to any server controlled by Splits or its developers.</li>
-    <li>Emails are sent only when you explicitly initiate a send action within the app. The app will not send email autonomously.</li>
-    <li>The content of emails (HTML report and recipient addresses) passes through the Gmail API directly from your device to Google's servers and then to the recipients you specify.</li>
+    <li><strong><code>https://www.googleapis.com/auth/gmail.send</code></strong> — grants the ability to send email on your behalf through the Gmail API. Splits uses this scope exclusively to deliver performance reports to athlete email addresses that you specify.</li>
+    <li><strong><code>openid email</code></strong> — grants access to your Google account email address. Splits uses this solely to display which account is signed in and to set the "From" address on outgoing emails.</li>
   </ul>
-  <p>Splits requests only the minimum Gmail scope required to send email (<code>gmail.send</code>). It does not read, modify, or access any of your existing email.</p>
+  <p>Splits does <strong>not</strong> access, read, modify, delete, or store any of the following Google user data: your email inbox or sent mail, email drafts, contacts, Google Drive files, Google Calendar data, or any other Google service beyond the two scopes listed above.</p>
+
+  <h2>Google User Data — Data Usage and Storage</h2>
+  <p>The following Google user data is accessed or stored by Splits:</p>
+  <ul>
+    <li><strong>OAuth refresh token</strong> — issued by Google after you grant consent. Stored locally on your device (in the application's user data directory) as <code>gmail_tokens.json</code>. This allows the app to send email in future sessions without requiring you to sign in again. The token is never transmitted to any server other than Google's OAuth token endpoint (<code>oauth2.googleapis.com</code>) when the app silently refreshes an access token to send an email.</li>
+    <li><strong>Your Google account email address</strong> — obtained from the OpenID Connect ID token at sign-in. Stored locally alongside the refresh token. Used only to display your signed-in account in the app and to populate the "From" field of outgoing emails.</li>
+    <li><strong>Outgoing email content</strong> — the HTML performance report body and athlete recipient addresses you specify are transmitted directly from your device to Google's Gmail API endpoint (<code>gmail.googleapis.com</code>) at the moment you initiate a send. This content is not stored or logged by Splits beyond what already exists in your Gmail "Sent" folder.</li>
+  </ul>
+  <p>No Google user data is transmitted to any server operated by Splits or its developers. All storage occurs exclusively on your local device. Emails are sent only when you explicitly initiate a send action — the app never sends email autonomously.</p>
+
+  <h2>Google Sign-In Flow</h2>
+  <p>The sign-in flow opens your browser to Google's consent screen using the Authorization Code + PKCE flow. A short-lived local HTTP server (on <code>localhost</code>) receives the authorization code callback. The server is shut down immediately after the code is received. The authorization code is exchanged for tokens directly with Google and is never logged or stored.</p>
 
   <h2>Revoking Access</h2>
   <p>You can sign out of Google at any time from within the Splits settings panel. You can also revoke the app's access to your Google account at any time by visiting <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>.</p>

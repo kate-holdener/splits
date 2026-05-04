@@ -2,9 +2,7 @@
 // SETTINGS SCREEN — Roster and Athlete Management
 // ============================================================
 
-let settingsRosters = [];
 let settingsAthletes = [];
-let selectedSettingsRosterId = null;
 
 let _activeScanInterval = null;
 
@@ -17,65 +15,17 @@ function _cancelActiveScan() {
 }
 
 // ============================================================
-// SETTINGS SCREEN — Roster dropdown functionality
+// ROSTER SELECTION HOOK — called by rosters.js
 // ============================================================
 
-function toggleSettingsRosterDropdown(event) {
-  event.stopPropagation();
-  const menu = document.getElementById('settings-roster-picker-menu');
-  const isOpen = menu.classList.contains('open');
-
-  if (isOpen) {
-    closeSettingsRosterDropdown();
-  } else {
-    openSettingsRosterDropdown();
-  }
-}
-
-function openSettingsRosterDropdown() {
-  const menu = document.getElementById('settings-roster-picker-menu');
-  const trigger = document.getElementById('settings-roster-trigger');
-
-  menu.classList.add('open');
-  trigger.classList.add('open');
-
-  renderSettingsRosterDropdown();
-}
-
-function closeSettingsRosterDropdown() {
-  const menu = document.getElementById('settings-roster-picker-menu');
-  const trigger = document.getElementById('settings-roster-trigger');
-
-  menu.classList.remove('open');
-  trigger.classList.remove('open');
-}
-
-function renderSettingsRosterDropdown() {
-  const menu = document.getElementById('settings-roster-picker-menu');
-  renderRosterDropdownOptions(
-    menu,
-    settingsRosters,
-    selectedSettingsRosterId,
-    selectSettingsRoster,
-    {
-      emptyMessage: 'No rosters available',
-      showArchived: true
-    }
-  );
-}
-
-function selectSettingsRoster(roster) {
-  selectedSettingsRosterId = roster.id;
-
-  const label = document.getElementById('settings-roster-selected-label');
-  label.textContent = roster.name;
-  label.classList.remove('placeholder');
-
-  closeSettingsRosterDropdown();
-
+function onSettingsRosterSelected(roster) {
   showRosterManagement(roster);
   loadSettingsAthletesForRoster(roster.id);
 }
+
+// ============================================================
+// ROSTER MANAGEMENT PANEL
+// ============================================================
 
 function showRosterManagement(roster) {
   const athletesCard = document.getElementById('athletes-management-card');
@@ -91,123 +41,24 @@ function showRosterManagement(roster) {
 }
 
 function updateRosterManagementButtons(roster) {
-  const archiveBtn = document.getElementById('archive-roster-btn');
-  const restoreBtn = document.getElementById('restore-roster-btn');
+  const archiveBtn  = document.getElementById('archive-roster-btn');
+  const restoreBtn  = document.getElementById('restore-roster-btn');
   const activateBtn = document.getElementById('activate-roster-btn');
   const statusDisplay = document.getElementById('roster-status-display');
 
   const isArchived = roster.archived || false;
-  const isActive = roster.is_active || false;
+  const isActive   = roster.is_active || false;
 
-  archiveBtn.style.display = isArchived ? 'none' : 'inline-block';
-  restoreBtn.style.display = isArchived ? 'inline-block' : 'none';
+  archiveBtn.style.display  = isArchived ? 'none' : 'inline-block';
+  restoreBtn.style.display  = isArchived ? 'inline-block' : 'none';
   activateBtn.style.display = (!isArchived && !isActive) ? 'inline-block' : 'none';
 
   let statusText = '';
-  if (isArchived) statusText = 'Status: Archived';
+  if (isArchived)    statusText = 'Status: Archived';
   else if (isActive) statusText = 'Status: Active Roster';
-  else statusText = 'Status: Inactive';
+  else               statusText = 'Status: Inactive';
 
   statusDisplay.textContent = statusText;
-}
-
-// ============================================================
-// SETTINGS SCREEN — Roster management actions
-// ============================================================
-
-async function archiveSelectedRoster() {
-  if (!selectedSettingsRosterId) return;
-
-  const roster = settingsRosters.find(s => s.id === selectedSettingsRosterId);
-  if (!roster) return;
-
-  if (!await showConfirm(
-    `This will hide "${roster.name}" from normal views.`,
-    { title: `Archive "${roster.name}"?`, confirmText: 'Archive' }
-  )) return;
-
-  try {
-    const result = await pywebview.api.archive_roster(selectedSettingsRosterId);
-    if (result.ok) {
-      if (window.log) window.log(result.msg, 'ok');
-
-      await loadSettingsRosters();
-      const updatedRoster = settingsRosters.find(s => s.id === selectedSettingsRosterId);
-      if (updatedRoster) {
-        updateRosterManagementButtons(updatedRoster);
-        renderSettingsRosterDropdown();
-      }
-    } else {
-      if (window.log) window.log(result.msg, 'err');
-    }
-  } catch (e) {
-    if (window.log) window.log('Error archiving roster: ' + e.message, 'err');
-  }
-}
-
-async function restoreSelectedRoster() {
-  if (!selectedSettingsRosterId) return;
-
-  try {
-    const result = await pywebview.api.restore_roster(selectedSettingsRosterId);
-    if (result.ok) {
-      if (window.log) window.log(result.msg, 'ok');
-
-      await loadSettingsRosters();
-      const updatedRoster = settingsRosters.find(s => s.id === selectedSettingsRosterId);
-      if (updatedRoster) {
-        updateRosterManagementButtons(updatedRoster);
-        renderSettingsRosterDropdown();
-      }
-    } else {
-      if (window.log) window.log(result.msg, 'err');
-    }
-  } catch (e) {
-    if (window.log) window.log('Error restoring roster: ' + e.message, 'err');
-  }
-}
-
-async function activateSelectedRoster() {
-  if (!selectedSettingsRosterId) return;
-
-  const roster = settingsRosters.find(s => s.id === selectedSettingsRosterId);
-  if (!roster) return;
-
-  try {
-    const result = await pywebview.api.select_roster(selectedSettingsRosterId);
-    if (result.ok) {
-      if (window.log) window.log(result.msg, 'ok');
-
-      await loadSettingsRosters();
-      const updatedRoster = settingsRosters.find(s => s.id === selectedSettingsRosterId);
-      if (updatedRoster) {
-        updateRosterManagementButtons(updatedRoster);
-        renderSettingsRosterDropdown();
-      }
-    } else {
-      if (window.log) window.log(result.msg, 'err');
-    }
-  } catch (e) {
-    if (window.log) window.log('Error activating roster: ' + e.message, 'err');
-  }
-}
-
-// ============================================================
-// ROSTER LOADING AND RENDERING
-// ============================================================
-
-async function loadSettingsRosters() {
-  try {
-    const result = await pywebview.api.list_all_rosters_with_archived();
-    if (result.ok) {
-      settingsRosters = result.rosters || [];
-      renderSettingsRosterDropdown();
-    } else {
-      console.error('Failed to load rosters:', result.msg);
-    }
-  } catch (e) {
-    console.error('Error loading rosters:', e);
-  }
 }
 
 // ============================================================
@@ -288,12 +139,11 @@ async function toggleAthleteActive(athleteId, isActive) {
       : await pywebview.api.archive_athlete(athleteId);
     if (result.ok) {
       if (window.log) window.log(result.msg, 'ok');
-      if (selectedSettingsRosterId) {
-        loadSettingsAthletesForRoster(selectedSettingsRosterId);
+      if (_selectedSettingsRosterId) {
+        loadSettingsAthletesForRoster(_selectedSettingsRosterId);
       }
     } else {
       if (window.log) window.log(result.msg, 'err');
-      // Revert the toggle on failure
       renderSettingsAthletes();
     }
   } catch (e) {
@@ -307,22 +157,20 @@ async function toggleAthleteActive(athleteId, isActive) {
 // ============================================================
 
 async function importAthletesModal() {
-  if (!selectedSettingsRosterId) {
+  if (!_selectedSettingsRosterId) {
     alert('Please select a roster first.');
     return;
   }
 
   try {
     const result = await pywebview.api.pick_csv_file();
-    if (!result || !result.path) {
-      return;
-    }
+    if (!result || !result.path) return;
 
-    const addResult = await pywebview.api.add_athletes_to_roster_from_csv(selectedSettingsRosterId, result.path);
+    const addResult = await pywebview.api.add_athletes_to_roster_from_csv(_selectedSettingsRosterId, result.path);
 
     if (addResult.ok) {
       if (window.log) window.log(addResult.msg, 'ok');
-      loadSettingsAthletesForRoster(selectedSettingsRosterId);
+      loadSettingsAthletesForRoster(_selectedSettingsRosterId);
     } else {
       if (window.log) window.log(addResult.msg, 'err');
       alert('Failed to import athletes: ' + addResult.msg);
@@ -341,7 +189,7 @@ let _athleteModalMode = 'add'; // 'add' | 'edit'
 let _editingAthleteId = null;
 
 function openAddAthleteModal() {
-  if (!selectedSettingsRosterId) {
+  if (!_selectedSettingsRosterId) {
     log('Select a roster before adding athletes.', 'err');
     return;
   }
@@ -371,7 +219,7 @@ function editAthlete(athleteId) {
   document.getElementById('athlete-modal-fname').value  = athlete.first_name || athlete.name  || '';
   document.getElementById('athlete-modal-lname').value  = athlete.last_name  || athlete.lname || '';
   document.getElementById('athlete-modal-rfid').value   = athlete.finish_tag || athlete.lap_id || '';
-  document.getElementById('athlete-modal-rfid').disabled = true; // RFID is the unique key — can't change
+  document.getElementById('athlete-modal-rfid').disabled = true;
   document.getElementById('athlete-modal-nfc').value    = athlete.start_tag  || athlete.start_id || '';
   document.getElementById('athlete-modal-email').value  = athlete.email || '';
   _clearAthleteModalError();
@@ -417,7 +265,7 @@ async function submitAthleteModal() {
   _clearAthleteModalError();
 
   const result = _athleteModalMode === 'add'
-    ? await pywebview.api.add_athlete_to_roster(selectedSettingsRosterId, data)
+    ? await pywebview.api.add_athlete_to_roster(_selectedSettingsRosterId, data)
     : await pywebview.api.update_athlete(_editingAthleteId, data);
 
   if (!result.ok) {
@@ -428,7 +276,7 @@ async function submitAthleteModal() {
 
   log(result.msg, 'ok');
   closeAthleteModal();
-  loadSettingsAthletesForRoster(selectedSettingsRosterId);
+  loadSettingsAthletesForRoster(_selectedSettingsRosterId);
 }
 
 async function downloadCsvTemplate() {
@@ -445,7 +293,7 @@ async function downloadCsvTemplate() {
 async function scanNfcForAthlete(athleteId) {
   _cancelActiveScan();
 
-  const btn = document.getElementById(`nfc-scan-btn-${athleteId}`);
+  const btn    = document.getElementById(`nfc-scan-btn-${athleteId}`);
   const status = document.getElementById(`nfc-scan-status-${athleteId}`);
 
   btn.disabled = true;
@@ -492,7 +340,7 @@ async function scanNfcForAthlete(athleteId) {
 
     if (saveResult.ok) {
       if (window.log) window.log(`NFC tag assigned to ${athlete.first_name || athlete.name}.`, 'ok');
-      loadSettingsAthletesForRoster(selectedSettingsRosterId);
+      loadSettingsAthletesForRoster(_selectedSettingsRosterId);
     } else {
       status.textContent = saveResult.msg || 'Failed to save.';
       btn.disabled = false;
@@ -510,21 +358,20 @@ let _gmailSignedIn = false;
 function _renderGmailStatus(status) {
   _gmailSignedIn = !!status.signed_in;
 
-  const label     = document.getElementById('reports-gmail-label');
-  const signinBtn = document.getElementById('reports-gmail-signin-btn');
+  const label      = document.getElementById('reports-gmail-label');
+  const signinBtn  = document.getElementById('reports-gmail-signin-btn');
   const signoutBtn = document.getElementById('reports-gmail-signout-btn');
 
   if (status.signed_in) {
-    if (label) { label.textContent = status.email || ''; }
+    if (label)      { label.textContent = status.email || ''; }
     if (signinBtn)  signinBtn.style.display  = 'none';
     if (signoutBtn) signoutBtn.style.display = 'inline-flex';
   } else {
-    if (label) { label.textContent = ''; }
+    if (label)      { label.textContent = ''; }
     if (signinBtn)  signinBtn.style.display  = 'inline-flex';
     if (signoutBtn) signoutBtn.style.display = 'none';
   }
 
-  // Keep the Email Reports button in sync.
   _updateGenerateBtn();
 }
 
@@ -603,10 +450,10 @@ function gmailSignOut() {
 window.addEventListener('DOMContentLoaded', () => {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      const id = mutation.target.id;
+      const id     = mutation.target.id;
       const active = mutation.target.classList.contains('active');
       if (id === 'settings-screen') {
-        if (active) loadSettingsRosters();
+        if (active) loadAllRosters();
         else _cancelActiveScan();
       } else if (id === 'reports-screen' && active) {
         loadGmailAuthStatus();
@@ -619,7 +466,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'] });
   });
 
-  // Close settings roster picker when clicking outside it
   document.addEventListener('click', e => {
     if (!document.getElementById('settings-roster-picker')?.contains(e.target)) {
       closeSettingsRosterDropdown();

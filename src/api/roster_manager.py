@@ -7,9 +7,17 @@ from persistence.roster_persistence import (
     get_active_roster,
     create_roster as _create_roster,
     load_roster,
+    save_roster,
+    load_rosters_index,
     list_rosters as _list_rosters,
     list_all_rosters as _list_all_rosters,
+    list_all_athletes as _list_all_athletes,
+    archive_roster as _archive_roster,
+    restore_roster as _restore_roster,
+    find_athlete_by_id,
+    archive_athlete as _archive_athlete,
 )
+from serializer.json_serializer import runner_to_json
 
 
 class RosterManager:
@@ -50,7 +58,6 @@ class RosterManager:
 
     def list_all_athletes(self):
         try:
-            from persistence.roster_persistence import list_all_athletes as _list_all_athletes
             athletes = _list_all_athletes()
             return {"ok": True, "athletes": athletes}
         except Exception as e:
@@ -58,7 +65,6 @@ class RosterManager:
 
     def list_athletes_for_roster_including_archived(self, roster_id: str):
         try:
-            from serializer.json_serializer import runner_to_json
             athletes = load_roster(roster_id, include_archived=True)
             athletes_data = [runner_to_json(a) for a in (athletes or [])]
             return {"ok": True, "athletes": athletes_data}
@@ -82,7 +88,6 @@ class RosterManager:
     # ------------------------------------------------------------------
     def archive_roster(self, roster_id: str):
         try:
-            from persistence.roster_persistence import archive_roster as _archive_roster
             success = _archive_roster(roster_id)
             if not success:
                 return {"ok": False, "msg": "Failed to archive roster."}
@@ -101,7 +106,6 @@ class RosterManager:
 
     def restore_roster(self, roster_id: str):
         try:
-            from persistence.roster_persistence import restore_roster as _restore_roster
             success = _restore_roster(roster_id)
             if success:
                 rosters = _list_rosters()
@@ -112,7 +116,6 @@ class RosterManager:
 
     def archive_athlete(self, athlete_id: str):
         try:
-            from persistence.roster_persistence import find_athlete_by_id, archive_athlete as _archive_athlete
             result = find_athlete_by_id(athlete_id)
             if not result:
                 return {"ok": False, "msg": "Athlete not found."}
@@ -127,7 +130,6 @@ class RosterManager:
             return {"ok": False, "msg": str(e)}
 
     def add_athlete_to_roster(self, roster_id: str, data: dict):
-        from persistence.roster_persistence import load_roster, save_roster, load_rosters_index
         index = load_rosters_index()
         roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
         if not roster_meta:
@@ -150,7 +152,6 @@ class RosterManager:
 
     def update_athlete(self, athlete_id: str, data: dict):
         try:
-            from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
             result = find_athlete_by_id(athlete_id)
             if not result:
                 return {"ok": False, "msg": "Athlete not found."}
@@ -188,7 +189,6 @@ class RosterManager:
             return {"ok": False, "msg": str(e)}
 
     def update_athlete_email(self, lap_id: str, email: str):
-        from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
         result = find_athlete_by_id(lap_id)
         if not result:
             return {"ok": False, "msg": "Athlete not found."}

@@ -107,10 +107,4 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Close modal when clicking the dark overlay
-document.getElementById('roster-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('roster-modal')) closeRosterModal();
-});
-document.getElementById('recovery-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('recovery-modal')) discardRecovery();
-});
+

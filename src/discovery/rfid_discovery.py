@@ -9,13 +9,11 @@ import os
 import json
 import time
 import socket
-import threading
 import requests
 import subprocess
 import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from urllib.parse import urljoin
 
 from .exceptions import (
     DiscoveryError,
@@ -36,18 +34,21 @@ class RFIDDiscovery:
     Supports both LLRP (sllurp) and REST API (Impinj) scanners with
     fallback chains, configuration options, and result caching.
     """
-    @staticmethod
-    def get_local_subnets() -> List[str]:
-        """Derive subnets to scan from the machine's own network interfaces."""
+    @classmethod
+    def get_local_subnets(cls) -> List[str]:
+        """Derive subnets to scan from local interfaces and nearby active hosts."""
         subnets = []
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("8.8.8.8", 80))
-                local_ip = s.getsockname()[0]
-            subnet_base = '.'.join(local_ip.split('.')[:3])
-            subnets.append(subnet_base)
-        except Exception as e:
-            print(f"Could not determine local subnet: {e}")
+
+        for address in cls._get_local_ipv4_addresses():
+            subnet_base = cls._ip_to_subnet(address)
+            if subnet_base:
+                subnets.append(subnet_base)
+
+        arp_subnets = cls._get_subnets_from_arp_cache()
+        for subnet in arp_subnets:
+            if subnet not in subnets:
+                subnets.append(subnet)
+
         return subnets
     
     # Ports to scan
@@ -109,10 +110,102 @@ class RFIDDiscovery:
         except Exception as e:
             print(f"Warning: Could not save scanner cache: {e}")
 
+    @staticmethod
+    def _ip_to_subnet(address: str) -> Optional[str]:
+        """Convert an IPv4 address into a /24 subnet base when useful for scanning."""
+        if not address or ':' in address:
+            return None
+
+        octets = address.split('.')
+        if len(octets) != 4:
+            return None
+
+        try:
+            values = [int(octet) for octet in octets]
+        except ValueError:
+            return None
+
+        if any(value < 0 or value > 255 for value in values):
+            return None
+
+        first, second, third, fourth = values
+        if fourth in (0, 255):
+            return None
+
+        is_private = first == 10 or (
+            first == 172 and 16 <= second <= 31
+        ) or (
+            first == 192 and second == 168
+        )
+        is_link_local = first == 169 and second == 254
+        is_loopback = first == 127
+        if not (is_private or is_link_local or is_loopback):
+            return None
+
+        return f"{first}.{second}.{third}"
+
+    @classmethod
+    def _get_local_ipv4_addresses(cls) -> List[str]:
+        """Return IPv4 addresses assigned to the local machine without requiring internet access."""
+        addresses = []
+        candidates = []
+
+        try:
+            hostname = socket.gethostname()
+            candidates.extend(socket.gethostbyname_ex(hostname)[2])
+        except socket.gaierror:
+            pass
+        except Exception as e:
+            print(f"Could not determine local addresses from hostname: {e}")
+
+        try:
+            candidates.extend(
+                info[4][0]
+                for info in socket.getaddrinfo(
+                    socket.gethostname(),
+                    None,
+                    family=socket.AF_INET,
+                    type=socket.SOCK_DGRAM,
+                )
+            )
+        except socket.gaierror:
+            pass
+        except Exception as e:
+            print(f"Could not determine local addresses from interfaces: {e}")
+
+        seen = set()
+        for address in candidates:
+            subnet_base = cls._ip_to_subnet(address)
+            if subnet_base and address not in seen:
+                seen.add(address)
+                addresses.append(address)
+
+        return addresses
+
+    @classmethod
+    def _get_subnets_from_arp_cache(cls) -> List[str]:
+        """Infer nearby subnets from the ARP cache to support offline local scanning."""
+        subnets = []
+        seen = set()
+        try:
+            output = subprocess.check_output(['arp', '-a'], text=True)
+            for line in output.splitlines():
+                if 'incomplete' in line.lower():
+                    continue
+                for ip in re.findall(r'(\d{1,3}(?:\.\d{1,3}){3})', line):
+                    subnet = cls._ip_to_subnet(ip)
+                    if subnet and subnet not in seen:
+                        seen.add(subnet)
+                        subnets.append(subnet)
+        except Exception as e:
+            print(f"Could not inspect ARP cache for subnets: {e}")
+        return subnets
+
     @classmethod
     def get_arp_hosts(cls) -> List[str]:
         """Get list of active hosts on the local network from the ARP cache."""
         hosts = []
+        seen = set()
         try:
             output = subprocess.check_output(['arp', '-a'], text=True)
             local_subnets = cls.get_local_subnets()
@@ -124,7 +217,9 @@ class RFIDDiscovery:
                 for ip in ips:
                     if (not ip.endswith('.255')
                             and not ip.endswith('.0')
-                            and any(ip.startswith(subnet + '.') for subnet in local_subnets)):
+                            and any(ip.startswith(subnet + '.') for subnet in local_subnets)
+                            and ip not in seen):
+                        seen.add(ip)
                         hosts.append(ip)
         except Exception as e:
             print(f"Could not read ARP cache: {e}")
@@ -281,13 +376,13 @@ class RFIDDiscovery:
 
         # Try ARP cache first — only tests hosts with known MAC addresses,
         # skipping the ~240 stale/incomplete entries common on large networks
-        """arp_hosts = self.get_arp_hosts()
+        arp_hosts = self.get_arp_hosts()
         if arp_hosts:
             print(f"Scanning {len(arp_hosts)} ARP-known hosts")
             results = scanner.scan_hosts(arp_hosts)
             if protocol != 'both':
                 results = [r for r in results if r.get('protocol') == protocol]
-            discovered.extend(results)"""
+            discovered.extend(results)
 
         # Fall back to full subnet scan if ARP found nothing
         if not discovered:

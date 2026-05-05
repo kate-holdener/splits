@@ -8,7 +8,7 @@ with proper error handling.
 import socket
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf, ServiceInfo
 
 from .exceptions import DiscoveryError
@@ -99,6 +99,13 @@ class MDNSDiscovery:
 
 class NetworkScanner:
     """Enhanced network scanning for RFID scanners."""
+
+    PRIORITY_HOST_SUFFIXES = (
+        1, 2, 3, 4, 5,
+        10, 11, 12, 20, 21, 22,
+        100, 101, 102, 110, 111, 112,
+        200, 201, 210, 211, 254
+    )
     
     def __init__(self, timeout: float = 3.0):
         self.timeout = timeout
@@ -134,8 +141,26 @@ class NetworkScanner:
         Returns:
             List of discovered scanner info dicts
         """
-        addresses = [f"{subnet_base}.{i}" for i in range(1, min(max_hosts + 1, 255))]
-        return self.scan_hosts(addresses)
+        limit = min(max_hosts, 254)
+        priority_addresses = [
+            f"{subnet_base}.{suffix}"
+            for suffix in self.PRIORITY_HOST_SUFFIXES
+            if 1 <= suffix <= limit
+        ]
+
+        if priority_addresses:
+            prioritized_results = self.scan_hosts(priority_addresses)
+            if prioritized_results:
+                return prioritized_results
+
+        seen = set(priority_addresses)
+        remaining_addresses = [
+            f"{subnet_base}.{host}"
+            for host in range(1, limit + 1)
+            if f"{subnet_base}.{host}" not in seen
+        ]
+        return self.scan_hosts(remaining_addresses)
+
     def _test_address_comprehensive(self, address: str) -> List[Dict[str, Any]]:
         """Comprehensive test of an address for RFID scanner protocols."""
         results = []

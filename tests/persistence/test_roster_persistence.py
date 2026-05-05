@@ -146,7 +146,7 @@ class TestUpdateAthlete:
         assert result["ok"] is False
         assert "not found" in result["msg"].lower()
 
-    def test_returns_ok_true_with_msg(self):
+    def test_successful_update_returns_ok_with_message(self):
         result = self.mgr.update_athlete(
             "A1B2C3D4",
             {"first_name": "Alice", "last_name": "W", "nfc_tag": "", "email": ""},

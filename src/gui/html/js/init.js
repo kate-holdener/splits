@@ -111,17 +111,6 @@ document.addEventListener('keydown', e => {
 document.getElementById('roster-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('roster-modal')) closeRosterModal();
 });
-document.getElementById('workout-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('workout-modal')) closeNewWorkoutModal();
-});
-document.getElementById('session-setup-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('session-setup-modal')) cancelSessionSetup();
-});
 document.getElementById('recovery-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('recovery-modal')) discardRecovery();
-});
-document.getElementById('confirm-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('confirm-modal')) {
-    document.getElementById('confirm-modal-cancel').click();
-  }
 });

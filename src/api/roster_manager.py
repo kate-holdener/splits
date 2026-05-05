@@ -7,9 +7,17 @@ from persistence.roster_persistence import (
     get_active_roster,
     create_roster as _create_roster,
     load_roster,
+    save_roster,
+    load_rosters_index,
     list_rosters as _list_rosters,
     list_all_rosters as _list_all_rosters,
+    list_all_athletes as _list_all_athletes,
+    archive_roster as _archive_roster,
+    restore_roster as _restore_roster,
+    find_athlete_by_id,
+    archive_athlete as _archive_athlete,
 )
+from serializer.json_serializer import runner_to_json
 
 
 class RosterManager:
@@ -50,7 +58,6 @@ class RosterManager:
 
     def list_all_athletes(self):
         try:
-            from persistence.roster_persistence import list_all_athletes as _list_all_athletes
             athletes = _list_all_athletes()
             return {"ok": True, "athletes": athletes}
         except Exception as e:
@@ -58,7 +65,6 @@ class RosterManager:
 
     def list_athletes_for_roster_including_archived(self, roster_id: str):
         try:
-            from serializer.json_serializer import runner_to_json
             athletes = load_roster(roster_id, include_archived=True)
             athletes_data = [runner_to_json(a) for a in (athletes or [])]
             return {"ok": True, "athletes": athletes_data}
@@ -82,7 +88,6 @@ class RosterManager:
     # ------------------------------------------------------------------
     def archive_roster(self, roster_id: str):
         try:
-            from persistence.roster_persistence import archive_roster as _archive_roster
             success = _archive_roster(roster_id)
             if not success:
                 return {"ok": False, "msg": "Failed to archive roster."}
@@ -101,7 +106,6 @@ class RosterManager:
 
     def restore_roster(self, roster_id: str):
         try:
-            from persistence.roster_persistence import restore_roster as _restore_roster
             success = _restore_roster(roster_id)
             if success:
                 rosters = _list_rosters()
@@ -112,7 +116,6 @@ class RosterManager:
 
     def archive_athlete(self, athlete_id: str):
         try:
-            from persistence.roster_persistence import find_athlete_by_id, archive_athlete as _archive_athlete
             result = find_athlete_by_id(athlete_id)
             if not result:
                 return {"ok": False, "msg": "Athlete not found."}
@@ -127,7 +130,6 @@ class RosterManager:
             return {"ok": False, "msg": str(e)}
 
     def add_athlete_to_roster(self, roster_id: str, data: dict):
-        from persistence.roster_persistence import load_roster, save_roster, load_rosters_index
         index = load_rosters_index()
         roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
         if not roster_meta:
@@ -149,28 +151,44 @@ class RosterManager:
         return {"ok": True, "msg": f"{runner.name} added to roster."}
 
     def update_athlete(self, athlete_id: str, data: dict):
-        from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
-        result = find_athlete_by_id(athlete_id)
-        if not result:
-            return {"ok": False, "msg": "Athlete not found."}
-        roster_id, _ = result
-        index = load_rosters_index()
-        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
-        if not roster_meta:
-            return {"ok": False, "msg": "Roster not found."}
-        athletes = load_roster(roster_id, include_archived=True) or []
-        for a in athletes:
-            if a.lap_id == athlete_id:
-                a.name     = data.get("first_name", "").strip()
-                a.lname    = data.get("last_name",  "").strip()
-                a.start_id = data.get("nfc_tag", "").strip()
-                a.email    = data.get("email", "").strip() or None
-                break
-        save_roster(roster_id, roster_meta["name"], athletes)
-        return {"ok": True, "msg": "Athlete updated."}
+        try:
+            result = find_athlete_by_id(athlete_id)
+            if not result:
+                return {"ok": False, "msg": "Athlete not found."}
+            roster_id, _ = result
+            index = load_rosters_index()
+            roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
+            if not roster_meta:
+                return {"ok": False, "msg": "Roster not found."}
+            athletes = load_roster(roster_id, include_archived=True) or []
+            first_name = data.get("first_name", "").strip()
+            last_name  = data.get("last_name",  "").strip()
+            nfc_tag    = data.get("nfc_tag", "").strip()
+            email      = data.get("email", "").strip() or None
+            for a in athletes:
+                if a.lap_id == athlete_id:
+                    a.name     = first_name
+                    a.lname    = last_name
+                    a.start_id = nfc_tag
+                    a.email    = email
+                    break
+            saved = save_roster(roster_id, roster_meta["name"], athletes)
+            if not saved:
+                return {"ok": False, "msg": "Failed to save athlete changes."}
+            # Keep the in-memory list in sync when the athlete belongs to the active roster
+            if self.current_roster and self.current_roster["id"] == roster_id:
+                for a in self.athletes:
+                    if a.lap_id == athlete_id:
+                        a.name     = first_name
+                        a.lname    = last_name
+                        a.start_id = nfc_tag
+                        a.email    = email
+                        break
+            return {"ok": True, "msg": "Athlete updated."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
 
     def update_athlete_email(self, lap_id: str, email: str):
-        from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
         result = find_athlete_by_id(lap_id)
         if not result:
             return {"ok": False, "msg": "Athlete not found."}

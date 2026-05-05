@@ -149,25 +149,43 @@ class RosterManager:
         return {"ok": True, "msg": f"{runner.name} added to roster."}
 
     def update_athlete(self, athlete_id: str, data: dict):
-        from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
-        result = find_athlete_by_id(athlete_id)
-        if not result:
-            return {"ok": False, "msg": "Athlete not found."}
-        roster_id, _ = result
-        index = load_rosters_index()
-        roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
-        if not roster_meta:
-            return {"ok": False, "msg": "Roster not found."}
-        athletes = load_roster(roster_id, include_archived=True) or []
-        for a in athletes:
-            if a.lap_id == athlete_id:
-                a.name     = data.get("first_name", "").strip()
-                a.lname    = data.get("last_name",  "").strip()
-                a.start_id = data.get("nfc_tag", "").strip()
-                a.email    = data.get("email", "").strip() or None
-                break
-        save_roster(roster_id, roster_meta["name"], athletes)
-        return {"ok": True, "msg": "Athlete updated."}
+        try:
+            from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index
+            result = find_athlete_by_id(athlete_id)
+            if not result:
+                return {"ok": False, "msg": "Athlete not found."}
+            roster_id, _ = result
+            index = load_rosters_index()
+            roster_meta = next((r for r in index.get("rosters", []) if r["id"] == roster_id), None)
+            if not roster_meta:
+                return {"ok": False, "msg": "Roster not found."}
+            athletes = load_roster(roster_id, include_archived=True) or []
+            first_name = data.get("first_name", "").strip()
+            last_name  = data.get("last_name",  "").strip()
+            nfc_tag    = data.get("nfc_tag", "").strip()
+            email      = data.get("email", "").strip() or None
+            for a in athletes:
+                if a.lap_id == athlete_id:
+                    a.name     = first_name
+                    a.lname    = last_name
+                    a.start_id = nfc_tag
+                    a.email    = email
+                    break
+            saved = save_roster(roster_id, roster_meta["name"], athletes)
+            if not saved:
+                return {"ok": False, "msg": "Failed to save athlete changes."}
+            # Keep the in-memory list in sync when the athlete belongs to the active roster
+            if self.current_roster and self.current_roster["id"] == roster_id:
+                for a in self.athletes:
+                    if a.lap_id == athlete_id:
+                        a.name     = first_name
+                        a.lname    = last_name
+                        a.start_id = nfc_tag
+                        a.email    = email
+                        break
+            return {"ok": True, "msg": "Athlete updated."}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
 
     def update_athlete_email(self, lap_id: str, email: str):
         from persistence.roster_persistence import find_athlete_by_id, load_roster, save_roster, load_rosters_index

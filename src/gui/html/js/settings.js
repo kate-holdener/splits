@@ -264,19 +264,24 @@ async function submitAthleteModal() {
   submitBtn.disabled = true;
   _clearAthleteModalError();
 
-  const result = _athleteModalMode === 'add'
-    ? await pywebview.api.add_athlete_to_roster(_selectedSettingsRosterId, data)
-    : await pywebview.api.update_athlete(_editingAthleteId, data);
+  try {
+    const result = _athleteModalMode === 'add'
+      ? await pywebview.api.add_athlete_to_roster(_selectedSettingsRosterId, data)
+      : await pywebview.api.update_athlete(_editingAthleteId, data);
 
-  if (!result.ok) {
-    _showAthleteModalError(result.msg || 'Operation failed.');
+    if (!result || !result.ok) {
+      _showAthleteModalError((result && result.msg) || 'Operation failed.');
+      submitBtn.disabled = false;
+      return;
+    }
+
+    log(result.msg, 'ok');
+    closeAthleteModal();
+    loadSettingsAthletesForRoster(_selectedSettingsRosterId);
+  } catch (e) {
+    _showAthleteModalError('Unexpected error: ' + (e.message || e));
     submitBtn.disabled = false;
-    return;
   }
-
-  log(result.msg, 'ok');
-  closeAthleteModal();
-  loadSettingsAthletesForRoster(_selectedSettingsRosterId);
 }
 
 async function downloadCsvTemplate() {

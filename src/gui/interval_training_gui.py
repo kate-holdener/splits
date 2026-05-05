@@ -316,8 +316,9 @@ class PyWebViewAPI:
         if mode not in ('light', 'dark'):
             return
         self._theme = mode
-        if hasattr(self, 'resting_window') and self.resting_window:
-            self.resting_window.evaluate_js(f'applyTheme("{mode}")')
+        global resting_window
+        if resting_window:
+            resting_window.evaluate_js(f'applyTheme("{mode}")')
 
     def show_resting_runners(self):
         global resting_window

@@ -84,14 +84,14 @@ class PyWebViewAPI:
     # ------------------------------------------------------------------
     # Workout configuration
     # ------------------------------------------------------------------
-    def configure_workout(self, distance: str, laps: str, rest_time: str):
-        return self.api.configure_workout(int(distance), int(laps), int(rest_time))
+    def configure_workout(self, distance: str, laps: str, rest_time: str, roster_id: str):
+        return self.api.configure_workout(int(distance), int(laps), int(rest_time), roster_id)
 
     def list_workouts(self):
         return self.api.workout.list_workouts()
 
-    def save_and_configure_workout(self, distance: str, laps: str, rest_time: str):
-        return self.api.save_and_configure_workout(int(distance), int(laps), int(rest_time))
+    def save_and_configure_workout(self, distance: str, laps: str, rest_time: str, roster_id: str):
+        return self.api.save_and_configure_workout(int(distance), int(laps), int(rest_time), roster_id)
 
     # ------------------------------------------------------------------
     # RFID scanner connection methods

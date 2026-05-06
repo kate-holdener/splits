@@ -53,7 +53,7 @@ async function confirmSessionSetup() {
 
   const { distance, laps, rest } = _setupSelectedWorkout;
 
-  const wr = await pywebview.api.configure_workout(String(distance), String(laps), String(rest || 0));
+  const wr = await pywebview.api.configure_workout(String(distance), String(laps), String(rest || 0), _setupSelectedRosterId);
   log(wr.msg, wr.ok ? 'ok' : 'err');
   if (wr.state) applyState(wr.state);
 
@@ -253,7 +253,7 @@ async function saveAndConfigureWorkout() {
   }
   errorEl.style.display = 'none';
 
-  const r = await pywebview.api.save_and_configure_workout(distance, laps, rest || '0');
+  const r = await pywebview.api.save_and_configure_workout(distance, laps, rest || '0', _setupSelectedRosterId);
   log(r.msg, r.ok ? 'ok' : 'err');
   if (!r.ok) {
     errorEl.textContent = r.msg || 'Failed to save workout.';

@@ -3,6 +3,8 @@ from typing import Optional
 
 from controller.start_controller import ManualStartController
 from api.runnerObserver import RunnerObserver
+from entity.runner import Runner
+from entity.workout import Workout
 from persistence.session_persistence import (
     WorkoutSessionPersistence,
     load_active_session,
@@ -23,6 +25,25 @@ class WorkoutSession:
         self.session_persistence: Optional[WorkoutSessionPersistence] = None
         self.pending_recovery: Optional[dict] = None
         self.workout_active = False
+        self.athletes: list[Runner] = []
+
+    def create_workout_session(self, workout: Workout, athletes: list[Runner]):
+        self.athletes = athletes
+        for a in self.athletes:
+            a.add_observer(self.runner_observer)
+            a.add_workout(workout)
+        
+    def resume_workout_session(self, athletes: list[Runner]):
+        self.athletes = athletes
+        for a in self.athletes:
+            a.add_observer(self.runner_observer)
+        for a in self.athletes:
+            self.runner_observer.update(a)
+        self.workout_active = True
+
+    def group_start(self, tag_ids: list[str]) -> dict:
+        self.manual_start_controller.start(tag_ids)
+        self.workout_active = True
 
     # ------------------------------------------------------------------
     # Timer management (called by AppApi coordinator)
@@ -38,17 +59,25 @@ class WorkoutSession:
         self.timer = SplitsTimer(self.start_event_q, self.lap_event_q, athletes)
         self.timer.start()
 
+
+    def clear(self) -> None:
+        """Reset all live workout state."""
+        self._stop_timer()
+        self.athletes = []
+        self.workout_active = False
+        self.session_persistence = None
+
     # ------------------------------------------------------------------
     # Session persistence wiring (called by AppApi coordinator)
     # ------------------------------------------------------------------
-    def _wire_session_persistence(self, session_id: str, roster_id: str, athletes: list) -> None:
+    def _wire_session_persistence(self, session_id: str, roster_id: str) -> None:
         """Create a WorkoutSessionPersistence observer and register it with all runners."""
         self.session_persistence = WorkoutSessionPersistence(
             session_id=session_id,
             roster_id=roster_id,
-            athletes=athletes,
+            athletes=self.athletes,
         )
-        for a in athletes:
+        for a in self.athletes:
             a.add_observer(self.session_persistence)
 
     # ------------------------------------------------------------------

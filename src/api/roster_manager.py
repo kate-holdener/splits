@@ -68,6 +68,9 @@ class RosterManager:
     def list_athletes(self):
         return {"ok": True, "athletes": [a.to_dict() for a in self.athletes]}
 
+    def get_active_athletes(self, roster_id: str) -> list[Runner]:
+        return load_roster(roster_id) or []
+
     def get_session_info(self):
         return {
             "ok": True,

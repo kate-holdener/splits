@@ -176,7 +176,8 @@ class ImpinjRestReader(Reader):
                             self.queue.put(event)
 
                 except (requests.exceptions.ChunkedEncodingError,
-                        requests.exceptions.ConnectionError):
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.StreamConsumedError):
                     print("Warning: Connection interrupted, attempting to reconnect...")
                     try:
                         stream_response = requests.get(

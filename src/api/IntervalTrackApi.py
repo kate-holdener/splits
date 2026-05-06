@@ -205,15 +205,12 @@ class AppApi:
     def configure_workout(self, distance: int, laps: int, rest: int, roster_id: str):
         try:
             new_workout = self.workout._set_workout(distance, laps, rest)
-            self.session.athletes = self.roster.get_active_athletes(roster_id)
-            for a in self.session.athletes:
-                a.add_observer(self.session.runner_observer)
-                a.add_workout(new_workout)
+            self.session.create_workout_session(new_workout, self.roster.get_active_athletes(roster_id))
+
             if self.session.session_persistence is None:
                 self.session._wire_session_persistence(
                     session_id=str(uuid.uuid4()),
-                    roster_id=roster_id,
-                    athletes=self.session.athletes,
+                    roster_id=roster_id
                 )
             return {
                 "ok": True,
@@ -353,7 +350,6 @@ class AppApi:
             self.session._wire_session_persistence(
                 session_id=self.session.pending_recovery["session_id"],
                 roster_id=roster_id,
-                athletes=self.session.athletes,
             )
             self.session._start_timer(self.session.athletes)
             self.session.workout_active = True

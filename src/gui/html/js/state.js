@@ -71,9 +71,11 @@ function _activateScreen(screenId) {
 // ============================================================
 
 let _autoConnectAttempted = false;
+let _currentRosterId = null;
 
 function applyState(s) {
   if (!s) return;
+  if (s.currentRoster) _currentRosterId = s.currentRoster.id;
   updateRosterUI(s.currentRoster || null);
 
   updateRfidConnector(s);

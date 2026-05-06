@@ -3,6 +3,7 @@ from typing import Optional
 
 from controller.start_controller import ManualStartController
 from api.runnerObserver import RunnerObserver
+from entity.runner import Runner
 from persistence.session_persistence import (
     WorkoutSessionPersistence,
     load_active_session,
@@ -23,6 +24,7 @@ class WorkoutSession:
         self.session_persistence: Optional[WorkoutSessionPersistence] = None
         self.pending_recovery: Optional[dict] = None
         self.workout_active = False
+        self.athletes: list[Runner] = []
 
     # ------------------------------------------------------------------
     # Timer management (called by AppApi coordinator)
@@ -37,6 +39,13 @@ class WorkoutSession:
         """Start a new SplitsTimer for the given athlete list."""
         self.timer = SplitsTimer(self.start_event_q, self.lap_event_q, athletes)
         self.timer.start()
+
+    def clear(self) -> None:
+        """Reset all live workout state."""
+        self._stop_timer()
+        self.athletes = []
+        self.workout_active = False
+        self.session_persistence = None
 
     # ------------------------------------------------------------------
     # Session persistence wiring (called by AppApi coordinator)

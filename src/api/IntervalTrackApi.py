@@ -49,7 +49,7 @@ class AppApi:
             "rfidFailed":          self.scanner.rfid_scanner_failed,
             "nfcFailed":           self.scanner.nfc_scanner_failed,
             "workoutActive":       self.session.workout_active,
-            "athleteCount":        len(self.roster.athletes),
+            "athleteCount":        len(self.session.athletes) if self.session.workout_active else len(self.roster.athletes),
             "sessionLoaded":       self.roster.session_loaded,
             "currentRoster":       self.roster.current_roster,
             "rfidProtocol":        self.scanner.rfid_protocol,
@@ -62,16 +62,8 @@ class AppApi:
     # Athlete initialization (internal orchestration)
     # ------------------------------------------------------------------
     def _init_athletes(self, athletes):
-        """Set up athletes with observers. Timer is started separately once the workout is configured."""
         self.roster.athletes = athletes
         self.roster.athletes_loaded = bool(athletes)
-        for a in athletes:
-            a.add_observer(self.session.runner_observer)
-            if self.session.session_persistence is not None:
-                a.add_observer(self.session.session_persistence)
-        if self.workout.workout:
-            for a in athletes:
-                a.add_workout(self.workout.workout)
 
     def _load_active_roster(self):
         """Load the active roster on application startup."""
@@ -165,8 +157,7 @@ class AppApi:
 
     def archive_roster(self, roster_id: str):
         result = self.roster.archive_roster(roster_id)
-        if result.get("ok") and result.pop("_cleared_current", False):
-            self.session._stop_timer()
+        result.pop("_cleared_current", None)
         result["state"] = self.get_state()
         return result
 
@@ -203,27 +194,26 @@ class AppApi:
         return self.add_athletes_from_csv(csv_path)
 
     def clear_session(self):
-        """Clear the current athlete roster."""
-        self.session._stop_timer()
-        self.roster.athletes = []
-        self.roster.athletes_loaded = False
+        """Clear the current workout session state."""
+        self.session.clear()
         self.roster.session_loaded = False
-        return {"ok": True, "msg": "Athletes cleared.", "state": self.get_state()}
+        return {"ok": True, "msg": "Session cleared.", "state": self.get_state()}
 
     # ------------------------------------------------------------------
     # Workout configuration (orchestrated — pushes workout to athletes)
     # ------------------------------------------------------------------
-    def configure_workout(self, distance: int, laps: int, rest: int):
+    def configure_workout(self, distance: int, laps: int, rest: int, roster_id: str):
         try:
             new_workout = self.workout._set_workout(distance, laps, rest)
-            self._load_active_roster()
-            for a in self.roster.athletes:
+            self.session.athletes = self.roster.get_active_athletes(roster_id)
+            for a in self.session.athletes:
+                a.add_observer(self.session.runner_observer)
                 a.add_workout(new_workout)
-            if self.session.session_persistence is None and self.roster.current_roster:
+            if self.session.session_persistence is None:
                 self.session._wire_session_persistence(
                     session_id=str(uuid.uuid4()),
-                    roster_id=self.roster.current_roster["id"],
-                    athletes=self.roster.athletes,
+                    roster_id=roster_id,
+                    athletes=self.session.athletes,
                 )
             return {
                 "ok": True,
@@ -237,13 +227,13 @@ class AppApi:
 
     def start_timer(self):
         self.session._stop_timer()
-        self.session._start_timer(self.roster.athletes)
+        self.session._start_timer(self.session.athletes)
         return {"ok": True}
 
-    def save_and_configure_workout(self, distance: int, laps: int, rest: int):
+    def save_and_configure_workout(self, distance: int, laps: int, rest: int, roster_id: str):
         try:
             workout_entry = self.workout.save_workout_entry(distance, laps, rest)
-            result = self.configure_workout(distance, laps, rest)
+            result = self.configure_workout(distance, laps, rest, roster_id)
             if result["ok"]:
                 self.workout.current_workout_config = workout_entry
                 result["state"] = self.get_state()
@@ -259,7 +249,7 @@ class AppApi:
     def start_selected(self, tag_ids: list):
         if not tag_ids:
             return {"ok": False, "msg": "No athletes selected."}
-        valid_ids = {a.start_id for a in self.roster.athletes}
+        valid_ids = {a.start_id for a in self.session.athletes}
         ids_to_start = [t for t in tag_ids if t in valid_ids]
         if not ids_to_start:
             return {"ok": False, "msg": "None of the selected tag IDs match known athletes."}
@@ -272,7 +262,7 @@ class AppApi:
         resting_ids = {id(r) for r in self.session.runner_observer.resting}
         now_ms = datetime.now().timestamp() * 1000
         result = []
-        for a in self.roster.athletes:
+        for a in self.session.athletes:
             if getattr(a, 'archived', False):
                 continue
             d = a.to_dict()
@@ -353,7 +343,8 @@ class AppApi:
             roster_id = self.session.pending_recovery.get("roster_id")
             self.session._stop_timer()
             self._init_athletes(athletes)
-            for a in self.roster.athletes:
+            self.session.athletes = list(self.roster.athletes)
+            for a in self.session.athletes:
                 self.session.runner_observer.update(a)
                 if a.current_status == RunnerState.RESTING:
                     completed = [iv for iv in a.intervals if not iv.incomplete]
@@ -362,9 +353,9 @@ class AppApi:
             self.session._wire_session_persistence(
                 session_id=self.session.pending_recovery["session_id"],
                 roster_id=roster_id,
-                athletes=self.roster.athletes,
+                athletes=self.session.athletes,
             )
-            self.session._start_timer(self.roster.athletes)
+            self.session._start_timer(self.session.athletes)
             self.session.workout_active = True
             self.session.pending_recovery = None
             return {"ok": True, "msg": "Session resumed.", "state": self.get_state()}

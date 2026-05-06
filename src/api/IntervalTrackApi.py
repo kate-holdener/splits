@@ -343,7 +343,7 @@ class AppApi:
             roster_id = self.session.pending_recovery.get("roster_id")
             self.session._stop_timer()
             self._init_athletes(athletes)
-            self.session.athletes = list(self.roster.athletes)
+            self.session.athletes = athletes
             for a in self.session.athletes:
                 self.session.runner_observer.update(a)
                 if a.current_status == RunnerState.RESTING:

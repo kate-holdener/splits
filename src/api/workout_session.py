@@ -33,6 +33,18 @@ class WorkoutSession:
             a.add_observer(self.runner_observer)
             a.add_workout(workout)
         
+    def resume_workout_session(self, athletes: list[Runner]):
+        self.athletes = athletes
+        for a in self.athletes:
+            a.add_observer(self.runner_observer)
+        for a in self.athletes:
+            self.runner_observer.update(a)
+        self.workout_active = True
+
+    def group_start(self, tag_ids: list[str]) -> dict:
+        self.manual_start_controller.start(tag_ids)
+        self.workout_active = True
+
     # ------------------------------------------------------------------
     # Timer management (called by AppApi coordinator)
     # ------------------------------------------------------------------
@@ -46,6 +58,7 @@ class WorkoutSession:
         """Start a new SplitsTimer for the given athlete list."""
         self.timer = SplitsTimer(self.start_event_q, self.lap_event_q, athletes)
         self.timer.start()
+
 
     def clear(self) -> None:
         """Reset all live workout state."""

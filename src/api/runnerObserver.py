@@ -23,7 +23,10 @@ class RunnerObserver:
                 self.running.remove(runner)
             if runner not in self.resting:
                 self.resting.append(runner)
-                self._rest_start[id(runner)] = datetime.now().timestamp()
+            # the end time of the last complted interval is the start of rest
+            completed = [iv for iv in runner.intervals if not iv.incomplete]
+            if completed:
+                self._rest_start[id(runner)] = completed[-1].end_time / 1000
         else:
             if runner in self.running:
                 self.running.remove(runner)

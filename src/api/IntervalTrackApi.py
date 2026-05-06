@@ -6,7 +6,7 @@ from entity.RunnerState import RunnerState
 from parser.runner_parser import parse_runner_data
 from persistence.roster_persistence import (
     get_active_roster,
-    create_roster as _create_roster,
+    create_roster as save_roster,
     load_roster,
     merge_athletes_from_csv,
     list_rosters as _list_rosters,
@@ -101,9 +101,8 @@ class AppApi:
         if not name or not name.strip():
             return {"ok": False, "msg": "Roster name is required."}
         try:
-            roster = _create_roster(name.strip())
+            roster = save_roster(name.strip())
             self.roster.current_roster = roster
-            self.session._stop_timer()
             self.roster.athletes = []
             self.roster.athletes_loaded = False
             self.roster.session_loaded = False
@@ -126,7 +125,6 @@ class AppApi:
                 new_runners,
             )
             merged = load_roster(self.roster.current_roster["id"])
-            self.session._stop_timer()
             self._init_athletes(merged or [])
             rosters = _list_rosters()
             msg = f"Added {counts['added']}, updated {counts['updated']} athletes ({counts['total']} total)."
@@ -148,7 +146,6 @@ class AppApi:
             counts = merge_athletes_from_csv(roster_id, roster["name"], new_runners)
             if self.roster.current_roster and self.roster.current_roster["id"] == roster_id:
                 merged = load_roster(roster_id)
-                self.session._stop_timer()
                 self._init_athletes(merged or [])
             msg = f"Added {counts['added']}, updated {counts['updated']} athletes to {roster['name']} ({counts['total']} total)."
             return {"ok": True, "msg": msg, "counts": counts}
@@ -170,14 +167,6 @@ class AppApi:
             roster_id, athlete = result
             success = _restore_athlete(roster_id, athlete_id)
             if success:
-                if self.roster.current_roster and self.roster.current_roster["id"] == roster_id:
-                    already_present = any(a.lap_id == athlete_id for a in self.roster.athletes)
-                    if not already_present:
-                        athlete.archived = False
-                        athlete.add_observer(self.session.runner_observer)
-                        if self.workout.workout:
-                            athlete.add_workout(self.workout.workout)
-                        self.roster.athletes.append(athlete)
                 return {"ok": True, "msg": "Athlete activated.", "state": self.get_state()}
             return {"ok": False, "msg": "Failed to activate athlete."}
         except Exception as e:
@@ -250,8 +239,7 @@ class AppApi:
         ids_to_start = [t for t in tag_ids if t in valid_ids]
         if not ids_to_start:
             return {"ok": False, "msg": "None of the selected tag IDs match known athletes."}
-        self.session.manual_start_controller.start(ids_to_start)
-        self.session.workout_active = True
+        self.session.group_start(ids_to_start)
         return {"ok": True, "msg": f"Started {len(ids_to_start)} athletes.", "state": self.get_state()}
 
     def list_athletes_with_status(self):
@@ -338,21 +326,12 @@ class AppApi:
                 "rest":     first_workout.rest_time,
             } if first_workout else None
             roster_id = self.session.pending_recovery.get("roster_id")
-            self.session._stop_timer()
-            self._init_athletes(athletes)
-            self.session.athletes = athletes
-            for a in self.session.athletes:
-                self.session.runner_observer.update(a)
-                if a.current_status == RunnerState.RESTING:
-                    completed = [iv for iv in a.intervals if not iv.incomplete]
-                    if completed:
-                        self.session.runner_observer._rest_start[id(a)] = completed[-1].end_time / 1000
+            self.session.resume_workout_session(athletes)
             self.session._wire_session_persistence(
                 session_id=self.session.pending_recovery["session_id"],
                 roster_id=roster_id,
             )
             self.session._start_timer(self.session.athletes)
-            self.session.workout_active = True
             self.session.pending_recovery = None
             return {"ok": True, "msg": "Session resumed.", "state": self.get_state()}
         except Exception as e:
